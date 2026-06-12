@@ -1,0 +1,248 @@
+/* ─────────────────────────────────────────────
+   SGA – Sistema de Geração de Horários
+   Design System
+   ─────────────────────────────────────────── */
+
+:root {
+  --sidebar-width: 220px;
+  --sidebar-bg: #1e293b;
+  --sidebar-text: #cbd5e1;
+  --sidebar-hover: #334155;
+  --sidebar-active: #3b82f6;
+  --topbar-height: 56px;
+}
+
+/* ── Layout ────────────────────────────────── */
+body {
+  background: #f1f5f9;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 0.9rem;
+}
+
+#wrapper {
+  min-height: 100vh;
+}
+
+/* ── Sidebar ───────────────────────────────── */
+#sidebar {
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+  transition: width 0.2s ease;
+  z-index: 100;
+}
+
+#sidebar.collapsed {
+  width: 60px;
+}
+
+#sidebar.collapsed .sidebar-brand span,
+#sidebar.collapsed .sidebar-heading,
+#sidebar.collapsed .nav-link span,
+#sidebar.collapsed .sidebar-footer {
+  display: none !important;
+}
+
+.sidebar-brand {
+  color: #fff !important;
+  font-size: 1.1rem;
+  background: #0f172a;
+  height: 60px;
+}
+
+.sidebar-divider {
+  border-color: #334155;
+}
+
+#sidebar .nav-link {
+  color: var(--sidebar-text);
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+#sidebar .nav-link:hover {
+  background: var(--sidebar-hover);
+  color: #fff;
+}
+
+#sidebar .nav-link.active {
+  background: var(--sidebar-active);
+  color: #fff;
+  font-weight: 600;
+}
+
+.sidebar-heading {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: #64748b;
+}
+
+.sidebar-footer {
+  border-top: 1px solid #334155;
+  font-size: 0.72rem;
+}
+
+/* ── Page Content ──────────────────────────── */
+#page-content {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.topbar {
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  height: var(--topbar-height);
+  position: sticky;
+  top: 0;
+  z-index: 99;
+}
+
+.content-wrapper {
+  min-height: calc(100vh - var(--topbar-height));
+}
+
+/* ── Cards ─────────────────────────────────── */
+.card {
+  border-radius: 10px;
+}
+
+.stat-card {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1) !important;
+}
+
+.stat-icon {
+  border-radius: 10px !important;
+  min-width: 46px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Tables ─────────────────────────────────── */
+.table thead th {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  border-bottom-width: 1px;
+}
+
+.table-hover tbody tr:hover {
+  background: #f8faff;
+}
+
+/* ── Buttons ────────────────────────────────── */
+.btn-xs {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+}
+
+/* ── Forms ──────────────────────────────────── */
+.form-label {
+  font-weight: 500;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+/* ── Badges / Status ────────────────────────── */
+.badge {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* ── Schedule Timeline ──────────────────────── */
+.schedule-grid {
+  user-select: none;
+}
+
+.aula-block {
+  transition: opacity 0.15s;
+}
+
+.aula-block:hover {
+  opacity: 0.85;
+  z-index: 10;
+  position: absolute;
+}
+
+/* ── Inicio rápido (steps) ──────────────────── */
+.step-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  margin: 0 auto;
+  font-size: 1rem;
+}
+
+/* ── Color dots ─────────────────────────────── */
+.color-dot {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* ── Misc ───────────────────────────────────── */
+code {
+  font-size: 0.82rem;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #1d4ed8;
+}
+
+.card-header {
+  border-radius: 10px 10px 0 0 !important;
+  padding: 0.75rem 1rem;
+}
+
+/* ── Responsividade ─────────────────────────── */
+@media (max-width: 768px) {
+  #sidebar {
+    width: 60px;
+  }
+  #sidebar .sidebar-brand span,
+  #sidebar .sidebar-heading,
+  #sidebar .sidebar-footer {
+    display: none !important;
+  }
+  #sidebar .nav-link {
+    padding: 0.5rem;
+    text-align: center;
+    font-size: 1rem;
+  }
+  #sidebar .nav-link i {
+    margin: 0 !important;
+    font-size: 1.2rem;
+  }
+}
+
+/* ── Print ──────────────────────────────────── */
+@media print {
+  #sidebar, .topbar, .btn, .dropdown { display: none !important; }
+  #page-content { width: 100% !important; padding: 0 !important; }
+  .card { box-shadow: none !important; border: 1px solid #ccc !important; }
+  .aula-block { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

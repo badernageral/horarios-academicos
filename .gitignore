@@ -1,0 +1,30 @@
+# Dependências
+/vendor/
+
+# Configuração local com credenciais
+/config/database.php
+
+# Ambiente
+.env
+.env.local
+
+# Logs
+*.log
+/storage/logs/
+
+# Cache
+/storage/cache/
+/storage/framework/cache/
+
+# Uploads
+/public/uploads/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
