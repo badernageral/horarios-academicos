@@ -1,9 +1,6 @@
 # Dependências
 /vendor/
 
-# Configuração local com credenciais
-/config/database.php
-
 # Ambiente
 .env
 .env.local
