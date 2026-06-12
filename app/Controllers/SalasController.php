@@ -8,9 +8,10 @@ class SalasController extends BaseController
 {
     public function index(): void
     {
-        $salas = Sala::all('nome');
+        [$sort, $dir] = $this->sortParams(['nome', 'ativo'], 'nome');
+        $salas = Sala::all($sort, strtoupper($dir));
         $flash = $this->getFlash();
-        $this->render('salas/index', compact('salas', 'flash'));
+        $this->render('salas/index', compact('salas', 'flash', 'sort', 'dir'));
     }
 
     public function nova(): void

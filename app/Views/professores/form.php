@@ -22,21 +22,38 @@ $dispExist  = $professor['disponibilidade'] ?? [];
         <div class="card-header bg-transparent fw-semibold">Dados do Professor</div>
         <div class="card-body">
           <div class="row g-3">
-            <div class="col-md-7">
+            <div class="col-md-5">
               <label class="form-label">Nome <span class="text-danger">*</span></label>
               <input type="text" name="nome" class="form-control"
                      value="<?= htmlspecialchars($professor['nome'] ?? '') ?>" required>
             </div>
             <div class="col-md-2">
-              <label class="form-label">Cor</label>
-              <input type="color" name="cor" class="form-control form-control-color w-100"
+              <label class="form-label">Cor Primária</label>
+              <input type="color" id="cor" name="cor" class="form-control form-control-color w-100"
                      value="<?= htmlspecialchars($professor['cor'] ?? '#3b82f6') ?>">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">Cor Secundária</label>
+              <input type="color" id="cor_secundaria" name="cor_secundaria" class="form-control form-control-color w-100"
+                     value="<?= htmlspecialchars($professor['cor_secundaria'] ?? '#f97316') ?>">
             </div>
             <div class="col-md-3">
               <label class="form-label">Status</label>
               <select name="ativo" class="form-select">
                 <option value="1" <?= ($professor['ativo'] ?? 1) == 1 ? 'selected':'' ?>>Ativo</option>
                 <option value="0" <?= ($professor['ativo'] ?? 1) == 0 ? 'selected':'' ?>>Inativo</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">NDA (Área) <span class="text-danger">*</span></label>
+              <select name="nda_id" class="form-select" required>
+                <option value="">Selecione uma opção</option>
+                <?php foreach ($ndas ?? [] as $n): ?>
+                <option value="<?= $n['id'] ?>"
+                  <?= ($professor['nda_id'] ?? '') == $n['id'] ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($n['nome']) ?>
+                </option>
+                <?php endforeach; ?>
               </select>
             </div>
           </div>
@@ -120,6 +137,21 @@ $dispExist  = $professor['disponibilidade'] ?? [];
 </form>
 
 <script>
+// Auto-suggest complementary secondary color when primary changes
+(function() {
+  const corInput    = document.getElementById('cor');
+  const corSecInput = document.getElementById('cor_secundaria');
+  let userEditedSec = false;
+
+  corSecInput.addEventListener('input', () => { userEditedSec = true; });
+
+  corInput.addEventListener('input', function() {
+    if (userEditedSec) return;
+    const hex = parseInt(this.value.slice(1), 16);
+    corSecInput.value = '#' + (0xFFFFFF ^ hex).toString(16).padStart(6, '0');
+  });
+})();
+
 const diasOptions = <?= json_encode($diasSemana) ?>;
 
 document.getElementById('btnAddDisp').addEventListener('click', function() {

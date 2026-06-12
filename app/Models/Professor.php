@@ -11,7 +11,23 @@ class Professor extends BaseModel
     public static function allAtivos(): array
     {
         return Database::fetchAll(
-            "SELECT * FROM professores WHERE ativo = 1 ORDER BY nome"
+            "SELECT p.*, n.nome AS nda_nome
+             FROM professores p
+             LEFT JOIN ndas n ON n.id = p.nda_id
+             WHERE p.ativo = 1 ORDER BY p.nome"
+        );
+    }
+
+    public static function allComNda(string $sort = 'nome', string $dir = 'asc'): array
+    {
+        $map = ['nome' => 'p.nome', 'nda_nome' => 'n.nome', 'ativo' => 'p.ativo'];
+        $col = $map[$sort] ?? 'p.nome';
+        $dir = $dir === 'desc' ? 'DESC' : 'ASC';
+        return Database::fetchAll(
+            "SELECT p.*, n.nome AS nda_nome
+             FROM professores p
+             LEFT JOIN ndas n ON n.id = p.nda_id
+             ORDER BY {$col} {$dir}"
         );
     }
 

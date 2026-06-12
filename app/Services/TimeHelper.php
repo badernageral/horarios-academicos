@@ -60,12 +60,17 @@ class TimeHelper
     /**
      * Dado um conjunto de intervalos ocupados, retorna a lista de inícios
      * candidatos onde uma nova atividade poderia caber.
+     * Inclui o fim de cada intervalo (ocupado ou break) para garantir que
+     * slots logo após um break sejam considerados.
      */
-    public static function possiveisInicios(array $ocupados, int $turnoInicio): array
+    public static function possiveisInicios(array $ocupados, int $turnoInicio, array $breaks = []): array
     {
         $inicios = [$turnoInicio];
         foreach ($ocupados as $i) {
             $inicios[] = $i['fim'];
+        }
+        foreach ($breaks as $b) {
+            $inicios[] = $b['fim'];
         }
         return array_unique($inicios);
     }

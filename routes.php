@@ -6,12 +6,22 @@
 $router->get('/',           'DashboardController@index');
 $router->get('/dashboard',  'DashboardController@index');
 
+// ── NDAs ─────────────────────────────────────────────────────────
+$router->get('/ndas',              'NdasController@index');
+$router->get('/ndas/novo',         'NdasController@novo');
+$router->post('/ndas/salvar',      'NdasController@salvar');
+$router->get('/ndas/{id}/editar',  'NdasController@editar');
+$router->post('/ndas/deletar',     'NdasController@deletar');
+
 // ── Professores ───────────────────────────────────────────────────
 $router->get('/professores',              'ProfessoresController@index');
 $router->get('/professores/novo',         'ProfessoresController@novo');
+$router->get('/professores/importar',     'ProfessoresController@verImportar');
+$router->post('/professores/importar',    'ProfessoresController@importar');
 $router->post('/professores/salvar',      'ProfessoresController@salvar');
 $router->get('/professores/{id}/editar',  'ProfessoresController@editar');
-$router->post('/professores/deletar',     'ProfessoresController@deletar');
+$router->post('/professores/deletar',       'ProfessoresController@deletar');
+$router->post('/professores/corrigir-cores','ProfessoresController@corrigirCores');
 
 // ── Cursos ────────────────────────────────────────────────────────
 $router->get('/cursos',              'CursosController@index');
@@ -23,6 +33,8 @@ $router->post('/cursos/deletar',     'CursosController@deletar');
 // ── Turmas ────────────────────────────────────────────────────────
 $router->get('/turmas',              'TurmasController@index');
 $router->get('/turmas/nova',         'TurmasController@nova');
+$router->get('/turmas/importar',     'TurmasController@verImportar');
+$router->post('/turmas/importar',    'TurmasController@importar');
 $router->post('/turmas/salvar',      'TurmasController@salvar');
 $router->get('/turmas/{id}/editar',  'TurmasController@editar');
 $router->post('/turmas/deletar',     'TurmasController@deletar');
@@ -30,6 +42,8 @@ $router->post('/turmas/deletar',     'TurmasController@deletar');
 // ── Disciplinas ───────────────────────────────────────────────────
 $router->get('/disciplinas',              'DisciplinasController@index');
 $router->get('/disciplinas/nova',         'DisciplinasController@nova');
+$router->get('/disciplinas/importar',     'DisciplinasController@verImportar');
+$router->post('/disciplinas/importar',    'DisciplinasController@importar');
 $router->post('/disciplinas/salvar',      'DisciplinasController@salvar');
 $router->get('/disciplinas/{id}/editar',  'DisciplinasController@editar');
 $router->post('/disciplinas/deletar',     'DisciplinasController@deletar');
@@ -47,6 +61,8 @@ $router->get('/horarios/novo',                         'HorariosController@novo'
 $router->post('/horarios/salvar',                      'HorariosController@salvar');
 $router->get('/horarios/{id}/editar',                  'HorariosController@editar');
 $router->get('/horarios/{id}/detalhe',                 'HorariosController@detalhe');
+$router->get('/horarios/{id}/atribuir/importar',       'HorariosController@verImportarAtribuicao');
+$router->post('/horarios/{id}/atribuir/importar',      'HorariosController@importarAtribuicao');
 $router->get('/horarios/{id}/atribuir',                'HorariosController@verAtribuir');
 $router->post('/horarios/{id}/atribuir',               'HorariosController@atribuir');
 $router->get('/horarios/{id}/ensalamento',             'HorariosController@verEnsalamento');
@@ -54,15 +70,17 @@ $router->post('/horarios/{id}/ensalamento',            'HorariosController@ensal
 $router->get('/horarios/{id}/gerar',                   'HorariosController@verGerar');
 $router->post('/horarios/{id}/gerar',                  'HorariosController@gerar');
 $router->post('/horarios/deletar',                     'HorariosController@deletar');
-$router->get('/horarios/geracao/{id}/turma',           'HorariosController@verTurma');
-$router->get('/horarios/geracao/{id}/professor',       'HorariosController@verProfessor');
-$router->get('/horarios/geracao/{id}/sala',            'HorariosController@verSala');
 $router->get('/horarios/geracao/{id}/exportar/csv',    'HorariosController@exportarCSV');
 $router->get('/horarios/geracao/{id}/exportar/excel',  'HorariosController@exportarExcel');
 $router->get('/horarios/geracao/{id}/exportar/pdf',    'HorariosController@exportarPDF');
 $router->post('/horarios/geracao/deletar',             'HorariosController@deletarGeracao');
 $router->get('/horarios/geracao/{id}/grade',           'HorariosController@verGrade');
 $router->post('/horarios/geracao/mover',               'HorariosController@moverHorario');
+$router->post('/horarios/geracao/trocar',              'HorariosController@trocarHorarios');
+$router->post('/horarios/{id}/clonar-atribuicoes',     'HorariosController@clonarAtribuicoes');
+$router->get('/horarios/backup',                       'HorariosController@backup');
+$router->post('/horarios/geracao/{id}/conflitos',      'HorariosController@verificarConflitos');
+$router->get('/horarios/geracao/{id}/imprimir/professores', 'HorariosController@imprimirProfessores');
 
 // ── API REST ──────────────────────────────────────────────────────
 $router->get('/api/geracoes',                                'ApiController@listarGeracoes');

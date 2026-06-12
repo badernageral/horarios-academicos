@@ -46,13 +46,23 @@ class ScheduleGenerator
 
     /** Pesos das restrições soft */
     private array $pesos = [
-        'janela_professor'    => 10.0,
+        // Janelas do professor e balanceamento diário zerados por decisão do
+        // usuário: não importa o horário dentro do dia, só a quantidade de dias
+        'janela_professor'    => 0.0,
         'janela_turma'        => 8.0,
         'agrupa_disciplina'   => 5.0,
         'distribuicao_semana' => 3.0,
         'horario_extremo'     => 0.01,
-        'balancear_professor' => 4.0,
+        'balancear_professor' => 0.0,
+        'compactar_professor' => 2500.0,
+        'preferencia_dia2'    => 2000.0,
     ];
+
+    /** Quantidade de atividades por professor (para ordenação MCF) */
+    private array $cargaAtividadesProfessor = [];
+
+    /** Cache de slots de aula: [curso_id][dia] = [['inicio','fim'],...] */
+    private array $slotsCache = [];
 
     private int $geracaoId;
     private int $semestreId;
@@ -74,6 +84,12 @@ class ScheduleGenerator
         $atividades = $this->criarAtividades();
         $total      = count($atividades);
         $this->log("Total de atividades a agendar: {$total}");
+
+        // Carga de atividades por professor (professores mais carregados primeiro)
+        foreach ($atividades as $a) {
+            $this->cargaAtividadesProfessor[$a['professor_id']] =
+                ($this->cargaAtividadesProfessor[$a['professor_id']] ?? 0) + 1;
+        }
 
         // ── Fase 1: Ordenação MCF ──────────────────────────────────
         usort($atividades, [$this, 'compararDificuldade']);
@@ -97,7 +113,13 @@ class ScheduleGenerator
             $this->buscaLocal();
         }
 
-        // ── Fase 4: Persistir resultado ────────────────────────────
+        // ── Fase 4: Otimização – move atividades para melhorar score ──
+        $this->otimizar();
+
+        // ── Fase 5: Mínimo de 2 dias de aula por professor ─────────
+        $this->garantirDoisDias();
+
+        // ── Fase 6: Persistir resultado ────────────────────────────
         return $this->salvar($total);
     }
 
@@ -160,7 +182,7 @@ class ScheduleGenerator
         $disciplinas = Database::fetchAll(
             "SELECT d.*,
                     c.turno_inicio, c.turno_fim, c.dias_semana, c.duracao_aula_minutos,
-                    sa.professor_id, sa.sala_id AS sala_atribuida
+                    sa.professor_id, sa.slot AS professor_slot, sa.sala_id AS sala_atribuida
              FROM disciplinas d
              JOIN turmas t ON t.id = d.turma_id
              JOIN cursos c ON c.id = d.curso_id
@@ -171,8 +193,16 @@ class ScheduleGenerator
 
         foreach ($disciplinas as $disc) {
             $disc['dias_semana'] = json_decode($disc['dias_semana'], true);
-            $duracao = (int)$disc['qtd_aulas'] * (int)$disc['duracao_aula_minutos'];
-            for ($n = 1; $n <= (int)$disc['qtd_encontros_semanais']; $n++) {
+            $duracao      = (int)$disc['qtd_aulas'] * (int)$disc['duracao_aula_minutos'];
+            $qtdProfs     = max(1, (int)($disc['qtd_professores'] ?? 1));
+            $slot         = max(1, (int)($disc['professor_slot'] ?? 1));
+            $totalEnc     = (int)$disc['qtd_encontros_semanais'];
+            // Divide encontros entre os slots: os primeiros slots recebem o teto, os restantes o piso
+            $base         = intdiv($totalEnc, $qtdProfs);
+            $extra        = $totalEnc % $qtdProfs;
+            $encontrosSlot = $base + ($slot <= $extra ? 1 : 0);
+
+            for ($n = 1; $n <= $encontrosSlot; $n++) {
                 $atividades[] = [
                     'disciplina_id'   => (int)$disc['id'],
                     'disciplina_nome' => $disc['nome'],
@@ -184,6 +214,7 @@ class ScheduleGenerator
                     'turno_fim'       => TimeHelper::toMinutes($disc['turno_fim']),
                     'dias_semana'     => array_map('intval', $disc['dias_semana']),
                     'duracao'         => $duracao,
+                    'qtd_aulas'       => (int)$disc['qtd_aulas'],
                     'encontro_num'    => $n,
                 ];
             }
@@ -205,7 +236,10 @@ class ScheduleGenerator
         // Aulas mais longas → mais difíceis de encaixar
         if ($a['duracao'] !== $b['duracao']) return $b['duracao'] - $a['duracao'];
 
-        return 0;
+        // Professores mais carregados → agendar primeiro (grade ainda vazia)
+        $cargaA = $this->cargaAtividadesProfessor[$a['professor_id']] ?? 0;
+        $cargaB = $this->cargaAtividadesProfessor[$b['professor_id']] ?? 0;
+        return $cargaB - $cargaA;
     }
 
     private function getDiasDisponiveis(array $atividade): array
@@ -220,11 +254,9 @@ class ScheduleGenerator
     // ──────────────────────────────────────────────────────────────
     private function gerarCandidatos(array $atividade): array
     {
-        $candidatos  = [];
-        $duracao     = $atividade['duracao'];
-        $turnoInicio = $atividade['turno_inicio'];
-        $turnoFim    = $atividade['turno_fim'];
-        $diasCurso   = $atividade['dias_semana'];
+        $candidatos = [];
+        $qtdAulas   = max(1, (int)($atividade['qtd_aulas'] ?? 1));
+        $diasCurso  = $atividade['dias_semana'];
 
         // Salas compatíveis ordenadas por preferência
         $salas = $this->salasCompativeis($atividade);
@@ -236,9 +268,12 @@ class ScheduleGenerator
             // Verificar disponibilidade do professor neste dia
             if (!$this->professorDisponivelDia($atividade['professor_id'], $dia)) continue;
 
-
-            // Intervalos (breaks) deste curso neste dia
-            $breaks = $this->intervalos[$atividade['curso_id']][$dia] ?? [];
+            // Slots de aula do curso neste dia (mesma malha da grade visual).
+            // Slots consecutivos podem atravessar um intervalo: nesse caso o
+            // encontro engloba o intervalo (ex.: 07:00–11:50 com break dentro).
+            $slots = $this->slotsAula($atividade['curso_id'], $dia);
+            $n     = count($slots);
+            if ($n < $qtdAulas) continue;
 
             foreach ($salaIds as $salaId) {
                 // Ocupação combinada: professor + turma + (sala se houver)
@@ -249,27 +284,17 @@ class ScheduleGenerator
                     $dia
                 );
 
-                // Inícios candidatos: início do turno + logo após cada ocupação
-                $inicioCandidatos = TimeHelper::possiveisInicios($ocupado, $turnoInicio);
+                for ($i = 0; $i + $qtdAulas <= $n; $i++) {
+                    $inicio = $slots[$i]['inicio'];
+                    $fim    = $slots[$i + $qtdAulas - 1]['fim'];
 
-                foreach ($inicioCandidatos as $inicio) {
-                    $fim = $inicio + $duracao;
-
-                    // 1. Dentro do turno
-                    if ($fim > $turnoFim) continue;
-
-                    // 2. Não sobrepõe breaks
-                    if (TimeHelper::overlapsAny($inicio, $fim, $breaks)) continue;
-                    // Também não começa durante break
-                    if ($this->dentroDeBreak($inicio, $fim, $breaks)) continue;
-
-                    // 3. Não sobrepõe ocupações existentes
+                    // 1. Não sobrepõe ocupações existentes
                     if (TimeHelper::overlapsAny($inicio, $fim, $ocupado)) continue;
 
-                    // 4. Dentro da disponibilidade do professor
+                    // 2. Dentro da disponibilidade do professor
                     if (!$this->professorDisponivelHorario($atividade['professor_id'], $dia, $inicio, $fim)) continue;
 
-                    // 5. Calcular score (soft constraints)
+                    // 3. Calcular score (soft constraints)
                     $score = $this->calcularScore($atividade, $dia, $inicio, $fim, $salaId);
 
                     $candidatos[] = [
@@ -284,6 +309,40 @@ class ScheduleGenerator
         }
 
         return $candidatos;
+    }
+
+    /**
+     * Slots de aula do curso no dia (sem os intervalos), alinhados à mesma
+     * malha usada pela grade visual em HorariosController::verGrade().
+     */
+    private function slotsAula(int $cursoId, int $dia): array
+    {
+        if (isset($this->slotsCache[$cursoId][$dia])) {
+            return $this->slotsCache[$cursoId][$dia];
+        }
+
+        $curso = $this->cursos[$cursoId] ?? null;
+        if (!$curso) return $this->slotsCache[$cursoId][$dia] = [];
+
+        $dur      = max(1, (int)$curso['duracao_aula_minutos']);
+        $turnoIni = TimeHelper::toMinutes($curso['turno_inicio']);
+        $turnoFim = TimeHelper::toMinutes($curso['turno_fim']);
+        $breaks   = $this->intervalos[$cursoId][$dia] ?? [];
+
+        $slots = [];
+        $t = $turnoIni;
+        while ($t < $turnoFim) {
+            $break = null;
+            foreach ($breaks as $b) {
+                if ($t >= $b['inicio'] && $t < $b['fim']) { $break = $b; break; }
+            }
+            if ($break) { $t = $break['fim']; continue; }
+            if ($t + $dur > $turnoFim) break;
+            $slots[] = ['inicio' => $t, 'fim' => $t + $dur];
+            $t += $dur;
+        }
+
+        return $this->slotsCache[$cursoId][$dia] = $slots;
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -313,46 +372,139 @@ class ScheduleGenerator
     // ──────────────────────────────────────────────────────────────
     private function buscaLocal(): void
     {
-        $resolvidosIdx = [];
+        $aindaFalhas = [];
 
-        foreach ($this->falhas as $idx => $falha) {
-            // Tenta mover uma atividade agendada do mesmo professor/turma para liberar espaço
-            foreach ($this->agendados as $i => $agendado) {
-                if ($agendado['atividade']['professor_id'] !== $falha['professor_id']) continue;
-                if ($agendado['atividade']['turma_id'] !== $falha['turma_id']) continue;
-
-                // Remove temporariamente
-                $this->removerAtribuicao($i);
-
-                // Tenta agendar a falha
-                $candidatos = $this->gerarCandidatos($falha);
-                if (!empty($candidatos)) {
-                    usort($candidatos, fn($a, $b) => $a['score'] <=> $b['score']);
-                    $this->atribuir($falha, $candidatos[0]);
-
-                    // Tenta re-agendar a removida
-                    $candidatosRem = $this->gerarCandidatos($agendado['atividade']);
-                    if (!empty($candidatosRem)) {
-                        usort($candidatosRem, fn($a, $b) => $a['score'] <=> $b['score']);
-                        $this->atribuir($agendado['atividade'], $candidatosRem[0]);
-                        $resolvidosIdx[] = $idx;
-                        break;
-                    } else {
-                        // Reverter: a falha continua falha, restaura removida
-                        array_pop($this->agendados); // remove falha recém inserida
-                    }
-                }
-
-                // Restaura se não resolveu
-                $this->restaurarAtribuicao($agendado);
+        foreach ($this->falhas as $falha) {
+            if (!$this->tentarRealocar($falha)) {
+                $aindaFalhas[] = $falha;
             }
         }
 
-        // Remove as falhas resolvidas
-        foreach (array_reverse($resolvidosIdx) as $idx) {
-            unset($this->falhas[$idx]);
+        $this->falhas = $aindaFalhas;
+    }
+
+    /**
+     * Tenta agendar a falha removendo temporariamente uma atividade já
+     * agendada que compartilhe professor ou turma (recursos em conflito).
+     */
+    private function tentarRealocar(array $falha): bool
+    {
+        // Snapshot por valor: a lista real muda durante as tentativas
+        foreach (array_values($this->agendados) as $agendado) {
+            $mesmoProf  = $agendado['atividade']['professor_id'] === $falha['professor_id'];
+            $mesmaTurma = $agendado['atividade']['turma_id'] === $falha['turma_id'];
+            if (!$mesmoProf && !$mesmaTurma) continue;
+
+            if (!$this->removerAgendado($agendado)) continue;
+
+            $candidatos = $this->gerarCandidatos($falha);
+            if (!empty($candidatos)) {
+                usort($candidatos, fn($a, $b) => $a['score'] <=> $b['score']);
+                $this->atribuir($falha, $candidatos[0]);
+
+                // Tenta re-agendar a removida em outro lugar
+                $candidatosRem = $this->gerarCandidatos($agendado['atividade']);
+                if (!empty($candidatosRem)) {
+                    usort($candidatosRem, fn($a, $b) => $a['score'] <=> $b['score']);
+                    $this->atribuir($agendado['atividade'], $candidatosRem[0]);
+                    return true;
+                }
+
+                // Reverter: remove a falha recém-agendada (inclusive ocupações)
+                $this->removerAtribuicao(count($this->agendados) - 1);
+            }
+
+            $this->restaurarAtribuicao($agendado);
         }
-        $this->falhas = array_values($this->falhas);
+
+        return false;
+    }
+
+    /**
+     * Otimização local (hill climbing): tenta mover cada atividade agendada
+     * para uma posição de score melhor no estado atual da grade. Melhora
+     * janelas e a compactação da semana dos professores.
+     */
+    private function otimizar(int $maxPasses = 3): void
+    {
+        for ($pass = 0; $pass < $maxPasses; $pass++) {
+            $mudou = false;
+
+            foreach (array_values($this->agendados) as $ag) {
+                if (!$this->removerAgendado($ag)) continue;
+
+                $candidatos = $this->gerarCandidatos($ag['atividade']);
+                if (empty($candidatos)) {
+                    $this->restaurarAtribuicao($ag);
+                    continue;
+                }
+
+                usort($candidatos, fn($a, $b) => $a['score'] <=> $b['score']);
+                $melhor = $candidatos[0];
+
+                // Score da posição atual recalculado no mesmo estado (sem ela)
+                $scoreAtual = $this->calcularScore(
+                    $ag['atividade'], $ag['dia'], $ag['inicio'], $ag['fim'], $ag['sala_id']
+                );
+
+                if ($melhor['score'] < $scoreAtual - 0.001) {
+                    $this->atribuir($ag['atividade'], $melhor);
+                    $mudou = true;
+                } else {
+                    $this->restaurarAtribuicao($ag);
+                }
+            }
+
+            if (!$mudou) break;
+        }
+    }
+
+    /**
+     * Garante o mínimo de 2 dias de aula para professores com 2+ atividades:
+     * se tudo caiu num único dia, move uma atividade para outro dia.
+     */
+    private function garantirDoisDias(): void
+    {
+        $porProf = [];
+        foreach ($this->agendados as $ag) {
+            $porProf[$ag['atividade']['professor_id']][] = $ag;
+        }
+
+        foreach ($porProf as $ags) {
+            if (count($ags) < 2) continue; // com 1 atividade não há o que dividir
+            $dias = array_unique(array_column($ags, 'dia'));
+            if (count($dias) >= 2) continue;
+            $diaUnico = reset($dias);
+
+            // Move a primeira atividade que tiver candidato válido em outro dia
+            foreach ($ags as $ag) {
+                if (!$this->removerAgendado($ag)) continue;
+
+                $candidatos = array_values(array_filter(
+                    $this->gerarCandidatos($ag['atividade']),
+                    fn($c) => $c['dia'] !== $diaUnico
+                ));
+                if (!empty($candidatos)) {
+                    usort($candidatos, fn($a, $b) => $a['score'] <=> $b['score']);
+                    $this->atribuir($ag['atividade'], $candidatos[0]);
+                    break; // professor agora tem 2 dias
+                }
+
+                $this->restaurarAtribuicao($ag);
+            }
+        }
+    }
+
+    /** Localiza um agendamento pelo valor e o remove (lista muda de ordem). */
+    private function removerAgendado(array $ag): bool
+    {
+        foreach ($this->agendados as $i => $cand) {
+            if ($cand == $ag) {
+                $this->removerAtribuicao($i);
+                return true;
+            }
+        }
+        return false;
     }
 
     private function removerAtribuicao(int $agendadoIdx): void
@@ -360,10 +512,17 @@ class ScheduleGenerator
         $ag = $this->agendados[$agendadoIdx];
         $entry = ['inicio' => $ag['inicio'], 'fim' => $ag['fim']];
 
-        $this->removerEntrada($this->ocupacaoProfessor[$ag['atividade']['professor_id']][$ag['dia']] ?? [], $entry);
-        $this->removerEntrada($this->ocupacaoTurma[$ag['atividade']['turma_id']][$ag['dia']] ?? [], $entry);
+        $profId  = $ag['atividade']['professor_id'];
+        $turmaId = $ag['atividade']['turma_id'];
+        $dia     = $ag['dia'];
+
+        $this->ocupacaoProfessor[$profId][$dia]  ??= [];
+        $this->ocupacaoTurma[$turmaId][$dia]     ??= [];
+        $this->removerEntrada($this->ocupacaoProfessor[$profId][$dia], $entry);
+        $this->removerEntrada($this->ocupacaoTurma[$turmaId][$dia], $entry);
         if ($ag['sala_id']) {
-            $this->removerEntrada($this->ocupacaoSala[$ag['sala_id']][$ag['dia']] ?? [], $entry);
+            $this->ocupacaoSala[$ag['sala_id']][$dia] ??= [];
+            $this->removerEntrada($this->ocupacaoSala[$ag['sala_id']][$dia], $entry);
         }
         unset($this->agendados[$agendadoIdx]);
         $this->agendados = array_values($this->agendados);
@@ -434,6 +593,30 @@ class ScheduleGenerator
         $cargaProfDia = TimeHelper::totalMinutosDia($intervsProfDia);
         $score += $cargaProfDia * $this->pesos['balancear_professor'];
 
+        // S7: Compactar a semana do professor em torno de 2 dias:
+        //  - abrir o 2º dia é desejável (mínimo de 2 dias por professor);
+        //  - do 3º dia em diante, penalidade forte proporcional à distância.
+        $diasProf = [];
+        foreach ($this->ocupacaoProfessor[$atividade['professor_id']] ?? [] as $d => $ints) {
+            if (!empty($ints)) $diasProf[] = $d;
+        }
+        $nDias   = count($diasProf);
+        $diaNovo = !in_array($dia, $diasProf, true);
+
+        if ($nDias === 1) {
+            if ($diaNovo) {
+                // Preferência por abrir o 2º dia perto do 1º (evita seg+sex)
+                $distMin = min(array_map(fn($d) => abs($d - $dia), $diasProf));
+                $score += $this->pesos['preferencia_dia2'] * $distMin;
+            } else {
+                // Empilhar tudo num único dia: empurra para abrir o 2º dia
+                $score += $this->pesos['compactar_professor'] * 0.4;
+            }
+        } elseif ($nDias >= 2 && $diaNovo) {
+            $distMin = min(array_map(fn($d) => abs($d - $dia), $diasProf));
+            $score += $this->pesos['compactar_professor'] * $distMin;
+        }
+
         return $score;
     }
 
@@ -493,15 +676,6 @@ class ScheduleGenerator
         return $total;
     }
 
-    private function dentroDeBreak(int $inicio, int $fim, array $breaks): bool
-    {
-        // Verifica se a aula começa dentro de um intervalo (break)
-        foreach ($breaks as $b) {
-            if ($inicio >= $b['inicio'] && $inicio < $b['fim']) return true;
-        }
-        return false;
-    }
-
     private function disciplinaNesteDia(int $disciplinaId, int $turmaId, int $dia): bool
     {
         foreach ($this->agendados as $ag) {
@@ -527,7 +701,7 @@ class ScheduleGenerator
         // Monta log de conflitos
         $logLines = [];
         foreach ($this->falhas as $f) {
-            $logLines[] = "NÃO AGENDADO: {$f['disciplina_nome']} (Turma ID {$f['turma_id']}, Encontro {$f['encontro_num']})";
+            $logLines[] = "NÃO AGENDADO: {$f['disciplina_nome']} (Turma ID {$f['turma_id']}, Encontro {$f['encontro_num']}) — enviado ao limbo";
         }
 
         Database::query(
@@ -537,7 +711,7 @@ class ScheduleGenerator
             [$status, $total, $agendados, $falhas, implode("\n", $logLines), $this->geracaoId]
         );
 
-        if ($agendados > 0) {
+        if ($agendados > 0 || $falhas > 0) {
             Database::beginTransaction();
             try {
                 Database::query("DELETE FROM horarios WHERE geracao_id = ?", [$this->geracaoId]);
@@ -558,6 +732,20 @@ class ScheduleGenerator
                         $ag['dia'],
                         TimeHelper::fromMinutes($ag['inicio']),
                         TimeHelper::fromMinutes($ag['fim']),
+                    ]);
+                }
+
+                // Falhas vão para o limbo (dia_semana = 0) para ajuste manual
+                foreach ($this->falhas as $f) {
+                    $stmt->execute([
+                        $this->geracaoId,
+                        $f['disciplina_id'],
+                        $f['turma_id'],
+                        $f['professor_id'],
+                        $this->salasPorTurma[$f['disciplina_id']] ?? null,
+                        0,
+                        TimeHelper::fromMinutes($f['turno_inicio']),
+                        TimeHelper::fromMinutes($f['turno_inicio'] + $f['duracao']),
                     ]);
                 }
 

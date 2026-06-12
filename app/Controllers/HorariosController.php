@@ -2,9 +2,9 @@
 
 namespace App\Controllers;
 
-use App\Models\{Horario, Turma, Professor, Sala, Semestre};
+use App\Models\{Horario, Turma, Professor, Sala, Semestre, Curso};
 use App\Core\Database;
-use App\Services\{ScheduleGenerator, Exporter};
+use App\Services\{ScheduleGenerator, Exporter, FeasibilityChecker};
 
 class HorariosController extends BaseController
 {
@@ -18,6 +18,7 @@ class HorariosController extends BaseController
                 "SELECT id, status, created_at FROM geracoes WHERE semestre_id = ? ORDER BY created_at DESC LIMIT 1",
                 [$s['id']]
             );
+            $s['avisos_viabilidade'] = FeasibilityChecker::verificar((int)$s['id']);
         }
         unset($s);
         $flash = $this->getFlash();
@@ -75,6 +76,100 @@ class HorariosController extends BaseController
         $this->redirect('/horarios');
     }
 
+    // ── Atribuição em massa: tela ─────────────────────────────────
+    public function verImportarAtribuicao(string $id): void
+    {
+        $semestreId = (int)$id;
+        $semestre   = Database::fetchOne("SELECT * FROM semestres WHERE id = ?", [$semestreId]);
+        if (!$semestre) $this->redirect('/horarios');
+        $flash = $this->getFlash();
+        $this->render('horarios/atribuir_importar', compact('semestre', 'semestreId', 'flash'));
+    }
+
+    // ── Atribuição em massa: processar ────────────────────────────
+    public function importarAtribuicao(string $id): void
+    {
+        $semestreId = (int)$id;
+        $semestre   = Database::fetchOne("SELECT * FROM semestres WHERE id = ?", [$semestreId]);
+        if (!$semestre) $this->redirect('/horarios');
+
+        $texto  = $this->post('linhas', '');
+        $linhas = array_filter(array_map('trim', explode("\n", $texto)));
+
+        // Cache de professores: nome minúsculo → id
+        $profMap = [];
+        foreach (Database::fetchAll("SELECT id, nome FROM professores WHERE ativo = 1") as $p) {
+            $profMap[strtolower(trim($p['nome']))] = (int)$p['id'];
+        }
+
+        // Cache de disciplinas do semestre: nome minúsculo → [ids]
+        $discMap = [];
+        foreach (Database::fetchAll(
+            "SELECT d.id, d.nome FROM disciplinas d
+             JOIN semestres sem ON sem.id = ?
+             WHERE d.ativo = 1 AND (d.semestre_oferta & sem.semestre) > 0",
+            [$semestreId]
+        ) as $d) {
+            $discMap[strtolower(trim($d['nome']))][] = (int)$d['id'];
+        }
+
+        $atribuidas = 0;
+        $puladas    = 0;
+        $erros      = [];
+        $slotCount  = []; // [disciplina_id] => próximo slot
+
+        foreach ($linhas as $linha) {
+            $linha = trim($linha, " \r\n");
+            if ($linha === '') continue;
+
+            // Separa no ÚLTIMO " - " para suportar hífens no nome da disciplina
+            $pos = strrpos($linha, ' - ');
+            if ($pos === false) {
+                $puladas++;
+                $erros[] = 'Formato inválido: "' . $linha . '"';
+                continue;
+            }
+
+            $discNome = trim(substr($linha, 0, $pos));
+            $profNome = trim(substr($linha, $pos + 3));
+
+            $profId = $profMap[strtolower($profNome)] ?? null;
+            if (!$profId) {
+                $puladas++;
+                $erros[] = 'Professor não encontrado: "' . $profNome . '"';
+                continue;
+            }
+
+            $discIds = $discMap[strtolower($discNome)] ?? [];
+            if (empty($discIds)) {
+                $puladas++;
+                $erros[] = 'Disciplina não encontrada: "' . $discNome . '"';
+                continue;
+            }
+
+            foreach ($discIds as $discId) {
+                $slot = ($slotCount[$discId] ?? 0) + 1;
+                $slotCount[$discId] = $slot;
+                Database::query(
+                    "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot)
+                     VALUES (?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE professor_id = VALUES(professor_id)",
+                    [$semestreId, $discId, $profId, $slot]
+                );
+                $atribuidas++;
+            }
+        }
+
+        $msg = "{$atribuidas} atribuição(ões) salva(s).";
+        if ($puladas) $msg .= " {$puladas} linha(s) com problema.";
+        if (!empty($erros)) {
+            $this->flash('warning', $msg . ' Erros: ' . implode('; ', array_slice($erros, 0, 5)));
+        } else {
+            $this->flash('success', $msg);
+        }
+        $this->redirect('/horarios/' . $semestreId . '/atribuir');
+    }
+
     // ── Atribuição: tela ──────────────────────────────────────────
     public function verAtribuir(string $id): void
     {
@@ -85,11 +180,19 @@ class HorariosController extends BaseController
         $disciplinas = Semestre::disciplinasComAtribuicao($semestreId);
         $professores = Professor::allAtivos();
         $salas       = Sala::allAtivas();
-        $semAtribuir = count(array_filter($disciplinas, fn($d) => !$d['professor_atribuido']));
-        $flash       = $this->getFlash();
+        $semAtribuir = 0;
+        $semSala     = 0;
+        foreach ($disciplinas as $d) {
+            $atribuidos  = count($d['professores_atribuidos'] ?? []);
+            $necessarios = max(1, (int)($d['qtd_professores'] ?? 1));
+            $semAtribuir += max(0, $necessarios - $atribuidos);
+            if (empty($d['sala_atribuida'])) $semSala++;
+        }
+        $flash  = $this->getFlash();
+        $avisos = FeasibilityChecker::verificar($semestreId);
 
         $this->render('horarios/atribuir', compact(
-            'semestre', 'semestreId', 'disciplinas', 'professores', 'salas', 'semAtribuir', 'flash'
+            'semestre', 'semestreId', 'disciplinas', 'professores', 'salas', 'semAtribuir', 'semSala', 'flash', 'avisos'
         ));
     }
 
@@ -181,52 +284,6 @@ class HorariosController extends BaseController
         $this->redirect('/horarios/geracao/' . $geracaoId . '/grade');
     }
 
-    // ── Visualizações ─────────────────────────────────────────────
-    public function verTurma(string $geracaoId): void
-    {
-        $geracaoId = (int)$geracaoId;
-        $turmas    = Turma::allComCurso();
-        $turmaId   = (int)($this->get('turma_id') ?: ($turmas[0]['id'] ?? 0));
-        $horarios  = $turmaId ? Horario::porTurma($turmaId, $geracaoId) : [];
-        $geracao   = Database::fetchOne("SELECT * FROM geracoes WHERE id=?", [$geracaoId]);
-        $turma     = $turmaId ? Turma::findComCurso($turmaId) : null;
-        $config    = require ROOT_PATH . '/config/app.php';
-        $semestreId = $geracao['semestre_id'] ?? null;
-        $this->render('horarios/turma', compact(
-            'horarios', 'turmas', 'turmaId', 'geracao', 'turma', 'config', 'geracaoId', 'semestreId'
-        ));
-    }
-
-    public function verProfessor(string $geracaoId): void
-    {
-        $geracaoId   = (int)$geracaoId;
-        $professores = Professor::allAtivos();
-        $profId      = (int)($this->get('professor_id') ?: ($professores[0]['id'] ?? 0));
-        $horarios    = $profId ? Horario::porProfessor($profId, $geracaoId) : [];
-        $geracao     = Database::fetchOne("SELECT * FROM geracoes WHERE id=?", [$geracaoId]);
-        $professor   = $profId ? Professor::find($profId) : null;
-        $config      = require ROOT_PATH . '/config/app.php';
-        $semestreId  = $geracao['semestre_id'] ?? null;
-        $this->render('horarios/professor', compact(
-            'horarios', 'professores', 'profId', 'geracao', 'professor', 'config', 'geracaoId', 'semestreId'
-        ));
-    }
-
-    public function verSala(string $geracaoId): void
-    {
-        $geracaoId = (int)$geracaoId;
-        $salas     = Sala::allAtivas();
-        $salaId    = (int)($this->get('sala_id') ?: ($salas[0]['id'] ?? 0));
-        $horarios  = $salaId ? Horario::porSala($salaId, $geracaoId) : [];
-        $geracao   = Database::fetchOne("SELECT * FROM geracoes WHERE id=?", [$geracaoId]);
-        $sala      = $salaId ? Sala::find($salaId) : null;
-        $config    = require ROOT_PATH . '/config/app.php';
-        $semestreId = $geracao['semestre_id'] ?? null;
-        $this->render('horarios/sala', compact(
-            'horarios', 'salas', 'salaId', 'geracao', 'sala', 'config', 'geracaoId', 'semestreId'
-        ));
-    }
-
     // ── Grade completa (todas as turmas × dias × slots) ──────────
     public function verGrade(string $geracaoId): void
     {
@@ -237,6 +294,35 @@ class HorariosController extends BaseController
         $semestreId    = $geracao['semestre_id'] ?? null;
         $todosHorarios = Horario::porGeracao($geracaoId);
 
+        // Métricas de qualidade (sempre sobre o conjunto completo, sem filtro)
+        $qualidade = $this->metricasQualidade($todosHorarios);
+
+        // Filtros de visualização (grade fica somente leitura quando ativos)
+        $cursoFiltro = (int)$this->get('curso_id', 0);
+        $turmaFiltro = (int)$this->get('turma_id', 0);
+        $profFiltro  = (int)$this->get('professor_id', 0);
+        $salaFiltro  = (int)$this->get('sala_id', 0);
+        $filtroAtivo = $cursoFiltro || $turmaFiltro || $profFiltro || $salaFiltro;
+
+        if ($filtroAtivo) {
+            $todosHorarios = array_values(array_filter(
+                $todosHorarios,
+                function ($h) use ($cursoFiltro, $turmaFiltro, $profFiltro, $salaFiltro) {
+                    if ($cursoFiltro && (int)$h['curso_id'] !== $cursoFiltro) return false;
+                    if ($turmaFiltro && (int)$h['turma_id'] !== $turmaFiltro) return false;
+                    if ($profFiltro && (int)$h['professor_id'] !== $profFiltro) return false;
+                    if ($salaFiltro && (int)($h['sala_id'] ?? 0) !== $salaFiltro) return false;
+                    return true;
+                }
+            ));
+        }
+
+        // Listas para os selects de filtro
+        $cursosFiltro      = Curso::allAtivos();
+        $turmasFiltro      = Turma::allComCurso();
+        $professoresFiltro = Professor::allAtivos();
+        $salasFiltro       = Sala::allAtivas();
+
         // Intervalos dedupicados por curso_id (flat, sem duplicar por dia)
         $intervalos = [];
         foreach (Database::fetchAll("SELECT * FROM intervalos_curso ORDER BY hora_inicio") as $iv) {
@@ -246,11 +332,11 @@ class HorariosController extends BaseController
             $intervalos[$iv['curso_id']][$key] = ['inicio' => $inicio, 'fim' => $fim];
         }
 
-        // 1. Agrupar por turma
+        // 1. Agrupar por turma (dia_semana = 0 → limbo: sem horário atribuído)
         $raw = [];
         foreach ($todosHorarios as $h) {
             $dia = (int)$h['dia_semana'];
-            if ($dia < 1 || $dia > 5) continue;
+            if ($dia > 5) continue;
             $tid = $h['turma_id'];
             if (!isset($raw[$tid])) {
                 $raw[$tid] = [
@@ -261,7 +347,12 @@ class HorariosController extends BaseController
                     'turno_ini'  => \App\Services\TimeHelper::toMinutes($h['turno_inicio']),
                     'turno_fim'  => \App\Services\TimeHelper::toMinutes($h['turno_fim']),
                     'por_dia'    => [1=>[], 2=>[], 3=>[], 4=>[], 5=>[]],
+                    'limbo'      => [],
                 ];
+            }
+            if ($dia < 1) {
+                $raw[$tid]['limbo'][] = $h;
+                continue;
             }
             $raw[$tid]['por_dia'][$dia][] = $h;
         }
@@ -358,10 +449,16 @@ class HorariosController extends BaseController
                 'num_slots'  => $numSlots,
                 'grid'       => $grid,
                 'skip'       => $skip,
+                'limbo'      => $tData['limbo'],
             ];
         }
 
-        $this->render('horarios/grade', compact('grade', 'geracao', 'geracaoId', 'semestreId'));
+        $this->render('horarios/grade', compact(
+            'grade', 'geracao', 'geracaoId', 'semestreId',
+            'cursoFiltro', 'turmaFiltro', 'profFiltro', 'salaFiltro', 'filtroAtivo',
+            'cursosFiltro', 'turmasFiltro', 'professoresFiltro', 'salasFiltro',
+            'qualidade'
+        ));
     }
 
     // ── API: mover horário (drag & drop) ─────────────────────────
@@ -373,7 +470,7 @@ class HorariosController extends BaseController
         $novoDia        = (int)($raw['novo_dia'] ?? 0);
         $novaHoraInicio = trim($raw['nova_hora_inicio'] ?? '');
 
-        if (!$horarioId || $novoDia < 1 || $novoDia > 5) {
+        if (!$horarioId || $novoDia < 0 || $novoDia > 5) {
             echo json_encode(['ok' => false, 'erro' => 'Dados inválidos']);
             return;
         }
@@ -384,36 +481,23 @@ class HorariosController extends BaseController
             return;
         }
 
-        // Calcular nova hora_fim consumindo qtd_aulas slots e pulando intervalos
-        $disc = Database::fetchOne(
-            "SELECT d.qtd_aulas, c.duracao_aula_minutos, c.id AS curso_id
-             FROM disciplinas d JOIN cursos c ON c.id = d.curso_id
-             WHERE d.id = (SELECT disciplina_id FROM horarios WHERE id = ?)",
-            [$horarioId]
-        );
-        $qtdAulas   = max(1, (int)($disc['qtd_aulas'] ?? 1));
-        $aulaMin    = max(1, (int)($disc['duracao_aula_minutos'] ?? 50));
-        $ivList     = [];
-        foreach (Database::fetchAll("SELECT hora_inicio, hora_fim FROM intervalos_curso WHERE curso_id = ?", [$disc['curso_id'] ?? 0]) as $iv) {
-            $ivList[] = [
-                'inicio' => \App\Services\TimeHelper::toMinutes($iv['hora_inicio']),
-                'fim'    => \App\Services\TimeHelper::toMinutes($iv['hora_fim']),
-            ];
+        // Estado anterior (para o "Desfazer" no front)
+        $anterior = ['dia' => (int)$h['dia_semana'], 'hora_inicio' => substr($h['hora_inicio'], 0, 5)];
+
+        // Mover para o limbo (dia_semana = 0: sem horário atribuído)
+        if ($novoDia === 0) {
+            Database::query("UPDATE horarios SET dia_semana=0 WHERE id=?", [$horarioId]);
+            echo json_encode(['ok' => true, 'anterior' => $anterior]);
+            return;
         }
 
         if ($novaHoraInicio !== '') {
-            $t        = \App\Services\TimeHelper::toMinutes($novaHoraInicio);
-            $consumed = 0;
-            while ($consumed < $qtdAulas) {
-                $inIv = null;
-                foreach ($ivList as $iv) {
-                    if ($t >= $iv['inicio'] && $t < $iv['fim']) { $inIv = $iv; break; }
-                }
-                if ($inIv) { $t = $inIv['fim']; continue; }
-                $t += $aulaMin;
-                $consumed++;
+            $janela = $this->calcularJanelaAula($horarioId, $novaHoraInicio);
+            if ($janela === null) {
+                echo json_encode(['ok' => false, 'erro' => 'A disciplina não cabe neste horário: ultrapassaria o fim do turno.']);
+                return;
             }
-            $novaHoraFim = \App\Services\TimeHelper::fromMinutes($t);
+            $novaHoraFim = $janela['fim'];
         } else {
             $novaHoraInicio = $h['hora_inicio'];
             $novaHoraFim    = $h['hora_fim'];
@@ -423,61 +507,438 @@ class HorariosController extends BaseController
         if ((int)$h['dia_semana'] === $novoDia
             && $h['hora_inicio'] === $novaHoraInicio . ':00'
         ) {
-            echo json_encode(['ok' => true]);
+            echo json_encode(['ok' => true, 'anterior' => $anterior]);
             return;
         }
 
-        // Verifica conflito de turma
-        $conflito = Database::fetchOne(
-            "SELECT 1 FROM horarios WHERE geracao_id=? AND turma_id=? AND dia_semana=? AND id!=?
-             AND hora_inicio < ? AND hora_fim > ? LIMIT 1",
-            [$h['geracao_id'], $h['turma_id'], $novoDia, $horarioId, $novaHoraFim, $novaHoraInicio]
-        );
-        if ($conflito) { echo json_encode(['ok' => false, 'erro' => 'Conflito de turma neste horário.']); return; }
-
-        // Verifica conflito de professor
-        if ($h['professor_id']) {
-            $conflito = Database::fetchOne(
-                "SELECT 1 FROM horarios WHERE geracao_id=? AND professor_id=? AND dia_semana=? AND id!=?
-                 AND hora_inicio < ? AND hora_fim > ? LIMIT 1",
-                [$h['geracao_id'], $h['professor_id'], $novoDia, $horarioId, $novaHoraFim, $novaHoraInicio]
-            );
-            if ($conflito) { echo json_encode(['ok' => false, 'erro' => 'Conflito de professor neste horário.']); return; }
-        }
-
-        // Verifica conflito de sala
-        if ($h['sala_id']) {
-            $conflito = Database::fetchOne(
-                "SELECT 1 FROM horarios WHERE geracao_id=? AND sala_id=? AND dia_semana=? AND id!=?
-                 AND hora_inicio < ? AND hora_fim > ? LIMIT 1",
-                [$h['geracao_id'], $h['sala_id'], $novoDia, $horarioId, $novaHoraFim, $novaHoraInicio]
-            );
-            if ($conflito) { echo json_encode(['ok' => false, 'erro' => 'Conflito de sala neste horário.']); return; }
+        $erro = $this->conflitosNaPosicao($h, $novoDia, $novaHoraInicio, $novaHoraFim, [$horarioId]);
+        if ($erro !== null) {
+            echo json_encode(['ok' => false, 'erro' => $erro]);
+            return;
         }
 
         Database::query(
             "UPDATE horarios SET dia_semana=?, hora_inicio=?, hora_fim=? WHERE id=?",
             [$novoDia, $novaHoraInicio, $novaHoraFim, $horarioId]
         );
+        echo json_encode(['ok' => true, 'anterior' => $anterior]);
+    }
+
+    // ── API: trocar dois horários de lugar (swap) ─────────────────
+    public function trocarHorarios(): void
+    {
+        header('Content-Type: application/json');
+        $raw = json_decode(file_get_contents('php://input'), true) ?? [];
+        $idA = (int)($raw['horario_a'] ?? 0);
+        $idB = (int)($raw['horario_b'] ?? 0);
+
+        if (!$idA || !$idB || $idA === $idB) {
+            echo json_encode(['ok' => false, 'erro' => 'Dados inválidos']);
+            return;
+        }
+
+        $a = Database::fetchOne("SELECT * FROM horarios WHERE id=?", [$idA]);
+        $b = Database::fetchOne("SELECT * FROM horarios WHERE id=?", [$idB]);
+        if (!$a || !$b) {
+            echo json_encode(['ok' => false, 'erro' => 'Horário não encontrado']);
+            return;
+        }
+        if ($a['geracao_id'] !== $b['geracao_id'] || $a['turma_id'] !== $b['turma_id']) {
+            echo json_encode(['ok' => false, 'erro' => 'Só é possível trocar disciplinas da mesma turma.']);
+            return;
+        }
+        if ((int)$a['dia_semana'] < 1 || (int)$b['dia_semana'] < 1) {
+            echo json_encode(['ok' => false, 'erro' => 'Não é possível trocar com item do limbo.']);
+            return;
+        }
+
+        // Cada um assume a posição do outro (durações podem diferir)
+        $janelaA = $this->calcularJanelaAula($idA, substr($b['hora_inicio'], 0, 5));
+        $janelaB = $this->calcularJanelaAula($idB, substr($a['hora_inicio'], 0, 5));
+        if ($janelaA === null || $janelaB === null) {
+            echo json_encode(['ok' => false, 'erro' => 'A troca não cabe: uma das disciplinas ultrapassaria o fim do turno.']);
+            return;
+        }
+        $diaA = (int)$b['dia_semana'];
+        $diaB = (int)$a['dia_semana'];
+
+        // Se caírem no mesmo dia com durações diferentes, não podem se sobrepor
+        if ($diaA === $diaB
+            && $janelaA['inicio'] < $janelaB['fim'] && $janelaB['inicio'] < $janelaA['fim']
+        ) {
+            echo json_encode(['ok' => false, 'erro' => 'A troca não cabe: as disciplinas se sobreporiam (durações diferentes).']);
+            return;
+        }
+
+        $excluir = [$idA, $idB];
+        $erro = $this->conflitosNaPosicao($a, $diaA, $janelaA['inicio'], $janelaA['fim'], $excluir)
+             ?? $this->conflitosNaPosicao($b, $diaB, $janelaB['inicio'], $janelaB['fim'], $excluir);
+        if ($erro !== null) {
+            echo json_encode(['ok' => false, 'erro' => $erro]);
+            return;
+        }
+
+        Database::beginTransaction();
+        try {
+            Database::query(
+                "UPDATE horarios SET dia_semana=?, hora_inicio=?, hora_fim=? WHERE id=?",
+                [$diaA, $janelaA['inicio'], $janelaA['fim'], $idA]
+            );
+            Database::query(
+                "UPDATE horarios SET dia_semana=?, hora_inicio=?, hora_fim=? WHERE id=?",
+                [$diaB, $janelaB['inicio'], $janelaB['fim'], $idB]
+            );
+            Database::commit();
+        } catch (\Throwable $e) {
+            Database::rollback();
+            echo json_encode(['ok' => false, 'erro' => 'Erro ao trocar: ' . $e->getMessage()]);
+            return;
+        }
+
         echo json_encode(['ok' => true]);
     }
 
+    /**
+     * Métricas de qualidade da geração por professor:
+     * dias de aula, buracos de dias na semana, janelas (min) e carga (min).
+     */
+    private function metricasQualidade(array $horarios): array
+    {
+        $porProf    = [];
+        $totalAulas = 0;
+        $noLimbo    = 0;
+        foreach ($horarios as $h) {
+            if ((int)$h['dia_semana'] < 1) {
+                $noLimbo++;
+                continue;
+            }
+            $totalAulas++;
+            $nome = $h['professor_nome'];
+            $porProf[$nome][(int)$h['dia_semana']][] = [
+                'inicio' => \App\Services\TimeHelper::toMinutes($h['hora_inicio']),
+                'fim'    => \App\Services\TimeHelper::toMinutes($h['hora_fim']),
+            ];
+        }
+        ksort($porProf, SORT_NATURAL | SORT_FLAG_CASE);
+
+        $profs     = [];
+        $comBuraco = 0;
+        $totDias   = 0;
+        foreach ($porProf as $nome => $dias) {
+            $ds = array_keys($dias);
+            sort($ds);
+            $minutos = 0;
+            foreach ($dias as $ints) {
+                $minutos += \App\Services\TimeHelper::totalMinutosDia($ints);
+            }
+            $buracos = (max($ds) - min($ds) + 1) - count($ds); // dias vazios entre o 1º e o último
+            if ($buracos > 0) $comBuraco++;
+            $totDias += count($ds);
+            $aulas = array_sum(array_map('count', $dias));
+
+            $profs[] = [
+                'nome'    => $nome,
+                'dias'    => $ds,
+                'buracos' => $buracos,
+                'minutos' => $minutos,
+                'aulas'   => $aulas,
+            ];
+        }
+
+        return [
+            'professores' => $profs,
+            'com_buraco'  => $comBuraco,
+            'max_dias'    => empty($profs) ? 0 : max(array_map(fn($p) => count($p['dias']), $profs)),
+            'media_dias'  => empty($profs) ? 0 : round($totDias / count($profs), 1),
+            'total_aulas' => $totalAulas,
+            'no_limbo'    => $noLimbo,
+        ];
+    }
+
+    /**
+     * Calcula início/fim de um horário começando em $horaInicio (HH:MM),
+     * consumindo qtd_aulas slots e pulando os intervalos do curso.
+     * Retorna null se ultrapassar o fim do turno.
+     */
+    private function calcularJanelaAula(int $horarioId, string $horaInicio): ?array
+    {
+        $disc = Database::fetchOne(
+            "SELECT d.qtd_aulas, c.duracao_aula_minutos, c.id AS curso_id, c.turno_fim
+             FROM disciplinas d JOIN cursos c ON c.id = d.curso_id
+             WHERE d.id = (SELECT disciplina_id FROM horarios WHERE id = ?)",
+            [$horarioId]
+        );
+        if (!$disc) return null;
+
+        $qtdAulas = max(1, (int)$disc['qtd_aulas']);
+        $aulaMin  = max(1, (int)$disc['duracao_aula_minutos']);
+        $ivList   = [];
+        foreach (Database::fetchAll("SELECT hora_inicio, hora_fim FROM intervalos_curso WHERE curso_id = ?", [$disc['curso_id']]) as $iv) {
+            $ivList[] = [
+                'inicio' => \App\Services\TimeHelper::toMinutes($iv['hora_inicio']),
+                'fim'    => \App\Services\TimeHelper::toMinutes($iv['hora_fim']),
+            ];
+        }
+
+        $t        = \App\Services\TimeHelper::toMinutes($horaInicio);
+        $consumed = 0;
+        while ($consumed < $qtdAulas) {
+            $inIv = null;
+            foreach ($ivList as $iv) {
+                if ($t >= $iv['inicio'] && $t < $iv['fim']) { $inIv = $iv; break; }
+            }
+            if ($inIv) { $t = $inIv['fim']; continue; }
+            $t += $aulaMin;
+            $consumed++;
+        }
+
+        if ($t > \App\Services\TimeHelper::toMinutes($disc['turno_fim'])) return null;
+
+        return ['inicio' => $horaInicio, 'fim' => \App\Services\TimeHelper::fromMinutes($t)];
+    }
+
+    /**
+     * Verifica conflitos de turma/professor/sala para o horário $h na posição
+     * indicada, ignorando os ids em $excluir. Retorna mensagem de erro ou null.
+     */
+    private function conflitosNaPosicao(array $h, int $dia, string $ini, string $fim, array $excluir): ?string
+    {
+        $checks = [
+            ['turma_id',     (int)$h['turma_id'],          'Conflito de turma neste horário.'],
+            ['professor_id', (int)($h['professor_id'] ?? 0), 'Conflito de professor neste horário.'],
+            ['sala_id',      (int)($h['sala_id'] ?? 0),    'Conflito de sala neste horário.'],
+        ];
+        $place = implode(',', array_fill(0, count($excluir), '?'));
+
+        foreach ($checks as [$campo, $valor, $msg]) {
+            if (!$valor) continue;
+            $conflito = Database::fetchOne(
+                "SELECT 1 FROM horarios
+                 WHERE geracao_id=? AND {$campo}=? AND dia_semana=? AND id NOT IN ({$place})
+                 AND hora_inicio < ? AND hora_fim > ? LIMIT 1",
+                array_merge([(int)$h['geracao_id'], $valor, $dia], $excluir, [$fim, $ini])
+            );
+            if ($conflito) return $msg;
+        }
+        return null;
+    }
+
+    // ── Clonar atribuições de outro semestre ──────────────────────
+    public function clonarAtribuicoes(string $id): void
+    {
+        $destinoId = (int)$id;
+        $origemId  = (int)$this->post('origem_id', 0);
+
+        $destino = Database::fetchOne("SELECT * FROM semestres WHERE id=?", [$destinoId]);
+        $origem  = Database::fetchOne("SELECT * FROM semestres WHERE id=?", [$origemId]);
+        if (!$destino || !$origem || $destinoId === $origemId) {
+            $this->flash('danger', 'Semestre de origem inválido.');
+            $this->redirect('/horarios');
+            return;
+        }
+
+        Database::beginTransaction();
+        try {
+            Database::query("DELETE FROM semestre_atribuicoes WHERE semestre_id=?", [$destinoId]);
+            // Copia apenas disciplinas ativas e ofertadas no semestre de destino
+            Database::query(
+                "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot, sala_id)
+                 SELECT ?, sa.disciplina_id, sa.professor_id, sa.slot, sa.sala_id
+                 FROM semestre_atribuicoes sa
+                 JOIN disciplinas d ON d.id = sa.disciplina_id
+                 WHERE sa.semestre_id = ? AND d.ativo = 1
+                   AND (d.semestre_oferta & ?) > 0",
+                [$destinoId, $origemId, (int)$destino['semestre']]
+            );
+            $qtd = Database::fetchValue(
+                "SELECT COUNT(*) FROM semestre_atribuicoes WHERE semestre_id=?", [$destinoId]
+            );
+            Database::commit();
+        } catch (\Throwable $e) {
+            Database::rollback();
+            $this->flash('danger', 'Erro ao clonar atribuições: ' . $e->getMessage());
+            $this->redirect('/horarios');
+            return;
+        }
+
+        $this->flash('success', "Atribuições copiadas de {$origem['semestre']}º Semestre/{$origem['ano']}: {$qtd} registro(s). Revise antes de gerar.");
+        $this->redirect('/horarios/' . $destinoId . '/atribuir');
+    }
+
+    // ── Backup do banco (mysqldump) ───────────────────────────────
+    public function backup(): void
+    {
+        $cfg = require ROOT_PATH . '/config/database.php';
+        $dir = ROOT_PATH . '/backups';
+        if (!is_dir($dir)) @mkdir($dir, 0775, true);
+
+        $arquivo = $dir . '/sga_backup_' . date('Ymd_His') . '.sql';
+        $cmd = sprintf(
+            'MYSQL_PWD=%s mysqldump --host=%s --port=%s --user=%s --single-transaction %s > %s 2>&1',
+            escapeshellarg($cfg['password']),
+            escapeshellarg($cfg['host']),
+            escapeshellarg($cfg['port']),
+            escapeshellarg($cfg['user']),
+            escapeshellarg($cfg['dbname']),
+            escapeshellarg($arquivo)
+        );
+        exec($cmd, $out, $code);
+
+        if ($code !== 0 || !is_file($arquivo) || filesize($arquivo) === 0) {
+            @unlink($arquivo);
+            $this->flash('danger', 'Falha ao gerar o backup. Verifique se o mysqldump está disponível.');
+            $this->redirect('/horarios');
+            return;
+        }
+
+        // Mantém a cópia em backups/ e envia para download
+        header('Content-Type: application/sql; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . basename($arquivo) . '"');
+        header('Content-Length: ' . filesize($arquivo));
+        readfile($arquivo);
+        exit;
+    }
+
+    // ── Impressão: todos os horários agrupados por professor ─────
+    public function imprimirProfessores(string $geracaoId): void
+    {
+        $geracaoId = (int)$geracaoId;
+        $geracao   = Database::fetchOne("SELECT * FROM geracoes WHERE id=?", [$geracaoId]);
+        if (!$geracao) $this->redirect('/horarios');
+
+        $horarios = $this->semLimbo(Horario::porGeracao($geracaoId));
+
+        // Agrupar por professor → dia, ordenado por nome e hora
+        $porProfessor = [];
+        $temSabado    = false;
+        foreach ($horarios as $h) {
+            $nome = $h['professor_nome'];
+            $porProfessor[$nome]['cor']     = $h['professor_cor'] ?: '#94a3b8';
+            $porProfessor[$nome]['cor_sec'] = $h['professor_cor_secundaria'] ?: $h['professor_cor'];
+            $porProfessor[$nome]['dias'][(int)$h['dia_semana']][] = $h;
+            if ((int)$h['dia_semana'] === 6) $temSabado = true;
+        }
+        ksort($porProfessor, SORT_NATURAL | SORT_FLAG_CASE);
+        foreach ($porProfessor as &$p) {
+            foreach ($p['dias'] as &$lista) {
+                usort($lista, fn($a, $b) => strcmp($a['hora_inicio'], $b['hora_inicio']));
+            }
+            unset($lista);
+        }
+        unset($p);
+
+        $dias = $temSabado
+            ? [1=>'Segunda', 2=>'Terça', 3=>'Quarta', 4=>'Quinta', 5=>'Sexta', 6=>'Sábado']
+            : [1=>'Segunda', 2=>'Terça', 3=>'Quarta', 4=>'Quinta', 5=>'Sexta'];
+
+        // Página standalone (sem layout da aplicação)
+        require ROOT_PATH . '/app/Views/horarios/imprimir_professores.php';
+    }
+
+    // ── Verificar conflitos entre disciplinas (aluno multi-período) ──
+    public function verificarConflitos(string $geracaoId): void
+    {
+        header('Content-Type: application/json');
+        $geracaoId = (int)$geracaoId;
+        $raw       = json_decode(file_get_contents('php://input'), true) ?? [];
+        $texto     = trim($raw['disciplinas'] ?? '');
+
+        $nomes = array_values(array_unique(array_filter(array_map('trim', preg_split('/\R/', $texto)))));
+        if (count($nomes) < 2) {
+            echo json_encode(['ok' => false, 'erro' => 'Informe ao menos duas disciplinas, uma por linha.']);
+            return;
+        }
+
+        $diasNomes = [1=>'Segunda', 2=>'Terça', 3=>'Quarta', 4=>'Quinta', 5=>'Sexta', 6=>'Sábado'];
+
+        $naoEncontradas = [];
+        $semHorario     = [];
+        $itens          = [];
+
+        foreach ($nomes as $nome) {
+            $discs = Database::fetchAll(
+                "SELECT d.id, d.nome, t.serie_periodo, c.nome AS curso_nome
+                 FROM disciplinas d
+                 JOIN turmas t ON t.id = d.turma_id
+                 JOIN cursos c ON c.id = d.curso_id
+                 WHERE d.ativo = 1 AND d.nome = ?",
+                [$nome]
+            );
+            if (empty($discs)) {
+                $naoEncontradas[] = $nome;
+                continue;
+            }
+            foreach ($discs as $d) {
+                $rotulo = $d['nome'] . ' (' . $d['curso_nome'] . ' – ' . $d['serie_periodo'] . ')';
+                $hs = Database::fetchAll(
+                    "SELECT dia_semana, hora_inicio, hora_fim FROM horarios
+                     WHERE geracao_id = ? AND disciplina_id = ? AND dia_semana >= 1",
+                    [$geracaoId, $d['id']]
+                );
+                if (empty($hs)) {
+                    $semHorario[] = $rotulo;
+                }
+                $itens[] = ['rotulo' => $rotulo, 'nome' => $d['nome'], 'horarios' => $hs];
+            }
+        }
+
+        // Conflito = sobreposição de horário no mesmo dia entre disciplinas diferentes
+        $conflitos = [];
+        $n = count($itens);
+        for ($i = 0; $i < $n; $i++) {
+            for ($j = $i + 1; $j < $n; $j++) {
+                // Mesmo nome em turmas diferentes = alternativas, não conflito
+                if ($itens[$i]['nome'] === $itens[$j]['nome']) continue;
+
+                foreach ($itens[$i]['horarios'] as $ha) {
+                    foreach ($itens[$j]['horarios'] as $hb) {
+                        if ((int)$ha['dia_semana'] !== (int)$hb['dia_semana']) continue;
+                        if ($ha['hora_inicio'] < $hb['hora_fim'] && $hb['hora_inicio'] < $ha['hora_fim']) {
+                            $conflitos[] = [
+                                'a'         => $itens[$i]['rotulo'],
+                                'b'         => $itens[$j]['rotulo'],
+                                'dia'       => $diasNomes[(int)$ha['dia_semana']] ?? $ha['dia_semana'],
+                                'horario_a' => substr($ha['hora_inicio'], 0, 5) . '–' . substr($ha['hora_fim'], 0, 5),
+                                'horario_b' => substr($hb['hora_inicio'], 0, 5) . '–' . substr($hb['hora_fim'], 0, 5),
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        echo json_encode([
+            'ok'              => true,
+            'possivel'        => empty($conflitos),
+            'conflitos'       => $conflitos,
+            'nao_encontradas' => $naoEncontradas,
+            'sem_horario'     => $semHorario,
+        ]);
+    }
+
     // ── Exportações ───────────────────────────────────────────────
+
+    /** Remove itens do limbo (dia_semana = 0) das exportações */
+    private function semLimbo(array $horarios): array
+    {
+        return array_values(array_filter($horarios, fn($h) => (int)$h['dia_semana'] >= 1));
+    }
+
     public function exportarCSV(string $geracaoId): void
     {
-        $horarios = Horario::porGeracao((int)$geracaoId);
+        $horarios = $this->semLimbo(Horario::porGeracao((int)$geracaoId));
         (new Exporter())->exportarCSV($horarios, "Horario_Geracao_{$geracaoId}");
     }
 
     public function exportarExcel(string $geracaoId): void
     {
-        $horarios = Horario::porGeracao((int)$geracaoId);
+        $horarios = $this->semLimbo(Horario::porGeracao((int)$geracaoId));
         (new Exporter())->exportarExcel($horarios, "Horario_Geracao_{$geracaoId}");
     }
 
     public function exportarPDF(string $geracaoId): void
     {
-        $horarios = Horario::porGeracao((int)$geracaoId);
+        $horarios = $this->semLimbo(Horario::porGeracao((int)$geracaoId));
         $html     = (new Exporter())->gerarHTML($horarios, "Horário Acadêmico – Geração #{$geracaoId}", 'turma');
         header('Content-Type: text/html; charset=UTF-8');
         $html = str_replace('</body>', '<script>window.onload=function(){window.print();}</script></body>', $html);

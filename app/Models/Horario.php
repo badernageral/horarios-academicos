@@ -14,7 +14,7 @@ class Horario extends BaseModel
             "SELECT h.*,
                     d.nome AS disciplina_nome, d.sigla AS disciplina_sigla, d.qtd_aulas,
                     t.serie_periodo AS turma_nome, t.serie_periodo,
-                    p.nome AS professor_nome, p.cor AS professor_cor,
+                    p.nome AS professor_nome, p.cor AS professor_cor, p.cor_secundaria AS professor_cor_secundaria,
                     s.nome AS sala_nome,
                     c.id AS curso_id, c.nome AS curso_nome,
                     c.duracao_aula_minutos, c.turno_inicio, c.turno_fim
@@ -35,13 +35,13 @@ class Horario extends BaseModel
         return Database::fetchAll(
             "SELECT h.*,
                     d.nome AS disciplina_nome, d.sigla AS disciplina_sigla,
-                    p.nome AS professor_nome, p.cor AS professor_cor,
+                    p.nome AS professor_nome, p.cor AS professor_cor, p.cor_secundaria AS professor_cor_secundaria,
                     s.nome AS sala_nome
              FROM horarios h
              JOIN disciplinas d  ON d.id = h.disciplina_id
              JOIN professores p  ON p.id = h.professor_id
              LEFT JOIN salas s   ON s.id = h.sala_id
-             WHERE h.turma_id = ? AND h.geracao_id = ?
+             WHERE h.turma_id = ? AND h.geracao_id = ? AND h.dia_semana >= 1
              ORDER BY h.dia_semana, h.hora_inicio",
             [$turmaId, $geracaoId]
         );
@@ -54,13 +54,13 @@ class Horario extends BaseModel
                     d.nome AS disciplina_nome, d.sigla AS disciplina_sigla,
                     t.serie_periodo AS turma_nome,
                     s.nome AS sala_nome,
-                    p.cor AS professor_cor
+                    p.cor AS professor_cor, p.cor_secundaria AS professor_cor_secundaria
              FROM horarios h
              JOIN disciplinas d  ON d.id = h.disciplina_id
              JOIN turmas t       ON t.id = h.turma_id
              LEFT JOIN salas s   ON s.id = h.sala_id
              JOIN professores p  ON p.id = h.professor_id
-             WHERE h.professor_id = ? AND h.geracao_id = ?
+             WHERE h.professor_id = ? AND h.geracao_id = ? AND h.dia_semana >= 1
              ORDER BY h.dia_semana, h.hora_inicio",
             [$professorId, $geracaoId]
         );
@@ -72,12 +72,12 @@ class Horario extends BaseModel
             "SELECT h.*,
                     d.nome AS disciplina_nome, d.sigla AS disciplina_sigla,
                     t.serie_periodo AS turma_nome,
-                    p.nome AS professor_nome, p.cor AS professor_cor
+                    p.nome AS professor_nome, p.cor AS professor_cor, p.cor_secundaria AS professor_cor_secundaria
              FROM horarios h
              JOIN disciplinas d  ON d.id = h.disciplina_id
              JOIN turmas t       ON t.id = h.turma_id
              JOIN professores p  ON p.id = h.professor_id
-             WHERE h.sala_id = ? AND h.geracao_id = ?
+             WHERE h.sala_id = ? AND h.geracao_id = ? AND h.dia_semana >= 1
              ORDER BY h.dia_semana, h.hora_inicio",
             [$salaId, $geracaoId]
         );

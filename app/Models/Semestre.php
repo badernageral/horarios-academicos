@@ -10,13 +10,13 @@ class Semestre extends BaseModel
 
     public static function disciplinasComAtribuicao(int $semestreId): array
     {
-        return Database::fetchAll(
+        $rows = Database::fetchAll(
             "SELECT d.id, d.nome, d.sigla,
-                    d.qtd_encontros_semanais, d.qtd_aulas, d.semestre_oferta,
+                    d.qtd_encontros_semanais, d.qtd_aulas, d.semestre_oferta, d.qtd_professores,
                     c.nome AS curso_nome, c.duracao_aula_minutos,
                     t.serie_periodo AS turma_nome,
-                    sa.professor_id AS professor_atribuido,
-                    sa.sala_id AS sala_atribuida
+                    GROUP_CONCAT(sa.professor_id ORDER BY sa.slot SEPARATOR ',') AS professores_atribuidos,
+                    MAX(CASE WHEN sa.slot = 1 THEN sa.sala_id ELSE NULL END) AS sala_atribuida
              FROM disciplinas d
              JOIN cursos c       ON c.id = d.curso_id
              JOIN turmas t       ON t.id = d.turma_id
@@ -25,22 +25,36 @@ class Semestre extends BaseModel
                     ON sa.disciplina_id = d.id AND sa.semestre_id = ?
              WHERE d.ativo = 1
                AND (d.semestre_oferta & sem.semestre) > 0
+             GROUP BY d.id, d.nome, d.sigla,
+                      d.qtd_encontros_semanais, d.qtd_aulas, d.semestre_oferta, d.qtd_professores,
+                      c.nome, c.duracao_aula_minutos, t.serie_periodo
              ORDER BY c.nome, t.serie_periodo, d.nome",
             [$semestreId, $semestreId]
         );
+
+        foreach ($rows as &$row) {
+            $ids = array_filter(explode(',', $row['professores_atribuidos'] ?? ''));
+            $row['professores_atribuidos'] = array_values(array_map('intval', $ids));
+        }
+        unset($row);
+        return $rows;
     }
 
     public static function salvarAtribuicoes(int $semestreId, array $professores, array $salas = []): void
     {
         Database::query("DELETE FROM semestre_atribuicoes WHERE semestre_id = ?", [$semestreId]);
-        foreach ($professores as $disciplinaId => $professorId) {
-            if ($professorId !== '') {
-                $salaId = ($salas[$disciplinaId] ?? '') !== '' ? (int)$salas[$disciplinaId] : null;
-                Database::query(
-                    "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, sala_id)
-                     VALUES (?, ?, ?, ?)",
-                    [$semestreId, (int)$disciplinaId, (int)$professorId, $salaId]
-                );
+        // $professores: [disciplina_id => [slot => professor_id]]
+        foreach ($professores as $disciplinaId => $slots) {
+            $salaId = ($salas[$disciplinaId] ?? '') !== '' ? (int)$salas[$disciplinaId] : null;
+            foreach ((array)$slots as $slot => $professorId) {
+                if ((string)$professorId !== '') {
+                    Database::query(
+                        "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot, sala_id)
+                         VALUES (?, ?, ?, ?, ?)",
+                        [$semestreId, (int)$disciplinaId, (int)$professorId, (int)$slot,
+                         (int)$slot === 1 ? $salaId : null]
+                    );
+                }
             }
         }
     }

@@ -46,28 +46,40 @@ class ApiController extends BaseController
             $this->json(['error' => 'Não encontrado'], 404);
             return;
         }
-        $total = Database::fetchValue("SELECT COUNT(*) FROM horarios WHERE geracao_id=?", [(int)$id]);
+        $total = Database::fetchValue("SELECT COUNT(*) FROM horarios WHERE geracao_id=? AND dia_semana >= 1", [(int)$id]);
         $geracao['total_horarios'] = $total;
         $this->json(['data' => $geracao]);
     }
 
-    // POST /api/gerar
+    // POST /api/gerar  — body: {semestre_id, descricao?, pesos?}
     public function gerar(): void
     {
-        $body    = json_decode(file_get_contents('php://input'), true) ?? [];
-        $descricao = $body['descricao'] ?? ('API – ' . date('d/m/Y H:i'));
-        $pesos     = $body['pesos'] ?? [];
+        $body       = json_decode(file_get_contents('php://input'), true) ?? [];
+        $semestreId = (int)($body['semestre_id'] ?? 0);
+        $pesos      = is_array($body['pesos'] ?? null) ? $body['pesos'] : [];
 
-        $geracaoId = (int) Database::fetchValue(
-            "INSERT INTO geracoes (descricao, status) VALUES (?, 'processando'); SELECT LAST_INSERT_ID()",
-            [$descricao]
+        $semestre = $semestreId
+            ? Database::fetchOne("SELECT * FROM semestres WHERE id=?", [$semestreId])
+            : false;
+        if (!$semestre) {
+            $this->json(['success' => false, 'error' => 'Informe um semestre_id válido.'], 422);
+            return;
+        }
+
+        $descricao = $body['descricao']
+            ?? ($semestre['semestre'] . 'º Semestre / ' . $semestre['ano']);
+
+        // Mesmo comportamento da geração via web: substitui a geração anterior
+        Database::query("DELETE FROM geracoes WHERE semestre_id = ?", [$semestreId]);
+        Database::query(
+            "INSERT INTO geracoes (semestre_id, descricao, status, configuracao)
+             VALUES (?, ?, 'processando', ?)",
+            [$semestreId, $descricao, json_encode($pesos)]
         );
-        // Reliable last insert
-        Database::query("INSERT INTO geracoes (descricao, status) VALUES (?, 'processando')", [$descricao]);
         $geracaoId = (int) Database::lastInsertId();
 
         try {
-            $gerador   = new ScheduleGenerator($geracaoId, $pesos);
+            $gerador   = new ScheduleGenerator($geracaoId, $semestreId, $pesos);
             $resultado = $gerador->gerar();
             $this->json(['success' => true, 'data' => $resultado]);
         } catch (\Throwable $e) {
@@ -116,12 +128,13 @@ class ApiController extends BaseController
     {
         $gid = (int)$geracaoId;
         $stats = [
-            'total_horarios'   => Database::fetchValue("SELECT COUNT(*) FROM horarios WHERE geracao_id=?", [$gid]),
-            'turmas_atendidas' => Database::fetchValue("SELECT COUNT(DISTINCT turma_id) FROM horarios WHERE geracao_id=?", [$gid]),
-            'professores'      => Database::fetchValue("SELECT COUNT(DISTINCT professor_id) FROM horarios WHERE geracao_id=?", [$gid]),
-            'salas_usadas'     => Database::fetchValue("SELECT COUNT(DISTINCT sala_id) FROM horarios WHERE geracao_id=? AND sala_id IS NOT NULL", [$gid]),
+            'total_horarios'   => Database::fetchValue("SELECT COUNT(*) FROM horarios WHERE geracao_id=? AND dia_semana >= 1", [$gid]),
+            'turmas_atendidas' => Database::fetchValue("SELECT COUNT(DISTINCT turma_id) FROM horarios WHERE geracao_id=? AND dia_semana >= 1", [$gid]),
+            'professores'      => Database::fetchValue("SELECT COUNT(DISTINCT professor_id) FROM horarios WHERE geracao_id=? AND dia_semana >= 1", [$gid]),
+            'salas_usadas'     => Database::fetchValue("SELECT COUNT(DISTINCT sala_id) FROM horarios WHERE geracao_id=? AND sala_id IS NOT NULL AND dia_semana >= 1", [$gid]),
+            'no_limbo'         => Database::fetchValue("SELECT COUNT(*) FROM horarios WHERE geracao_id=? AND dia_semana = 0", [$gid]),
             'por_dia'          => Database::fetchAll(
-                "SELECT dia_semana, COUNT(*) AS total FROM horarios WHERE geracao_id=? GROUP BY dia_semana ORDER BY dia_semana",
+                "SELECT dia_semana, COUNT(*) AS total FROM horarios WHERE geracao_id=? AND dia_semana >= 1 GROUP BY dia_semana ORDER BY dia_semana",
                 [$gid]
             ),
             'carga_por_professor' => Database::fetchAll(
@@ -129,7 +142,7 @@ class ApiController extends BaseController
                         SUM(TIME_TO_SEC(TIMEDIFF(h.hora_fim, h.hora_inicio))/60) AS minutos
                  FROM horarios h
                  JOIN professores p ON p.id = h.professor_id
-                 WHERE h.geracao_id = ?
+                 WHERE h.geracao_id = ? AND h.dia_semana >= 1
                  GROUP BY h.professor_id ORDER BY minutos DESC",
                 [$gid]
             ),

@@ -8,9 +8,10 @@ class CursosController extends BaseController
 {
     public function index(): void
     {
-        $cursos = Curso::all('nome');
+        [$sort, $dir] = $this->sortParams(['nome', 'ativo'], 'nome');
+        $cursos = Curso::all($sort, strtoupper($dir));
         $flash  = $this->getFlash();
-        $this->render('cursos/index', compact('cursos', 'flash'));
+        $this->render('cursos/index', compact('cursos', 'flash', 'sort', 'dir'));
     }
 
     public function novo(): void

@@ -85,6 +85,14 @@ $coresDisc = $config['cores_disciplinas'] ?? [];
           </div>
 
           <div class="mb-3">
+            <label class="form-label">Número de Professores <span class="text-danger">*</span></label>
+            <input type="number" name="qtd_professores" id="qtdProfessores"
+                   class="form-control" min="1" max="10"
+                   value="<?= (int)($disciplina['qtd_professores'] ?? 1) ?>" required>
+            <div class="form-text">Quantos professores lecionam esta disciplina</div>
+          </div>
+
+          <div class="mb-3">
             <label class="form-label">Aulas por Encontro <span class="text-danger">*</span></label>
             <input type="number" name="qtd_aulas" id="qtdAulas"
                    class="form-control" min="1" max="10"

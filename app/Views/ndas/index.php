@@ -1,5 +1,5 @@
 <?php
-$pageTitle = 'Turmas';
+$pageTitle = 'NDAs';
 $th = function(string $col, string $label, string $extra = '') use ($sort, $dir) {
     $nd   = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
     $icon = $sort === $col
@@ -17,15 +17,10 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 <?php endif; ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h5 class="mb-0 fw-semibold"><i class="bi bi-people me-2 text-info"></i>Turmas</h5>
-  <div class="d-flex gap-2">
-    <a href="/turmas/importar" class="btn btn-outline-info btn-sm">
-      <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
-    </a>
-    <a href="/turmas/nova" class="btn btn-info btn-sm text-white">
-      <i class="bi bi-plus-lg me-1"></i>Nova Turma
-    </a>
-  </div>
+  <h5 class="mb-0 fw-semibold"><i class="bi bi-diagram-3 me-2 text-purple"></i>NDAs</h5>
+  <a href="/ndas/novo" class="btn btn-sm" style="background:#7c3aed;color:#fff">
+    <i class="bi bi-plus-lg me-1"></i>Novo NDA
+  </a>
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -35,37 +30,31 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
         <thead class="table-light">
           <tr>
             <th>#</th>
-            <?= $th('curso_nome', 'Curso') ?>
-            <?= $th('serie_periodo', 'Série/Período') ?>
+            <?= $th('nome', 'Nome') ?>
             <?= $th('ativo', 'Status', ' class="text-center"') ?>
             <th class="text-end">Ações</th>
           </tr>
         </thead>
         <tbody>
-        <?php if (empty($turmas)): ?>
-          <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma turma cadastrada.</td></tr>
+        <?php if (empty($ndas)): ?>
+          <tr><td colspan="5" class="text-center text-muted py-4">Nenhum NDA cadastrado.</td></tr>
         <?php else: ?>
-        <?php foreach ($turmas as $t): ?>
+        <?php foreach ($ndas as $n): ?>
           <tr>
-            <td class="text-muted small"><?= $t['id'] ?></td>
-            <td>
-              <span class="color-dot me-1" style="background:<?= htmlspecialchars($t['curso_cor'] ?? '#aaa') ?>;
-                width:10px;height:10px;border-radius:50%;display:inline-block"></span>
-              <?= htmlspecialchars($t['curso_nome']) ?>
-            </td>
-            <td><?= htmlspecialchars($t['serie_periodo']) ?></td>
+            <td class="text-muted small"><?= $n['id'] ?></td>
+            <td class="fw-semibold"><?= htmlspecialchars($n['nome']) ?></td>
             <td class="text-center">
-              <span class="badge <?= $t['ativo'] ? 'bg-success' : 'bg-secondary' ?>">
-                <?= $t['ativo'] ? 'Ativa' : 'Inativa' ?>
+              <span class="badge <?= $n['ativo'] ? 'bg-success' : 'bg-secondary' ?>">
+                <?= $n['ativo'] ? 'Ativo' : 'Inativo' ?>
               </span>
             </td>
             <td class="text-end">
-              <a href="/turmas/<?= $t['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
+              <a href="/ndas/<?= $n['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-pencil"></i>
               </a>
-              <form method="POST" action="/turmas/deletar" class="d-inline"
-                    onsubmit="return confirm('Remover turma?')">
-                <input type="hidden" name="id" value="<?= $t['id'] ?>">
+              <form method="POST" action="/ndas/deletar" class="d-inline"
+                    onsubmit="return confirm('Remover NDA?')">
+                <input type="hidden" name="id" value="<?= $n['id'] ?>">
                 <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
               </form>
             </td>

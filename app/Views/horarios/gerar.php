@@ -57,7 +57,7 @@ $geracao      = $geracoes[0] ?? null;
                     <input type="number" name="pesos[<?= $p['chave'] ?>]"
                            class="form-control form-control-sm"
                            value="<?= number_format((float)$p['valor'], 1) ?>"
-                           step="0.5" min="0" max="100">
+                           step="0.5" min="0" max="10000">
                   </div>
                   <?php endforeach; ?>
                   </div>
@@ -103,15 +103,6 @@ $geracao      = $geracoes[0] ?? null;
       <div class="d-flex gap-2 ms-auto flex-wrap">
         <a href="/horarios/geracao/<?= $geracao['id'] ?>/grade" class="btn btn-sm btn-outline-dark">
           <i class="bi bi-grid-3x3-gap me-1"></i>Grade
-        </a>
-        <a href="/horarios/geracao/<?= $geracao['id'] ?>/turma" class="btn btn-sm btn-outline-primary">
-          <i class="bi bi-people me-1"></i>Turma
-        </a>
-        <a href="/horarios/geracao/<?= $geracao['id'] ?>/professor" class="btn btn-sm btn-outline-success">
-          <i class="bi bi-person-badge me-1"></i>Professor
-        </a>
-        <a href="/horarios/geracao/<?= $geracao['id'] ?>/sala" class="btn btn-sm btn-outline-secondary">
-          <i class="bi bi-door-open me-1"></i>Sala
         </a>
         <div class="dropdown">
           <button class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown">

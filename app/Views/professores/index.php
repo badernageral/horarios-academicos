@@ -1,4 +1,13 @@
-<?php $pageTitle = 'Professores'; ?>
+<?php
+$pageTitle = 'Professores';
+$th = function(string $col, string $label, string $extra = '') use ($sort, $dir) {
+    $nd   = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
+    $icon = $sort === $col
+        ? ($dir === 'asc' ? '<i class="bi bi-sort-up ms-1"></i>' : '<i class="bi bi-sort-down ms-1"></i>')
+        : '<i class="bi bi-arrow-down-up ms-1 text-muted opacity-50" style="font-size:.75em"></i>';
+    return "<th{$extra}><a href=\"?sort={$col}&dir={$nd}\" class=\"text-decoration-none text-dark\">{$label}{$icon}</a></th>";
+};
+?>
 
 <?php if ($flash): ?>
 <div class="alert alert-<?= $flash['type'] ?> alert-dismissible fade show">
@@ -9,9 +18,21 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-success"></i>Professores</h5>
-  <a href="/professores/novo" class="btn btn-success btn-sm">
-    <i class="bi bi-plus-lg me-1"></i>Novo Professor
-  </a>
+  <div class="d-flex gap-2">
+    <?php if ($temCoresRepetidas ?? false): ?>
+    <form method="POST" action="/professores/corrigir-cores" class="d-inline">
+      <button type="submit" class="btn btn-warning btn-sm">
+        <i class="bi bi-palette me-1"></i>Corrigir Cores Repetidas
+      </button>
+    </form>
+    <?php endif; ?>
+    <a href="/professores/importar" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
+    </a>
+    <a href="/professores/novo" class="btn btn-success btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Novo Professor
+    </a>
+  </div>
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -21,8 +42,9 @@
         <thead class="table-light">
           <tr>
             <th>#</th>
-            <th>Nome</th>
-            <th class="text-center">Status</th>
+            <?= $th('nome', 'Nome') ?>
+            <?= $th('nda_nome', 'NDA') ?>
+            <?= $th('ativo', 'Status', ' class="text-center"') ?>
             <th class="text-end">Ações</th>
           </tr>
         </thead>
@@ -34,9 +56,10 @@
           <tr>
             <td class="text-muted small"><?= $p['id'] ?></td>
             <td class="fw-semibold">
-              <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:<?= htmlspecialchars($p['cor'] ?? '#3b82f6') ?>;margin-right:6px;vertical-align:middle;"></span>
+              <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:linear-gradient(to right,<?= htmlspecialchars($p['cor'] ?? '#3b82f6') ?> 50%,<?= htmlspecialchars($p['cor_secundaria'] ?? '#f97316') ?> 50%);margin-right:6px;vertical-align:middle;border:1px solid rgba(0,0,0,.12)"></span>
               <?= htmlspecialchars($p['nome']) ?>
             </td>
+            <td class="text-muted small"><?= htmlspecialchars($p['nda_nome'] ?? '—') ?></td>
             <td class="text-center">
               <span class="badge <?= $p['ativo'] ? 'bg-success' : 'bg-secondary' ?>">
                 <?= $p['ativo'] ? 'Ativo' : 'Inativo' ?>

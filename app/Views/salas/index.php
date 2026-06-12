@@ -1,4 +1,13 @@
-<?php $pageTitle = 'Salas'; ?>
+<?php
+$pageTitle = 'Salas';
+$th = function(string $col, string $label, string $extra = '') use ($sort, $dir) {
+    $nd   = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
+    $icon = $sort === $col
+        ? ($dir === 'asc' ? '<i class="bi bi-sort-up ms-1"></i>' : '<i class="bi bi-sort-down ms-1"></i>')
+        : '<i class="bi bi-arrow-down-up ms-1 text-muted opacity-50" style="font-size:.75em"></i>';
+    return "<th{$extra}><a href=\"?sort={$col}&dir={$nd}\" class=\"text-decoration-none text-dark\">{$label}{$icon}</a></th>";
+};
+?>
 
 <?php if ($flash): ?>
 <div class="alert alert-<?= $flash['type'] ?> alert-dismissible fade show">
@@ -20,8 +29,9 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th>#</th><th>Nome</th>
-            <th class="text-center">Status</th>
+            <th>#</th>
+            <?= $th('nome', 'Nome') ?>
+            <?= $th('ativo', 'Status', ' class="text-center"') ?>
             <th class="text-end">Ações</th>
           </tr>
         </thead>

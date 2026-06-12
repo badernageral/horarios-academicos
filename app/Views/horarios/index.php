@@ -38,6 +38,12 @@
     <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
       <span class="fw-semibold fs-6"><?= $s['semestre'] ?>º Semestre / <?= $s['ano'] ?></span>
 
+      <?php if (!empty($s['avisos_viabilidade'])): ?>
+        <span class="badge bg-danger" data-bs-toggle="collapse" data-bs-target="#avisos-<?= $s['id'] ?>" style="cursor:pointer">
+          <i class="bi bi-exclamation-octagon me-1"></i><?= count($s['avisos_viabilidade']) ?> problema(s) de viabilidade
+        </span>
+      <?php endif; ?>
+
       <?php if ($s['qtd_atribuicoes'] > 0): ?>
         <span class="badge bg-success"><i class="bi bi-person-check me-1"></i><?= $s['qtd_atribuicoes'] ?> atribuições</span>
       <?php else: ?>
@@ -58,6 +64,29 @@
       <?php endif; ?>
 
       <div class="ms-auto d-flex gap-1">
+        <?php $outros = array_filter($semestres, fn($o) => $o['id'] !== $s['id']); ?>
+        <?php if (!empty($outros)): ?>
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"
+                  title="Copiar atribuições de outro semestre">
+            <i class="bi bi-copy"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><h6 class="dropdown-header">Copiar atribuições de:</h6></li>
+            <?php foreach ($outros as $o): ?>
+            <li>
+              <form method="POST" action="/horarios/<?= $s['id'] ?>/clonar-atribuicoes"
+                    onsubmit="return confirm('Substituir as atribuições de <?= $s['semestre'] ?>º/<?= $s['ano'] ?> pelas de <?= $o['semestre'] ?>º/<?= $o['ano'] ?>?')">
+                <input type="hidden" name="origem_id" value="<?= $o['id'] ?>">
+                <button type="submit" class="dropdown-item">
+                  <?= $o['semestre'] ?>º Semestre / <?= $o['ano'] ?>
+                </button>
+              </form>
+            </li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+        <?php endif; ?>
         <a href="/horarios/<?= $s['id'] ?>/editar" class="btn btn-sm btn-outline-secondary" title="Editar semestre">
           <i class="bi bi-pencil"></i>
         </a>
@@ -90,30 +119,23 @@
       <a href="/horarios/geracao/<?= $ger['id'] ?>/grade" class="btn btn-sm btn-outline-dark">
         <i class="bi bi-grid-3x3-gap me-1"></i>Grade
       </a>
-      <a href="/horarios/geracao/<?= $ger['id'] ?>/turma" class="btn btn-sm btn-outline-primary">
-        <i class="bi bi-people me-1"></i>Por Turma
-      </a>
-      <a href="/horarios/geracao/<?= $ger['id'] ?>/professor" class="btn btn-sm btn-outline-success">
-        <i class="bi bi-person-badge me-1"></i>Por Professor
-      </a>
-      <a href="/horarios/geracao/<?= $ger['id'] ?>/sala" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-door-open me-1"></i>Por Sala
-      </a>
-
-      <!-- Exportar -->
-      <div class="dropdown">
-        <button class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown">
-          <i class="bi bi-download me-1"></i>Exportar
-        </button>
-        <ul class="dropdown-menu">
-          <li><a class="dropdown-item" href="/horarios/geracao/<?= $ger['id'] ?>/exportar/csv"><i class="bi bi-filetype-csv me-2"></i>CSV</a></li>
-          <li><a class="dropdown-item" href="/horarios/geracao/<?= $ger['id'] ?>/exportar/excel"><i class="bi bi-file-earmark-excel me-2"></i>Excel</a></li>
-          <li><a class="dropdown-item" href="/horarios/geracao/<?= $ger['id'] ?>/exportar/pdf" target="_blank"><i class="bi bi-file-earmark-pdf me-2"></i>PDF / Imprimir</a></li>
-        </ul>
-      </div>
       <?php endif; ?>
 
     </div>
+
+    <?php if (!empty($s['avisos_viabilidade'])): ?>
+    <!-- Avisos de viabilidade (expande ao clicar no badge) -->
+    <div class="collapse mt-3" id="avisos-<?= $s['id'] ?>">
+      <div class="alert alert-danger py-2 mb-0">
+        <div class="fw-semibold mb-1"><i class="bi bi-exclamation-octagon me-1"></i>Problemas que impedem a geração completa:</div>
+        <ul class="mb-0 small">
+          <?php foreach ($s['avisos_viabilidade'] as $a): ?>
+          <li><?= htmlspecialchars($a) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    </div>
+    <?php endif; ?>
   </div>
 </div>
 <?php endforeach; ?>

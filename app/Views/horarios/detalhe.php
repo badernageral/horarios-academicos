@@ -91,15 +91,6 @@ $semestreLabel = $pageTitle;
     <a href="/horarios/geracao/<?= $geracao['id'] ?>/grade" class="btn btn-outline-dark">
       <i class="bi bi-grid-3x3-gap me-1"></i>Grade Completa
     </a>
-    <a href="/horarios/geracao/<?= $geracao['id'] ?>/turma" class="btn btn-outline-primary">
-      <i class="bi bi-people me-1"></i>Por Turma
-    </a>
-    <a href="/horarios/geracao/<?= $geracao['id'] ?>/professor" class="btn btn-outline-success">
-      <i class="bi bi-person-badge me-1"></i>Por Professor
-    </a>
-    <a href="/horarios/geracao/<?= $geracao['id'] ?>/sala" class="btn btn-outline-secondary">
-      <i class="bi bi-door-open me-1"></i>Por Sala
-    </a>
     <div class="dropdown ms-auto">
       <button class="btn btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown">
         <i class="bi bi-download me-1"></i>Exportar

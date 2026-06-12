@@ -55,4 +55,12 @@ abstract class BaseController
     {
         return $_SERVER['REQUEST_METHOD'] === 'POST';
     }
+
+    protected function sortParams(array $allowed, string $default = 'id'): array
+    {
+        $sort = $_GET['sort'] ?? $default;
+        $dir  = strtolower($_GET['dir'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
+        if (!in_array($sort, $allowed, true)) $sort = $default;
+        return [$sort, $dir];
+    }
 }

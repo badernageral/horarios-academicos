@@ -8,9 +8,10 @@ class TurmasController extends BaseController
 {
     public function index(): void
     {
-        $turmas = Turma::allComCurso();
+        [$sort, $dir] = $this->sortParams(['curso_nome', 'serie_periodo', 'ativo'], 'curso_nome');
+        $turmas = Turma::allComCurso($sort, $dir);
         $flash  = $this->getFlash();
-        $this->render('turmas/index', compact('turmas', 'flash'));
+        $this->render('turmas/index', compact('turmas', 'flash', 'sort', 'dir'));
     }
 
     public function nova(): void
@@ -53,6 +54,43 @@ class TurmasController extends BaseController
             Turma::delete($id);
             $this->flash('success', 'Turma removida.');
         }
+        $this->redirect('/turmas');
+    }
+
+    public function verImportar(): void
+    {
+        $cursos = Curso::allAtivos();
+        $this->render('turmas/importar', ['cursos' => $cursos, 'flash' => null]);
+    }
+
+    public function importar(): void
+    {
+        $cursoId = (int)$this->post('curso_id');
+        $texto   = $this->post('series', '');
+
+        if (!$cursoId) {
+            $this->flash('danger', 'Selecione um curso.');
+            $this->redirect('/turmas/importar');
+            return;
+        }
+
+        $linhas  = array_filter(array_map('trim', explode("\n", $texto)));
+        $criadas = 0;
+
+        foreach ($linhas as $serie) {
+            $serie = trim($serie, " \t\r\n");
+            if ($serie === '') continue;
+
+            Turma::create([
+                'curso_id'      => $cursoId,
+                'nome'          => $serie,
+                'serie_periodo' => $serie,
+                'ativo'         => 1,
+            ]);
+            $criadas++;
+        }
+
+        $this->flash('success', "{$criadas} turma(s) cadastrada(s) com sucesso.");
         $this->redirect('/turmas');
     }
 }

@@ -28,7 +28,7 @@
             <label class="form-label small mb-1"><?= htmlspecialchars($p['nome']) ?>
               <span class="text-muted"><?= htmlspecialchars($p['descricao'] ?? '') ?></span>
             </label>
-            <input type="number" step="0.5" min="0" max="100"
+            <input type="number" step="0.5" min="0" max="10000"
                    name="pesos[<?= $p['chave'] ?>]"
                    value="<?= $p['valor'] ?>"
                    class="form-control form-control-sm">

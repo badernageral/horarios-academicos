@@ -33,6 +33,11 @@
             </a>
         </li>
         <li class="nav-item">
+            <a href="/ndas" class="nav-link <?= str_starts_with($_SERVER['REQUEST_URI'],'/ndas')?'active':'' ?>">
+                <i class="bi bi-diagram-3 me-2"></i> NDAs
+            </a>
+        </li>
+        <li class="nav-item">
             <a href="/professores" class="nav-link <?= str_starts_with($_SERVER['REQUEST_URI'],'/professores')?'active':'' ?>">
                 <i class="bi bi-person-badge me-2"></i> Professores
             </a>

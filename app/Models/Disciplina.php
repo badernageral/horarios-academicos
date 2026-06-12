@@ -8,8 +8,17 @@ class Disciplina extends BaseModel
 {
     protected static string $table = 'disciplinas';
 
-    public static function allComRelacoes(): array
+    public static function allComRelacoes(string $sort = 'nome', string $dir = 'asc'): array
     {
+        $map = [
+            'nome'                   => 'd.nome',
+            'sigla'                  => 'd.sigla',
+            'curso_nome'             => 'c.nome',
+            'turma_nome'             => 't.serie_periodo',
+            'qtd_encontros_semanais' => 'd.qtd_encontros_semanais',
+        ];
+        $col = $map[$sort] ?? 'd.nome';
+        $dir = $dir === 'desc' ? 'DESC' : 'ASC';
         return Database::fetchAll(
             "SELECT d.*,
                     c.nome AS curso_nome,
@@ -19,7 +28,7 @@ class Disciplina extends BaseModel
              JOIN cursos c ON c.id = d.curso_id
              JOIN turmas t ON t.id = d.turma_id
              WHERE d.ativo = 1
-             ORDER BY c.nome, t.serie_periodo, d.nome"
+             ORDER BY {$col} {$dir}"
         );
     }
 

@@ -1,4 +1,13 @@
-<?php $pageTitle = 'Disciplinas'; ?>
+<?php
+$pageTitle = 'Disciplinas';
+$th = function(string $col, string $label, string $extra = '') use ($sort, $dir) {
+    $nd   = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
+    $icon = $sort === $col
+        ? ($dir === 'asc' ? '<i class="bi bi-sort-up ms-1"></i>' : '<i class="bi bi-sort-down ms-1"></i>')
+        : '<i class="bi bi-arrow-down-up ms-1 text-muted opacity-50" style="font-size:.75em"></i>';
+    return "<th{$extra}><a href=\"?sort={$col}&dir={$nd}\" class=\"text-decoration-none text-dark\">{$label}{$icon}</a></th>";
+};
+?>
 
 <?php if ($flash): ?>
 <div class="alert alert-<?= $flash['type'] ?> alert-dismissible fade show">
@@ -9,9 +18,14 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-book me-2 text-warning"></i>Disciplinas</h5>
-  <a href="/disciplinas/nova" class="btn btn-warning btn-sm">
-    <i class="bi bi-plus-lg me-1"></i>Nova Disciplina
-  </a>
+  <div class="d-flex gap-2">
+    <a href="/disciplinas/importar" class="btn btn-outline-warning btn-sm">
+      <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
+    </a>
+    <a href="/disciplinas/nova" class="btn btn-warning btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Nova Disciplina
+    </a>
+  </div>
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -20,8 +34,13 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th>#</th><th>Sigla</th><th>Nome</th><th>Curso</th><th>Turma</th><th class="text-center">Semestre</th>
-            <th class="text-center">Encontros/sem</th>
+            <th>#</th>
+            <?= $th('sigla', 'Sigla') ?>
+            <?= $th('nome', 'Nome') ?>
+            <?= $th('curso_nome', 'Curso') ?>
+            <?= $th('turma_nome', 'Turma') ?>
+            <th class="text-center">Semestre</th>
+            <?= $th('qtd_encontros_semanais', 'Encontros/sem', ' class="text-center"') ?>
             <th class="text-center">Aulas/encontro</th>
             <th class="text-center">Duração/encontro</th>
             <th class="text-center">Total/sem</th>
