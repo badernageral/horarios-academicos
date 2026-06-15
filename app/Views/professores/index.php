@@ -19,13 +19,6 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-success"></i>Professores</h5>
   <div class="d-flex gap-2">
-    <?php if ($temCoresRepetidas ?? false): ?>
-    <form method="POST" action="<?= $base ?>/professores/corrigir-cores" class="d-inline">
-      <button type="submit" class="btn btn-warning btn-sm">
-        <i class="bi bi-palette me-1"></i>Corrigir Cores Repetidas
-      </button>
-    </form>
-    <?php endif; ?>
     <a href="<?= $base ?>/professores/importar" class="btn btn-outline-success btn-sm">
       <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
     </a>
@@ -52,12 +45,21 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
         <?php if (empty($professores)): ?>
           <tr><td colspan="4" class="text-center text-muted py-4">Nenhum professor cadastrado.</td></tr>
         <?php else: ?>
-        <?php foreach ($professores as $p): ?>
-          <tr>
+        <?php foreach ($professores as $p):
+          $conflito = $conflitantes[$p['id']] ?? null;
+        ?>
+          <tr <?= $conflito ? 'class="table-warning"' : '' ?>>
             <td class="text-muted small"><?= $p['id'] ?></td>
-            <td class="fw-semibold">
-              <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:linear-gradient(to right,<?= htmlspecialchars($p['cor'] ?? '#3b82f6') ?> 50%,<?= htmlspecialchars($p['cor_secundaria'] ?? '#f97316') ?> 50%);margin-right:6px;vertical-align:middle;border:1px solid rgba(0,0,0,.12)"></span>
-              <?= htmlspecialchars($p['nome']) ?>
+            <td>
+              <div class="fw-semibold">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:linear-gradient(to right,<?= htmlspecialchars($p['cor'] ?? '#3b82f6') ?> 50%,<?= htmlspecialchars($p['cor_secundaria'] ?? '#f97316') ?> 50%);margin-right:6px;vertical-align:middle;border:1px solid rgba(0,0,0,.12)"></span>
+                <?= htmlspecialchars($p['nome']) ?>
+              </div>
+              <?php if ($conflito): ?>
+              <div class="small text-danger mt-1">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>Mesmas cores que: <?= htmlspecialchars(implode(', ', $conflito)) ?>
+              </div>
+              <?php endif; ?>
             </td>
             <td class="text-muted small"><?= htmlspecialchars($p['nda_nome'] ?? '—') ?></td>
             <td class="text-center">

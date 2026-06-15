@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Horários por Professor – <?= htmlspecialchars($geracao['descricao'] ?? '') ?></title>
   <style>
-    * { box-sizing: border-box; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    * { box-sizing: border-box; print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       margin: 0; padding: 16px; background: #fff; color: #1e293b;

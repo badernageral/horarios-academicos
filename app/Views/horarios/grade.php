@@ -6,6 +6,11 @@ $corSemProf = '#94a3b8';
 ?>
 
 <style>
+* {
+  print-color-adjust: exact !important;
+  -webkit-print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
 .grade-table {
   border-collapse: collapse;
   table-layout: fixed;
@@ -136,7 +141,6 @@ $corSemProf = '#94a3b8';
   .card { box-shadow: none !important; border: none !important; }
   .card-body { overflow: visible !important; }
   body { background: #fff !important; }
-  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .grade-table th, .grade-table th.col-hora, .grade-table td.col-hora,
   .grade-turma-header td { position: static !important; }
   .disc-block { cursor: default; }

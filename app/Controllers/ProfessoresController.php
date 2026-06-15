@@ -13,12 +13,22 @@ class ProfessoresController extends BaseController
         $professores = Professor::allComNda($sort, $dir);
         $flash       = $this->getFlash();
 
-        $cores    = array_column($professores, 'cor');
-        $coresSec = array_column($professores, 'cor_secundaria');
-        $temCoresRepetidas = count($cores) !== count(array_unique($cores))
-                          || count($coresSec) !== count(array_unique($coresSec));
+        // Conflito = par (cor primária + secundária) idêntico entre dois professores
+        $porPar = [];
+        foreach ($professores as $p) {
+            $porPar[$p['cor'] . '|' . $p['cor_secundaria']][$p['id']] = $p['nome'];
+        }
 
-        $this->render('professores/index', compact('professores', 'flash', 'temCoresRepetidas', 'sort', 'dir'));
+        $conflitantes = [];
+        foreach ($professores as $p) {
+            $grupo = $porPar[$p['cor'] . '|' . $p['cor_secundaria']] ?? [];
+            unset($grupo[$p['id']]);
+            if ($grupo) {
+                $conflitantes[$p['id']] = array_values($grupo);
+            }
+        }
+
+        $this->render('professores/index', compact('professores', 'flash', 'conflitantes', 'sort', 'dir'));
     }
 
     public function novo(): void
@@ -112,33 +122,6 @@ class ProfessoresController extends BaseController
             Professor::delete($id);
             $this->flash('success', 'Professor removido.');
         }
-        $this->redirect('/professores');
-    }
-
-    public function corrigirCores(): void
-    {
-        $pares = self::paletaDupla();
-        $n     = count($pares);
-
-        $rows = Database::fetchAll("SELECT id FROM professores ORDER BY id");
-
-        $corrigidos = 0;
-        foreach ($rows as $idx => $row) {
-            [$cor, $corSec] = $pares[$idx % $n];
-            $atual = Database::fetchOne(
-                "SELECT cor, cor_secundaria FROM professores WHERE id = ?",
-                [$row['id']]
-            );
-            if ($atual['cor'] !== $cor || $atual['cor_secundaria'] !== $corSec) {
-                Database::query(
-                    "UPDATE professores SET cor = ?, cor_secundaria = ? WHERE id = ?",
-                    [$cor, $corSec, $row['id']]
-                );
-                $corrigidos++;
-            }
-        }
-
-        $this->flash('success', "Cores redistribuídas ({$corrigidos} alterada(s)).");
         $this->redirect('/professores');
     }
 
