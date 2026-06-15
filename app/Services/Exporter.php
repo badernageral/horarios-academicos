@@ -25,7 +25,7 @@ class Exporter
         // BOM UTF-8 para Excel
         fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-        fputcsv($out, ['Dia', 'Hora Início', 'Hora Fim', 'Duração (min)', 'Disciplina', 'Turma', 'Professor', 'Sala'], ';');
+        fputcsv($out, ['Dia', 'Hora Início', 'Hora Fim', 'Duração (min)', 'Disciplina', 'Turma', 'Professor', 'Sala'], ';', '"', '\\');
 
         foreach ($horarios as $h) {
             $duracao = TimeHelper::duration($h['hora_inicio'], $h['hora_fim']);
@@ -38,7 +38,7 @@ class Exporter
                 $h['turma_nome'] ?? '',
                 $h['professor_nome'],
                 $h['sala_nome'] ?? 'Sem sala',
-            ], ';');
+            ], ';', '"', '\\');
         }
 
         fclose($out);
