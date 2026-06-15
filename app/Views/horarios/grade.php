@@ -167,6 +167,9 @@ $corSemProf = '#94a3b8';
       </li>
     </ul>
   </div>
+  <a href="<?= $base ?>/horarios/geracao/<?= $geracaoId ?>/exportar/csv" class="btn btn-sm btn-outline-success">
+    <i class="bi bi-filetype-csv me-1"></i>Exportar CSV
+  </a>
   <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalConflitos">
     <i class="bi bi-exclamation-triangle me-1"></i>Verificar Conflitos
   </button>
