@@ -4,9 +4,9 @@ $semestreLabel = $pageTitle;
 ?>
 
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-  <a href="/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
   <h5 class="mb-0 fw-semibold"><i class="bi bi-calendar3 me-2 text-primary"></i><?= $semestreLabel ?></h5>
-  <a href="/horarios/<?= $semestreId ?>/editar" class="btn btn-sm btn-outline-secondary ms-auto">
+  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/editar" class="btn btn-sm btn-outline-secondary ms-auto">
     <i class="bi bi-pencil me-1"></i>Editar
   </a>
 </div>
@@ -40,7 +40,7 @@ $semestreLabel = $pageTitle;
             <?php endif; ?>
           </div>
         </div>
-        <a href="/horarios/<?= $semestreId ?>/atribuir" class="btn btn-success mt-auto">
+        <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir" class="btn btn-success mt-auto">
           <i class="bi bi-person-badge me-1"></i>Atribuir Professores e Salas
         </a>
       </div>
@@ -71,7 +71,7 @@ $semestreLabel = $pageTitle;
             <?php endif; ?>
           </div>
         </div>
-        <form method="POST" action="/horarios/<?= $semestreId ?>/gerar" class="mt-auto"
+        <form method="POST" action="<?= $base ?>/horarios/<?= $semestreId ?>/gerar" class="mt-auto"
               onsubmit="return confirm('<?= $geracao ? 'Isso substituirá o horário atual. Continuar?' : 'Gerar horário agora?' ?>')">
           <button type="submit" class="btn btn-primary w-100">
             <i class="bi bi-magic me-1"></i><?= $geracao ? 'Regerar Horário' : 'Gerar Horário' ?>
@@ -88,7 +88,7 @@ $semestreLabel = $pageTitle;
     <i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Visualizar Horário
   </div>
   <div class="card-body d-flex gap-2 flex-wrap">
-    <a href="/horarios/geracao/<?= $geracao['id'] ?>/grade" class="btn btn-outline-dark">
+    <a href="<?= $base ?>/horarios/geracao/<?= $geracao['id'] ?>/grade" class="btn btn-outline-dark">
       <i class="bi bi-grid-3x3-gap me-1"></i>Grade Completa
     </a>
     <div class="dropdown ms-auto">
@@ -96,9 +96,9 @@ $semestreLabel = $pageTitle;
         <i class="bi bi-download me-1"></i>Exportar
       </button>
       <ul class="dropdown-menu dropdown-menu-end">
-        <li><a class="dropdown-item" href="/horarios/geracao/<?= $geracao['id'] ?>/exportar/csv"><i class="bi bi-filetype-csv me-2"></i>CSV</a></li>
-        <li><a class="dropdown-item" href="/horarios/geracao/<?= $geracao['id'] ?>/exportar/excel"><i class="bi bi-file-earmark-excel me-2"></i>Excel</a></li>
-        <li><a class="dropdown-item" href="/horarios/geracao/<?= $geracao['id'] ?>/exportar/pdf" target="_blank"><i class="bi bi-file-earmark-pdf me-2"></i>PDF / Imprimir</a></li>
+        <li><a class="dropdown-item" href="<?= $base ?>/horarios/geracao/<?= $geracao['id'] ?>/exportar/csv"><i class="bi bi-filetype-csv me-2"></i>CSV</a></li>
+        <li><a class="dropdown-item" href="<?= $base ?>/horarios/geracao/<?= $geracao['id'] ?>/exportar/excel"><i class="bi bi-file-earmark-excel me-2"></i>Excel</a></li>
+        <li><a class="dropdown-item" href="<?= $base ?>/horarios/geracao/<?= $geracao['id'] ?>/exportar/pdf" target="_blank"><i class="bi bi-file-earmark-pdf me-2"></i>PDF / Imprimir</a></li>
       </ul>
     </div>
   </div>

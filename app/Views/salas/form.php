@@ -1,13 +1,13 @@
 <?php $pageTitle = $sala ? 'Editar Sala' : 'Nova Sala'; ?>
 
 <div class="d-flex align-items-center mb-3">
-  <a href="/salas" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/salas" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
   <h5 class="mb-0 fw-semibold"><?= $pageTitle ?></h5>
 </div>
 
 <div class="card border-0 shadow-sm" style="max-width:400px">
   <div class="card-body">
-    <form method="POST" action="/salas/salvar">
+    <form method="POST" action="<?= $base ?>/salas/salvar">
       <?php if ($sala): ?>
       <input type="hidden" name="id" value="<?= $sala['id'] ?>">
       <?php endif; ?>
@@ -30,7 +30,7 @@
           <button type="submit" class="btn btn-primary">
             <i class="bi bi-check-lg me-1"></i>Salvar
           </button>
-          <a href="/salas" class="btn btn-outline-secondary">Cancelar</a>
+          <a href="<?= $base ?>/salas" class="btn btn-outline-secondary">Cancelar</a>
         </div>
       </div>
     </form>

@@ -6,7 +6,7 @@
 <!-- Modal Gerar Horário (global, disponível em todas as páginas) -->
 <div class="modal fade" id="modalGerar" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <form method="POST" action="/horarios/gerar">
+    <form method="POST" action="<?= $base ?>/horarios/gerar">
     <div class="modal-content">
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title"><i class="bi bi-magic me-2"></i>Gerar Horário Automático</h5>

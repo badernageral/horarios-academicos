@@ -18,7 +18,7 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-door-open me-2 text-secondary"></i>Salas</h5>
-  <a href="/salas/nova" class="btn btn-secondary btn-sm">
+  <a href="<?= $base ?>/salas/nova" class="btn btn-secondary btn-sm">
     <i class="bi bi-plus-lg me-1"></i>Nova Sala
   </a>
 </div>
@@ -49,10 +49,10 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
               </span>
             </td>
             <td class="text-end">
-              <a href="/salas/<?= $s['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
+              <a href="<?= $base ?>/salas/<?= $s['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-pencil"></i>
               </a>
-              <form method="POST" action="/salas/deletar" class="d-inline"
+              <form method="POST" action="<?= $base ?>/salas/deletar" class="d-inline"
                     onsubmit="return confirm('Remover sala?')">
                 <input type="hidden" name="id" value="<?= $s['id'] ?>">
                 <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>

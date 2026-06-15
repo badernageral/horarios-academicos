@@ -18,7 +18,7 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-diagram-3 me-2 text-purple"></i>NDAs</h5>
-  <a href="/ndas/novo" class="btn btn-sm" style="background:#7c3aed;color:#fff">
+  <a href="<?= $base ?>/ndas/novo" class="btn btn-sm" style="background:#7c3aed;color:#fff">
     <i class="bi bi-plus-lg me-1"></i>Novo NDA
   </a>
 </div>
@@ -49,10 +49,10 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
               </span>
             </td>
             <td class="text-end">
-              <a href="/ndas/<?= $n['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
+              <a href="<?= $base ?>/ndas/<?= $n['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-pencil"></i>
               </a>
-              <form method="POST" action="/ndas/deletar" class="d-inline"
+              <form method="POST" action="<?= $base ?>/ndas/deletar" class="d-inline"
                     onsubmit="return confirm('Remover NDA?')">
                 <input type="hidden" name="id" value="<?= $n['id'] ?>">
                 <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>

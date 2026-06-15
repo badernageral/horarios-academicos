@@ -6,11 +6,11 @@ $intervalos = $curso['intervalos'] ?? [];
 ?>
 
 <div class="d-flex align-items-center mb-3">
-  <a href="/cursos" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/cursos" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
   <h5 class="mb-0 fw-semibold"><?= $pageTitle ?></h5>
 </div>
 
-<form method="POST" action="/cursos/salvar">
+<form method="POST" action="<?= $base ?>/cursos/salvar">
   <?php if ($curso): ?>
   <input type="hidden" name="id" value="<?= $curso['id'] ?>">
   <?php endif; ?>
@@ -155,7 +155,7 @@ $intervalos = $curso['intervalos'] ?? [];
       <button type="submit" class="btn btn-primary">
         <i class="bi bi-check-lg me-1"></i>Salvar
       </button>
-      <a href="/cursos" class="btn btn-outline-secondary">Cancelar</a>
+      <a href="<?= $base ?>/cursos" class="btn btn-outline-secondary">Cancelar</a>
     </div>
   </div>
 </form>

@@ -4,11 +4,11 @@ $coresDisc = $config['cores_disciplinas'] ?? [];
 ?>
 
 <div class="d-flex align-items-center mb-3">
-  <a href="/disciplinas" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/disciplinas" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
   <h5 class="mb-0 fw-semibold"><?= $pageTitle ?></h5>
 </div>
 
-<form method="POST" action="/disciplinas/salvar">
+<form method="POST" action="<?= $base ?>/disciplinas/salvar">
   <?php if ($disciplina): ?>
   <input type="hidden" name="id" value="<?= $disciplina['id'] ?>">
   <?php endif; ?>
@@ -129,7 +129,7 @@ $coresDisc = $config['cores_disciplinas'] ?? [];
       <button type="submit" class="btn btn-primary">
         <i class="bi bi-check-lg me-1"></i>Salvar
       </button>
-      <a href="/disciplinas" class="btn btn-outline-secondary">Cancelar</a>
+      <a href="<?= $base ?>/disciplinas" class="btn btn-outline-secondary">Cancelar</a>
     </div>
   </div>
 </form>

@@ -1,7 +1,7 @@
 <?php $pageTitle = 'Importar Disciplinas em Massa'; ?>
 
 <div class="d-flex align-items-center mb-3">
-  <a href="/disciplinas" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/disciplinas" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
   <h5 class="mb-0 fw-semibold">Importar Disciplinas em Massa</h5>
 </div>
 
@@ -17,7 +17,7 @@
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-transparent fw-semibold">Lista de Disciplinas</div>
       <div class="card-body">
-        <form method="POST" action="/disciplinas/importar">
+        <form method="POST" action="<?= $base ?>/disciplinas/importar">
 
           <div class="mb-3">
             <label class="form-label">Semestre de Oferta <span class="text-danger">*</span></label>

@@ -19,10 +19,10 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-people me-2 text-info"></i>Turmas</h5>
   <div class="d-flex gap-2">
-    <a href="/turmas/importar" class="btn btn-outline-info btn-sm">
+    <a href="<?= $base ?>/turmas/importar" class="btn btn-outline-info btn-sm">
       <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
     </a>
-    <a href="/turmas/nova" class="btn btn-info btn-sm text-white">
+    <a href="<?= $base ?>/turmas/nova" class="btn btn-info btn-sm text-white">
       <i class="bi bi-plus-lg me-1"></i>Nova Turma
     </a>
   </div>
@@ -60,10 +60,10 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
               </span>
             </td>
             <td class="text-end">
-              <a href="/turmas/<?= $t['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
+              <a href="<?= $base ?>/turmas/<?= $t['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-pencil"></i>
               </a>
-              <form method="POST" action="/turmas/deletar" class="d-inline"
+              <form method="POST" action="<?= $base ?>/turmas/deletar" class="d-inline"
                     onsubmit="return confirm('Remover turma?')">
                 <input type="hidden" name="id" value="<?= $t['id'] ?>">
                 <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>

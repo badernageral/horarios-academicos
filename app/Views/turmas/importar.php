@@ -1,7 +1,7 @@
 <?php $pageTitle = 'Importar Turmas em Massa'; ?>
 
 <div class="d-flex align-items-center mb-3">
-  <a href="/turmas" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/turmas" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
   <h5 class="mb-0 fw-semibold">Importar Turmas em Massa</h5>
 </div>
 
@@ -10,7 +10,7 @@
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-transparent fw-semibold">Dados</div>
       <div class="card-body">
-        <form method="POST" action="/turmas/importar">
+        <form method="POST" action="<?= $base ?>/turmas/importar">
 
           <div class="mb-3">
             <label class="form-label">Curso <span class="text-danger">*</span></label>

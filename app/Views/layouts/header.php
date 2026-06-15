@@ -7,14 +7,14 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="/assets/css/app.css" rel="stylesheet">
+    <link href="<?= $base ?>/assets/css/app.css" rel="stylesheet">
 </head>
 <body>
 
 <!-- Sidebar -->
 <div class="d-flex" id="wrapper">
 <nav id="sidebar" class="d-flex flex-column flex-shrink-0 p-0">
-    <a href="/" class="sidebar-brand d-flex align-items-center px-3 py-3 text-decoration-none">
+    <a href="<?= $base ?>/" class="sidebar-brand d-flex align-items-center px-3 py-3 text-decoration-none">
         <i class="bi bi-calendar2-week-fill me-2 fs-4"></i>
         <span class="fw-bold">SGA</span>
     </a>
@@ -22,44 +22,44 @@
 
     <ul class="nav flex-column px-2 mt-2 flex-grow-1">
         <li class="nav-item">
-            <a href="/" class="nav-link <?= in_array($_SERVER['REQUEST_URI'],['/','/dashboard']) ? 'active':'' ?>">
+            <a href="<?= $base ?>/" class="nav-link <?= in_array(REQUEST_PATH,['/','/dashboard']) ? 'active':'' ?>">
                 <i class="bi bi-speedometer2 me-2"></i> Dashboard
             </a>
         </li>
 
         <li class="nav-item">
-            <a href="/cursos" class="nav-link <?= str_starts_with($_SERVER['REQUEST_URI'],'/cursos')?'active':'' ?>">
+            <a href="<?= $base ?>/cursos" class="nav-link <?= str_starts_with(REQUEST_PATH,'/cursos')?'active':'' ?>">
                 <i class="bi bi-mortarboard me-2"></i> Cursos
             </a>
         </li>
         <li class="nav-item">
-            <a href="/ndas" class="nav-link <?= str_starts_with($_SERVER['REQUEST_URI'],'/ndas')?'active':'' ?>">
+            <a href="<?= $base ?>/ndas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/ndas')?'active':'' ?>">
                 <i class="bi bi-diagram-3 me-2"></i> NDAs
             </a>
         </li>
         <li class="nav-item">
-            <a href="/professores" class="nav-link <?= str_starts_with($_SERVER['REQUEST_URI'],'/professores')?'active':'' ?>">
+            <a href="<?= $base ?>/professores" class="nav-link <?= str_starts_with(REQUEST_PATH,'/professores')?'active':'' ?>">
                 <i class="bi bi-person-badge me-2"></i> Professores
             </a>
         </li>
         <li class="nav-item">
-            <a href="/turmas" class="nav-link <?= str_starts_with($_SERVER['REQUEST_URI'],'/turmas')?'active':'' ?>">
+            <a href="<?= $base ?>/turmas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/turmas')?'active':'' ?>">
                 <i class="bi bi-people me-2"></i> Turmas
             </a>
         </li>
         <li class="nav-item">
-            <a href="/disciplinas" class="nav-link <?= str_starts_with($_SERVER['REQUEST_URI'],'/disciplinas')?'active':'' ?>">
+            <a href="<?= $base ?>/disciplinas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/disciplinas')?'active':'' ?>">
                 <i class="bi bi-book me-2"></i> Disciplinas
             </a>
         </li>
         <li class="nav-item">
-            <a href="/salas" class="nav-link <?= str_starts_with($_SERVER['REQUEST_URI'],'/salas')?'active':'' ?>">
+            <a href="<?= $base ?>/salas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/salas')?'active':'' ?>">
                 <i class="bi bi-door-open me-2"></i> Salas
             </a>
         </li>
 
         <li class="nav-item">
-            <a href="/horarios" class="nav-link <?= str_starts_with($_SERVER['REQUEST_URI'],'/horarios')?'active':'' ?>">
+            <a href="<?= $base ?>/horarios" class="nav-link <?= str_starts_with(REQUEST_PATH,'/horarios')?'active':'' ?>">
                 <i class="bi bi-calendar3 me-2"></i> Horários
             </a>
         </li>

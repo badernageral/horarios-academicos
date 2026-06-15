@@ -832,6 +832,7 @@ class HorariosController extends BaseController
             : [1=>'Segunda', 2=>'Terça', 3=>'Quarta', 4=>'Quinta', 5=>'Sexta'];
 
         // Página standalone (sem layout da aplicação)
+        $base = BASE_PATH;
         require ROOT_PATH . '/app/Views/horarios/imprimir_professores.php';
     }
 

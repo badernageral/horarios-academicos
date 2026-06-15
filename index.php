@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
-define('ROOT_PATH', dirname(__DIR__));
+define('ROOT_PATH', __DIR__);
 define('VIEW_PATH', ROOT_PATH . '/app/Views');
+define('BASE_PATH', '/horarios-academicos');
+define('REQUEST_PATH', '/' . ltrim(substr(strtok($_SERVER['REQUEST_URI'], '?'), strlen(BASE_PATH)), '/'));
 
 date_default_timezone_set('America/Sao_Paulo');
 session_start();

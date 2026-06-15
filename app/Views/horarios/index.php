@@ -9,7 +9,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-calendar3 me-2 text-primary"></i>Horários por Semestre</h5>
-  <a href="/horarios/novo" class="btn btn-primary btn-sm">
+  <a href="<?= $base ?>/horarios/novo" class="btn btn-primary btn-sm">
     <i class="bi bi-plus-lg me-1"></i>Novo Semestre
   </a>
 </div>
@@ -19,7 +19,7 @@
   <div class="card-body text-center text-muted py-5">
     <i class="bi bi-calendar-x display-5 d-block mb-3"></i>
     Nenhum semestre cadastrado ainda.<br>
-    <a href="/horarios/novo" class="btn btn-primary mt-3">
+    <a href="<?= $base ?>/horarios/novo" class="btn btn-primary mt-3">
       <i class="bi bi-plus-lg me-1"></i>Criar Primeiro Semestre
     </a>
   </div>
@@ -75,7 +75,7 @@
             <li><h6 class="dropdown-header">Copiar atribuições de:</h6></li>
             <?php foreach ($outros as $o): ?>
             <li>
-              <form method="POST" action="/horarios/<?= $s['id'] ?>/clonar-atribuicoes"
+              <form method="POST" action="<?= $base ?>/horarios/<?= $s['id'] ?>/clonar-atribuicoes"
                     onsubmit="return confirm('Substituir as atribuições de <?= $s['semestre'] ?>º/<?= $s['ano'] ?> pelas de <?= $o['semestre'] ?>º/<?= $o['ano'] ?>?')">
                 <input type="hidden" name="origem_id" value="<?= $o['id'] ?>">
                 <button type="submit" class="dropdown-item">
@@ -87,10 +87,10 @@
           </ul>
         </div>
         <?php endif; ?>
-        <a href="/horarios/<?= $s['id'] ?>/editar" class="btn btn-sm btn-outline-secondary" title="Editar semestre">
+        <a href="<?= $base ?>/horarios/<?= $s['id'] ?>/editar" class="btn btn-sm btn-outline-secondary" title="Editar semestre">
           <i class="bi bi-pencil"></i>
         </a>
-        <form method="POST" action="/horarios/deletar" class="d-inline"
+        <form method="POST" action="<?= $base ?>/horarios/deletar" class="d-inline"
               onsubmit="return confirm('Remover semestre e todas as gerações?')">
           <input type="hidden" name="id" value="<?= $s['id'] ?>">
           <button class="btn btn-sm btn-outline-danger" title="Remover"><i class="bi bi-trash"></i></button>
@@ -102,12 +102,12 @@
     <div class="d-flex flex-wrap gap-2">
 
       <!-- Atribuir -->
-      <a href="/horarios/<?= $s['id'] ?>/atribuir" class="btn btn-sm btn-success">
+      <a href="<?= $base ?>/horarios/<?= $s['id'] ?>/atribuir" class="btn btn-sm btn-success">
         <i class="bi bi-person-badge me-1"></i>Professores e Salas
       </a>
 
       <!-- Gerar -->
-      <form method="POST" action="/horarios/<?= $s['id'] ?>/gerar" class="d-inline"
+      <form method="POST" action="<?= $base ?>/horarios/<?= $s['id'] ?>/gerar" class="d-inline"
             onsubmit="return confirm('<?= $gerado ? 'Regerar horário? O atual será substituído.' : 'Gerar horário agora?' ?>')">
         <button class="btn btn-sm <?= $gerado ? 'btn-outline-primary' : 'btn-primary' ?>">
           <i class="bi bi-magic me-1"></i><?= $gerado ? 'Regerar' : 'Gerar Horário' ?>
@@ -116,7 +116,7 @@
 
       <?php if ($gerado): ?>
       <!-- Visualizar -->
-      <a href="/horarios/geracao/<?= $ger['id'] ?>/grade" class="btn btn-sm btn-outline-dark">
+      <a href="<?= $base ?>/horarios/geracao/<?= $ger['id'] ?>/grade" class="btn btn-sm btn-outline-dark">
         <i class="bi bi-grid-3x3-gap me-1"></i>Grade
       </a>
       <?php endif; ?>

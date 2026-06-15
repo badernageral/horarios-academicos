@@ -47,7 +47,7 @@
 
 <div class="no-print">
   <button onclick="window.print()">🖨️ Imprimir</button>
-  <a href="/horarios/geracao/<?= $geracaoId ?>/grade">← Voltar à grade</a>
+  <a href="<?= $base ?>/horarios/geracao/<?= $geracaoId ?>/grade">← Voltar à grade</a>
   <span style="font-size:12px;color:#64748b"><?= count($porProfessor) ?> professor(es) — um por página</span>
 </div>
 

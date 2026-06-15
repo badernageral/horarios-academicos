@@ -1,7 +1,7 @@
 <?php $pageTitle = 'Dashboard'; ?>
 
 <div class="d-flex justify-content-end mb-3">
-  <a href="/horarios/backup" class="btn btn-outline-secondary btn-sm"
+  <a href="<?= $base ?>/horarios/backup" class="btn btn-outline-secondary btn-sm"
      title="Gera um dump completo do banco (mysqldump), salva em backups/ e baixa o arquivo">
     <i class="bi bi-shield-check me-1"></i>Backup do Banco
   </a>
@@ -41,7 +41,7 @@
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-transparent fw-semibold d-flex justify-content-between align-items-center">
         <span><i class="bi bi-calendar3 me-2 text-primary"></i>Horários</span>
-        <a href="/horarios/novo" class="btn btn-sm btn-primary">
+        <a href="<?= $base ?>/horarios/novo" class="btn btn-sm btn-primary">
           <i class="bi bi-plus-lg me-1"></i>Novo
         </a>
       </div>
@@ -51,7 +51,7 @@
           <i class="bi bi-calendar-x display-6 d-block mb-2"></i>
           Nenhum horário cadastrado ainda.
           <div class="mt-3">
-            <a href="/horarios/novo" class="btn btn-primary btn-sm">
+            <a href="<?= $base ?>/horarios/novo" class="btn btn-primary btn-sm">
               <i class="bi bi-plus-lg me-1"></i>Criar Horário
             </a>
           </div>
@@ -92,11 +92,11 @@
                 <?= $s['atividades_falhas'] ?? '—' ?>
               </td>
               <td class="text-end">
-                <a href="/horarios" class="btn btn-sm btn-outline-primary">
+                <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-primary">
                   <i class="bi bi-arrow-right"></i>
                 </a>
                 <?php if ($s['geracao_id'] && in_array($s['geracao_status'], ['concluido','parcial'])): ?>
-                <a href="/horarios/geracao/<?= $s['geracao_id'] ?>/grade" class="btn btn-sm btn-outline-dark" title="Grade">
+                <a href="<?= $base ?>/horarios/geracao/<?= $s['geracao_id'] ?>/grade" class="btn btn-sm btn-outline-dark" title="Grade">
                   <i class="bi bi-grid-3x3-gap"></i>
                 </a>
                 <?php endif; ?>

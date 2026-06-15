@@ -6,6 +6,7 @@ class View
 {
     public static function render(string $template, array $data = []): void
     {
+        $data['base'] = BASE_PATH;
         extract($data, EXTR_SKIP);
         $config = require ROOT_PATH . '/config/app.php';
 

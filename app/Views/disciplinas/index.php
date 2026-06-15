@@ -19,10 +19,10 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-book me-2 text-warning"></i>Disciplinas</h5>
   <div class="d-flex gap-2">
-    <a href="/disciplinas/importar" class="btn btn-outline-warning btn-sm">
+    <a href="<?= $base ?>/disciplinas/importar" class="btn btn-outline-warning btn-sm">
       <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
     </a>
-    <a href="/disciplinas/nova" class="btn btn-warning btn-sm">
+    <a href="<?= $base ?>/disciplinas/nova" class="btn btn-warning btn-sm">
       <i class="bi bi-plus-lg me-1"></i>Nova Disciplina
     </a>
   </div>
@@ -82,10 +82,10 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
               <span class="badge bg-dark"><?= \App\Services\TimeHelper::formatDuration($totalMin) ?></span>
             </td>
             <td class="text-end">
-              <a href="/disciplinas/<?= $d['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
+              <a href="<?= $base ?>/disciplinas/<?= $d['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-pencil"></i>
               </a>
-              <form method="POST" action="/disciplinas/deletar" class="d-inline"
+              <form method="POST" action="<?= $base ?>/disciplinas/deletar" class="d-inline"
                     onsubmit="return confirm('Remover disciplina?')">
                 <input type="hidden" name="id" value="<?= $d['id'] ?>">
                 <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>

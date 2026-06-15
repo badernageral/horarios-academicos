@@ -18,7 +18,8 @@ abstract class BaseController
 
     protected function redirect(string $url): void
     {
-        header("Location: {$url}");
+        $full = str_starts_with($url, 'http') ? $url : BASE_PATH . $url;
+        header("Location: {$full}");
         exit;
     }
 

@@ -1,7 +1,7 @@
 <?php $pageTitle = 'Importar Professores em Massa'; ?>
 
 <div class="d-flex align-items-center mb-3">
-  <a href="/professores" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/professores" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
   <h5 class="mb-0 fw-semibold">Importar Professores em Massa</h5>
 </div>
 
@@ -10,7 +10,7 @@
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-transparent fw-semibold">Lista de Nomes</div>
       <div class="card-body">
-        <form method="POST" action="/professores/importar">
+        <form method="POST" action="<?= $base ?>/professores/importar">
           <div class="mb-3">
             <label class="form-label">Nome - NDA — uma entrada por linha <span class="text-danger">*</span></label>
             <textarea name="nomes" id="nomes" class="form-control font-monospace"

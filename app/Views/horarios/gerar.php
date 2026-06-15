@@ -5,7 +5,7 @@ $geracao      = $geracoes[0] ?? null;
 ?>
 
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-  <a href="/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
   <div>
     <h5 class="mb-0 fw-semibold"><i class="bi bi-magic me-2 text-primary"></i>Geração de Horário</h5>
     <small class="text-muted"><?= $semestreLabel ?></small>
@@ -31,7 +31,7 @@ $geracao      = $geracoes[0] ?? null;
       <?= $semAtribuir ?> disciplina(s) sem professor — serão ignoradas na geração.
     </div>
     <?php endif; ?>
-    <form method="POST" action="/horarios/<?= $semestreId ?>/gerar">
+    <form method="POST" action="<?= $base ?>/horarios/<?= $semestreId ?>/gerar">
       <div class="row g-3">
         <div class="col-auto">
           <button type="submit" class="btn btn-primary"
@@ -101,7 +101,7 @@ $geracao      = $geracoes[0] ?? null;
       </div>
       <?php if (in_array($geracao['status'], ['concluido','parcial'])): ?>
       <div class="d-flex gap-2 ms-auto flex-wrap">
-        <a href="/horarios/geracao/<?= $geracao['id'] ?>/grade" class="btn btn-sm btn-outline-dark">
+        <a href="<?= $base ?>/horarios/geracao/<?= $geracao['id'] ?>/grade" class="btn btn-sm btn-outline-dark">
           <i class="bi bi-grid-3x3-gap me-1"></i>Grade
         </a>
         <div class="dropdown">
@@ -109,9 +109,9 @@ $geracao      = $geracoes[0] ?? null;
             <i class="bi bi-download"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="/horarios/geracao/<?= $geracao['id'] ?>/exportar/csv"><i class="bi bi-filetype-csv me-2"></i>CSV</a></li>
-            <li><a class="dropdown-item" href="/horarios/geracao/<?= $geracao['id'] ?>/exportar/excel"><i class="bi bi-file-earmark-excel me-2"></i>Excel</a></li>
-            <li><a class="dropdown-item" href="/horarios/geracao/<?= $geracao['id'] ?>/exportar/pdf" target="_blank"><i class="bi bi-file-earmark-pdf me-2"></i>PDF / Imprimir</a></li>
+            <li><a class="dropdown-item" href="<?= $base ?>/horarios/geracao/<?= $geracao['id'] ?>/exportar/csv"><i class="bi bi-filetype-csv me-2"></i>CSV</a></li>
+            <li><a class="dropdown-item" href="<?= $base ?>/horarios/geracao/<?= $geracao['id'] ?>/exportar/excel"><i class="bi bi-file-earmark-excel me-2"></i>Excel</a></li>
+            <li><a class="dropdown-item" href="<?= $base ?>/horarios/geracao/<?= $geracao['id'] ?>/exportar/pdf" target="_blank"><i class="bi bi-file-earmark-pdf me-2"></i>PDF / Imprimir</a></li>
           </ul>
         </div>
       </div>

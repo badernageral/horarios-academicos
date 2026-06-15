@@ -18,8 +18,11 @@ class Router
 
     public function dispatch(string $method, string $uri): void
     {
-        // Strip query string
+        // Strip query string and base path
         $uri = strtok($uri, '?');
+        if (BASE_PATH !== '' && str_starts_with($uri, BASE_PATH)) {
+            $uri = substr($uri, strlen(BASE_PATH));
+        }
         $uri = '/' . trim($uri, '/');
 
         foreach ($this->routes as [$routeMethod, $pattern, $handler]) {

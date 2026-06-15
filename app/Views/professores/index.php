@@ -20,16 +20,16 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
   <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-success"></i>Professores</h5>
   <div class="d-flex gap-2">
     <?php if ($temCoresRepetidas ?? false): ?>
-    <form method="POST" action="/professores/corrigir-cores" class="d-inline">
+    <form method="POST" action="<?= $base ?>/professores/corrigir-cores" class="d-inline">
       <button type="submit" class="btn btn-warning btn-sm">
         <i class="bi bi-palette me-1"></i>Corrigir Cores Repetidas
       </button>
     </form>
     <?php endif; ?>
-    <a href="/professores/importar" class="btn btn-outline-success btn-sm">
+    <a href="<?= $base ?>/professores/importar" class="btn btn-outline-success btn-sm">
       <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
     </a>
-    <a href="/professores/novo" class="btn btn-success btn-sm">
+    <a href="<?= $base ?>/professores/novo" class="btn btn-success btn-sm">
       <i class="bi bi-plus-lg me-1"></i>Novo Professor
     </a>
   </div>
@@ -66,10 +66,10 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
               </span>
             </td>
             <td class="text-end">
-              <a href="/professores/<?= $p['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
+              <a href="<?= $base ?>/professores/<?= $p['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-pencil"></i>
               </a>
-              <form method="POST" action="/professores/deletar" class="d-inline"
+              <form method="POST" action="<?= $base ?>/professores/deletar" class="d-inline"
                     onsubmit="return confirm('Remover professor?')">
                 <input type="hidden" name="id" value="<?= $p['id'] ?>">
                 <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>

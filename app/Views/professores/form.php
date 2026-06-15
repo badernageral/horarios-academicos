@@ -6,11 +6,11 @@ $dispExist  = $professor['disponibilidade'] ?? [];
 ?>
 
 <div class="d-flex align-items-center mb-3">
-  <a href="/professores" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/professores" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
   <h5 class="mb-0 fw-semibold"><?= $pageTitle ?></h5>
 </div>
 
-<form method="POST" action="/professores/salvar">
+<form method="POST" action="<?= $base ?>/professores/salvar">
   <?php if ($professor): ?>
   <input type="hidden" name="id" value="<?= $professor['id'] ?>">
   <?php endif; ?>
@@ -131,7 +131,7 @@ $dispExist  = $professor['disponibilidade'] ?? [];
       <button type="submit" class="btn btn-primary">
         <i class="bi bi-check-lg me-1"></i>Salvar
       </button>
-      <a href="/professores" class="btn btn-outline-secondary">Cancelar</a>
+      <a href="<?= $base ?>/professores" class="btn btn-outline-secondary">Cancelar</a>
     </div>
   </div>
 </form>

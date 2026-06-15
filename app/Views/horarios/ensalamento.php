@@ -5,7 +5,7 @@ $semSala      = count(array_filter($turmas, fn($t) => !$t['sala_atribuida']));
 ?>
 
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-  <a href="/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
   <div>
     <h5 class="mb-0 fw-semibold"><i class="bi bi-door-open me-2 text-secondary"></i>Atribuição de Salas</h5>
     <small class="text-muted"><?= $semestreLabel ?></small>
@@ -25,7 +25,7 @@ $semSala      = count(array_filter($turmas, fn($t) => !$t['sala_atribuida']));
 <?php endif; ?>
 
 <div class="card border-0 shadow-sm">
-  <form method="POST" action="/horarios/<?= $semestreId ?>/ensalamento">
+  <form method="POST" action="<?= $base ?>/horarios/<?= $semestreId ?>/ensalamento">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
@@ -59,7 +59,7 @@ $semSala      = count(array_filter($turmas, fn($t) => !$t['sala_atribuida']));
       <button type="submit" class="btn btn-secondary">
         <i class="bi bi-check-lg me-1"></i>Salvar Salas
       </button>
-      <a href="/horarios" class="btn btn-outline-secondary">Cancelar</a>
+      <a href="<?= $base ?>/horarios" class="btn btn-outline-secondary">Cancelar</a>
     </div>
   </form>
 </div>

@@ -4,12 +4,12 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
 ?>
 
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-  <a href="/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
   <div>
     <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-success"></i>Atribuição de Professores e Salas</h5>
     <small class="text-muted"><?= $semestreLabel ?></small>
   </div>
-  <a href="/horarios/<?= $semestreId ?>/atribuir/importar" class="btn btn-sm btn-outline-success ms-auto">
+  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/importar" class="btn btn-sm btn-outline-success ms-auto">
     <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
   </a>
   <?php if ($semAtribuir > 0): ?>
@@ -45,7 +45,7 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
 <?php endif; ?>
 
 <div class="card border-0 shadow-sm">
-  <form method="POST" action="/horarios/<?= $semestreId ?>/atribuir">
+  <form method="POST" action="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
@@ -119,7 +119,7 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
       <button type="submit" class="btn btn-success">
         <i class="bi bi-check-lg me-1"></i>Salvar Atribuições
       </button>
-      <a href="/horarios" class="btn btn-outline-secondary">Cancelar</a>
+      <a href="<?= $base ?>/horarios" class="btn btn-outline-secondary">Cancelar</a>
     </div>
   </form>
 </div>

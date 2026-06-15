@@ -4,7 +4,7 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
 ?>
 
 <div class="d-flex align-items-center gap-2 mb-3">
-  <a href="/horarios/<?= $semestreId ?>/atribuir" class="btn btn-sm btn-outline-secondary">
+  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i>
   </a>
   <div>
@@ -25,7 +25,7 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-transparent fw-semibold">Lista de Atribuições</div>
       <div class="card-body">
-        <form method="POST" action="/horarios/<?= $semestreId ?>/atribuir/importar">
+        <form method="POST" action="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/importar">
           <div class="mb-3">
             <label class="form-label">
               Disciplina - Professor — uma por linha <span class="text-danger">*</span>

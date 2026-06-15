@@ -145,7 +145,7 @@ $corSemProf = '#94a3b8';
 </style>
 
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap no-print">
-  <a href="/horarios" class="btn btn-sm btn-outline-secondary">
+  <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i>
   </a>
   <h5 class="mb-0 fw-semibold"><i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Grade de Horários</h5>
@@ -161,7 +161,7 @@ $corSemProf = '#94a3b8';
         </a>
       </li>
       <li>
-        <a class="dropdown-item" href="/horarios/geracao/<?= $geracaoId ?>/imprimir/professores" target="_blank">
+        <a class="dropdown-item" href="<?= $base ?>/horarios/geracao/<?= $geracaoId ?>/imprimir/professores" target="_blank">
           <i class="bi bi-person-badge me-2"></i>Todos por professor
         </a>
       </li>
@@ -171,7 +171,7 @@ $corSemProf = '#94a3b8';
     <i class="bi bi-exclamation-triangle me-1"></i>Verificar Conflitos
   </button>
   <?php if (!empty($semestreId)): ?>
-  <form method="POST" action="/horarios/<?= $semestreId ?>/gerar" class="mb-0"
+  <form method="POST" action="<?= $base ?>/horarios/<?= $semestreId ?>/gerar" class="mb-0"
         onsubmit="return confirm('Regerar o horário descarta esta geração, incluindo ajustes manuais e itens no limbo. Continuar?');">
     <button type="submit" class="btn btn-sm btn-success">
       <i class="bi bi-arrow-repeat me-1"></i>Regerar
@@ -210,7 +210,7 @@ $corSemProf = '#94a3b8';
 </div>
 
 <!-- Filtros de visualização -->
-<form method="GET" action="/horarios/geracao/<?= $geracaoId ?>/grade" class="row g-2 mb-3 align-items-end no-print">
+<form method="GET" action="<?= $base ?>/horarios/geracao/<?= $geracaoId ?>/grade" class="row g-2 mb-3 align-items-end no-print">
   <div class="col-md">
     <label class="form-label small mb-1">Curso</label>
     <select name="curso_id" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -257,7 +257,7 @@ $corSemProf = '#94a3b8';
   </div>
   <div class="col-md-auto d-flex gap-2">
     <?php if ($filtroAtivo): ?>
-    <a href="/horarios/geracao/<?= $geracaoId ?>/grade" class="btn btn-sm btn-outline-secondary">
+    <a href="<?= $base ?>/horarios/geracao/<?= $geracaoId ?>/grade" class="btn btn-sm btn-outline-secondary">
       <i class="bi bi-x-lg me-1"></i>Limpar filtros
     </a>
     <span class="badge bg-info text-dark align-self-center">
@@ -486,6 +486,7 @@ $corSemProf = '#94a3b8';
 
 <?php if (!$filtroAtivo): /* drag & drop desabilitado quando há filtro */ ?>
 <script>
+const base = '<?= $base ?>';
 (function () {
   let draggingEl    = null;
   let draggingTurma = null;
@@ -568,7 +569,7 @@ $corSemProf = '#94a3b8';
         }
         const a = parseInt(el.dataset.horarioId);
         const b = parseInt(ocupante.dataset.horarioId);
-        fetch('/horarios/geracao/trocar', {
+        fetch(base + '/horarios/geracao/trocar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ horario_a: a, horario_b: b })
@@ -591,7 +592,7 @@ $corSemProf = '#94a3b8';
       const novoDia        = parseInt(cell.dataset.dia);
       const novaHoraInicio = cell.dataset.horaInicio;
 
-      fetch('/horarios/geracao/mover', {
+      fetch(base + '/horarios/geracao/mover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -644,7 +645,7 @@ $corSemProf = '#94a3b8';
       if (zone.contains(draggingEl)) return; // já está neste limbo
 
       const horarioId = parseInt(draggingEl.dataset.horarioId);
-      fetch('/horarios/geracao/mover', {
+      fetch(base + '/horarios/geracao/mover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -733,7 +734,7 @@ document.getElementById('conflitos-verificar').addEventListener('click', () => {
   const out = document.getElementById('conflitos-resultado');
   out.innerHTML = '<div class="text-muted small">Verificando…</div>';
 
-  fetch('/horarios/geracao/<?= $geracaoId ?>/conflitos', {
+  fetch(base + '/horarios/geracao/<?= $geracaoId ?>/conflitos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ disciplinas: document.getElementById('conflitos-input').value })

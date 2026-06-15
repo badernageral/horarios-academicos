@@ -4,13 +4,13 @@ $anoAtual  = (int)date('Y');
 ?>
 
 <div class="d-flex align-items-center mb-3">
-  <a href="/horarios" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
   <h5 class="mb-0 fw-semibold"><i class="bi bi-calendar3 me-2 text-primary"></i><?= $pageTitle ?></h5>
 </div>
 
 <div class="card border-0 shadow-sm" style="max-width:440px">
   <div class="card-body">
-    <form method="POST" action="/horarios/salvar">
+    <form method="POST" action="<?= $base ?>/horarios/salvar">
       <?php if ($semestre): ?>
       <input type="hidden" name="id" value="<?= $semestre['id'] ?>">
       <?php endif; ?>
@@ -35,7 +35,7 @@ $anoAtual  = (int)date('Y');
         <button type="submit" class="btn btn-primary">
           <i class="bi bi-check-lg me-1"></i><?= $semestre ? 'Salvar' : 'Criar Semestre' ?>
         </button>
-        <a href="/horarios" class="btn btn-outline-secondary">Cancelar</a>
+        <a href="<?= $base ?>/horarios" class="btn btn-outline-secondary">Cancelar</a>
       </div>
     </form>
   </div>
