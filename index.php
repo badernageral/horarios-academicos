@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+ini_set('pcre.jit', '0');
+
 define('ROOT_PATH', __DIR__);
 define('VIEW_PATH', ROOT_PATH . '/app/Views');
 define('BASE_PATH', '/horarios-academicos');
