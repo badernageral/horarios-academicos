@@ -8,6 +8,7 @@ $corSemProf = '#94a3b8';
 <style>
 .grade-table {
   border-collapse: collapse;
+  table-layout: fixed;
   min-width: 700px;
   font-size: 12px;
 }
@@ -24,7 +25,6 @@ $corSemProf = '#94a3b8';
   white-space: nowrap;
 }
 .grade-table th.col-hora {
-  min-width: 80px;
   text-align: left;
   position: sticky;
   left: 0;
@@ -346,6 +346,10 @@ $corSemProf = '#94a3b8';
     <!-- Uma tabela por turma (na impressão, uma turma por página) -->
     <div class="turma-bloco">
     <table class="grade-table w-100">
+      <colgroup>
+        <col style="width:90px">
+        <col><col><col><col><col>
+      </colgroup>
       <thead>
         <!-- Cabeçalho da turma -->
         <tr class="grade-turma-header">

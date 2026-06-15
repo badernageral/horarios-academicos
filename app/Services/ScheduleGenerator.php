@@ -42,7 +42,7 @@ class ScheduleGenerator
     private array $professores  = [];  // [id] = dados
     private array $disponibilidade = []; // [professor_id][dia] = [[inicio,fim],...]
     private array $salas        = [];
-    private array $salasPorTurma = []; // [turma_id => sala_id]
+    private array $salasPorDisciplina = []; // [disciplina_id => sala_id]
 
     /** Pesos das restrições soft */
     private array $pesos = [
@@ -169,7 +169,7 @@ class ScheduleGenerator
             "SELECT disciplina_id, sala_id FROM semestre_atribuicoes WHERE semestre_id = ? AND sala_id IS NOT NULL",
             [$this->semestreId]
         ) as $row) {
-            $this->salasPorTurma[(int)$row['disciplina_id']] = (int)$row['sala_id'];
+            $this->salasPorDisciplina[(int)$row['disciplina_id']] = (int)$row['sala_id'];
         }
     }
 
@@ -626,8 +626,8 @@ class ScheduleGenerator
     private function salasCompativeis(array $atividade): array
     {
         $disciplinaId = $atividade['disciplina_id'] ?? 0;
-        if (isset($this->salasPorTurma[$disciplinaId])) {
-            $salaId = $this->salasPorTurma[$disciplinaId];
+        if (isset($this->salasPorDisciplina[$disciplinaId])) {
+            $salaId = $this->salasPorDisciplina[$disciplinaId];
             return isset($this->salas[$salaId]) ? [$this->salas[$salaId]] : [];
         }
         return array_values(array_filter($this->salas, fn($s) => (bool)$s['ativo']));
@@ -742,7 +742,7 @@ class ScheduleGenerator
                         $f['disciplina_id'],
                         $f['turma_id'],
                         $f['professor_id'],
-                        $this->salasPorTurma[$f['disciplina_id']] ?? null,
+                        $this->salasPorDisciplina[$f['disciplina_id']] ?? null,
                         0,
                         TimeHelper::fromMinutes($f['turno_inicio']),
                         TimeHelper::fromMinutes($f['turno_inicio'] + $f['duracao']),
