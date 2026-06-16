@@ -42,21 +42,66 @@ class Semestre extends BaseModel
 
     public static function salvarAtribuicoes(int $semestreId, array $professores, array $salas = []): void
     {
+        // Atribuição atual (antes da troca), por disciplina: slot => professor_id.
+        // Usado para sincronizar horarios.professor_id já gerados sem perder dia/hora/sala.
+        $atuais = [];
+        foreach (Database::fetchAll(
+            "SELECT disciplina_id, slot, professor_id FROM semestre_atribuicoes WHERE semestre_id = ?",
+            [$semestreId]
+        ) as $r) {
+            $atuais[(int)$r['disciplina_id']][(int)$r['slot']] = (int)$r['professor_id'];
+        }
+
         Database::query("DELETE FROM semestre_atribuicoes WHERE semestre_id = ?", [$semestreId]);
+
         // $professores: [disciplina_id => [slot => professor_id]]
         foreach ($professores as $disciplinaId => $slots) {
+            $disciplinaId = (int)$disciplinaId;
             $salaId = ($salas[$disciplinaId] ?? '') !== '' ? (int)$salas[$disciplinaId] : null;
+            $trocas = [];
             foreach ((array)$slots as $slot => $professorId) {
-                if ((string)$professorId !== '') {
-                    Database::query(
-                        "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot, sala_id)
-                         VALUES (?, ?, ?, ?, ?)",
-                        [$semestreId, (int)$disciplinaId, (int)$professorId, (int)$slot,
-                         (int)$slot === 1 ? $salaId : null]
-                    );
+                if ((string)$professorId === '') continue;
+                $slot        = (int)$slot;
+                $professorId = (int)$professorId;
+                Database::query(
+                    "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot, sala_id)
+                     VALUES (?, ?, ?, ?, ?)",
+                    [$semestreId, $disciplinaId, $professorId, $slot, $slot === 1 ? $salaId : null]
+                );
+
+                $antigo = $atuais[$disciplinaId][$slot] ?? null;
+                if ($antigo !== null && $antigo !== $professorId) {
+                    $trocas[$antigo] = $professorId;
                 }
             }
+            if ($trocas) {
+                self::sincronizarProfessorHorarios($semestreId, $disciplinaId, $trocas);
+            }
         }
+    }
+
+    // Atualiza horarios.professor_id já gerados quando a atribuição muda, preservando
+    // dia/hora/sala. Mapa antigo=>novo aplicado com CASE para suportar trocas simultâneas
+    // (ex.: slot 1 vira slot 2 e vice-versa) sem um update sobrescrever o outro.
+    private static function sincronizarProfessorHorarios(int $semestreId, int $disciplinaId, array $trocas): void
+    {
+        $cases  = [];
+        $params = [];
+        foreach ($trocas as $antigo => $novo) {
+            $cases[]  = 'WHEN ? THEN ?';
+            $params[] = $antigo;
+            $params[] = $novo;
+        }
+        $antigos      = array_keys($trocas);
+        $placeholders = implode(',', array_fill(0, count($antigos), '?'));
+
+        Database::query(
+            "UPDATE horarios h
+             JOIN geracoes g ON g.id = h.geracao_id
+             SET h.professor_id = CASE h.professor_id " . implode(' ', $cases) . " ELSE h.professor_id END
+             WHERE g.semestre_id = ? AND h.disciplina_id = ? AND h.professor_id IN ($placeholders)",
+            [...$params, $semestreId, $disciplinaId, ...$antigos]
+        );
     }
 
     public static function geracoes(int $semestreId): array
