@@ -12,7 +12,7 @@ class Horario extends BaseModel
     {
         return Database::fetchAll(
             "SELECT h.*,
-                    d.nome AS disciplina_nome, d.sigla AS disciplina_sigla, d.qtd_aulas,
+                    d.nome AS disciplina_nome, d.sigla AS disciplina_sigla, d.qtd_aulas, d.qtd_aulas_ead,
                     t.serie_periodo AS turma_nome, t.serie_periodo,
                     p.nome AS professor_nome, p.cor AS professor_cor, p.cor_secundaria AS professor_cor_secundaria,
                     s.nome AS sala_nome,

@@ -151,6 +151,7 @@ CREATE TABLE disciplinas (
     professor_id             INT UNSIGNED NULL,
     qtd_encontros_semanais   TINYINT UNSIGNED NOT NULL DEFAULT 2,
     qtd_aulas                TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT 'Aulas por encontro (× duracao_aula_minutos do curso)',
+    qtd_aulas_ead            TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Aulas EaD por semana (contam na carga semanal, não ocupam horário-relógio na grade)',
     qtd_professores          TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Número de professores para esta disciplina',
     semestre_oferta          TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT 'Bitmask: 1=1º sem, 2=2º sem, 3=ambos',
     cor                      CHAR(7) NOT NULL DEFAULT '#6366f1',

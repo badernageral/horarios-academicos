@@ -42,6 +42,7 @@ class DisciplinasController extends BaseController
             'turma_id'               => $turmaId,
             'qtd_encontros_semanais' => (int)$this->post('qtd_encontros_semanais', 1),
             'qtd_aulas'              => (int)$this->post('qtd_aulas', 2),
+            'qtd_aulas_ead'          => max(0, (int)$this->post('qtd_aulas_ead', 0)),
             'qtd_professores'        => max(1, (int)$this->post('qtd_professores', 1)),
             'semestre_oferta'        => ($s1 | $s2) ?: 3,
             'ativo'                  => (int)$this->post('ativo', 1),

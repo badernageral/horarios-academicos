@@ -605,6 +605,7 @@ class HorariosController extends BaseController
     private function metricasQualidade(array $horarios): array
     {
         $porProf    = [];
+        $eadPorProf = []; // nome => [disciplina_id => qtd_aulas_ead] (contado uma vez por disciplina)
         $totalAulas = 0;
         $noLimbo    = 0;
         foreach ($horarios as $h) {
@@ -615,9 +616,14 @@ class HorariosController extends BaseController
             $totalAulas++;
             $nome = $h['professor_nome'];
             $porProf[$nome][(int)$h['dia_semana']][] = [
-                'inicio' => \App\Services\TimeHelper::toMinutes($h['hora_inicio']),
-                'fim'    => \App\Services\TimeHelper::toMinutes($h['hora_fim']),
+                'inicio'   => \App\Services\TimeHelper::toMinutes($h['hora_inicio']),
+                'fim'      => \App\Services\TimeHelper::toMinutes($h['hora_fim']),
+                'periodos' => max(1, (int)($h['qtd_aulas'] ?? 1)),
             ];
+            $ead = (int)($h['qtd_aulas_ead'] ?? 0);
+            if ($ead > 0) {
+                $eadPorProf[$nome][(int)$h['disciplina_id']] = $ead;
+            }
         }
         ksort($porProf, SORT_NATURAL | SORT_FLAG_CASE);
 
@@ -627,21 +633,28 @@ class HorariosController extends BaseController
         foreach ($porProf as $nome => $dias) {
             $ds = array_keys($dias);
             sort($ds);
-            $minutos = 0;
+            $minutos  = 0;
+            $periodos = 0; // nº de aulas (períodos), independente da duração-relógio
             foreach ($dias as $ints) {
-                $minutos += \App\Services\TimeHelper::totalMinutosDia($ints);
+                $minutos  += \App\Services\TimeHelper::totalMinutosDia($ints);
+                $periodos += array_sum(array_column($ints, 'periodos'));
             }
             $buracos = (max($ds) - min($ds) + 1) - count($ds); // dias vazios entre o 1º e o último
             if ($buracos > 0) $comBuraco++;
             $totDias += count($ds);
             $aulas = array_sum(array_map('count', $dias));
 
+            $ead       = array_sum($eadPorProf[$nome] ?? []); // aulas EaD (uma vez por disciplina)
+            $periodos += $ead;
+
             $profs[] = [
-                'nome'    => $nome,
-                'dias'    => $ds,
-                'buracos' => $buracos,
-                'minutos' => $minutos,
-                'aulas'   => $aulas,
+                'nome'     => $nome,
+                'dias'     => $ds,
+                'buracos'  => $buracos,
+                'minutos'  => $minutos,
+                'aulas'    => $aulas,
+                'periodos' => $periodos,
+                'ead'      => $ead,
             ];
         }
 

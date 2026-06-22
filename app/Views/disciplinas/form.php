@@ -107,11 +107,21 @@ $coresDisc = $config['cores_disciplinas'] ?? [];
             </div>
           </div>
 
+          <div class="mb-3">
+            <label class="form-label">Aulas EaD por Semana</label>
+            <input type="number" name="qtd_aulas_ead" id="qtdAulasEad"
+                   class="form-control" min="0" max="20"
+                   value="<?= (int)($disciplina['qtd_aulas_ead'] ?? 0) ?>">
+            <div class="form-text">Aulas a distância: contam na carga semanal, mas não ocupam horário na grade</div>
+          </div>
+
           <div class="card bg-light border-0 p-2 text-center mb-3">
-            <div class="small text-muted">Duração por encontro</div>
+            <div class="small text-muted">Duração por encontro (presencial)</div>
             <div class="fw-bold" id="duracaoEncontroDisplay">—</div>
-            <div class="small text-muted mt-1">Total semanal</div>
+            <div class="small text-muted mt-1">Total semanal (relógio, presencial)</div>
             <div class="fw-bold fs-5" id="totalSemanal">—</div>
+            <div class="small text-muted mt-1">Carga semanal (aulas)</div>
+            <div class="fw-bold" id="totalAulasSemanal">—</div>
           </div>
 
           <div>
@@ -144,12 +154,16 @@ function formatDur(min) {
 function recalcularTotal() {
   const enc      = parseInt(document.getElementById('qtdEncontros').value) || 0;
   const aulas    = parseInt(document.getElementById('qtdAulas').value) || 0;
+  const ead      = parseInt(document.getElementById('qtdAulasEad').value) || 0;
   const sel      = document.querySelector('#turma_id option:checked');
   const durAula  = sel ? (parseInt(sel.dataset.duracao) || 0) : 0;
   const durEnc   = aulas * durAula;
   const total    = enc * durEnc;
+  const aulasSem = enc * aulas + ead;
   document.getElementById('duracaoEncontroDisplay').textContent = formatDur(durEnc);
   document.getElementById('totalSemanal').textContent           = formatDur(total);
+  document.getElementById('totalAulasSemanal').textContent      =
+    aulasSem + ' aula' + (aulasSem === 1 ? '' : 's') + (ead > 0 ? ` (${ead} EaD)` : '');
   if (durAula > 0) {
     document.getElementById('textoAula').textContent = `Cada aula dura ${durAula} min (definido no curso)`;
   }
@@ -157,6 +171,7 @@ function recalcularTotal() {
 
 document.getElementById('qtdEncontros').addEventListener('input', recalcularTotal);
 document.getElementById('qtdAulas').addEventListener('input', recalcularTotal);
+document.getElementById('qtdAulasEad').addEventListener('input', recalcularTotal);
 document.getElementById('turma_id').addEventListener('change', recalcularTotal);
 recalcularTotal();
 </script>
