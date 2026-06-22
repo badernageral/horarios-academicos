@@ -301,6 +301,7 @@ $corSemProf = '#94a3b8';
               <th class="text-center">Qtd. dias</th>
               <th class="text-center">Buracos na semana</th>
               <th class="text-center">Carga semanal (aulas)</th>
+              <th class="text-center">Carga relógio</th>
             </tr>
           </thead>
           <tbody>
@@ -334,6 +335,7 @@ $corSemProf = '#94a3b8';
                 <span class="badge bg-light text-secondary border ms-1" title="Aulas EaD incluídas na carga"><?= (int)$q['ead'] ?> EaD</span>
                 <?php endif; ?>
               </td>
+              <td class="text-center"><?= \App\Services\TimeHelper::formatDuration($q['minutos']) ?></td>
             </tr>
           <?php endforeach; ?>
           </tbody>
