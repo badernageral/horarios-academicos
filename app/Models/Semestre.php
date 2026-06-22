@@ -54,11 +54,30 @@ class Semestre extends BaseModel
 
         Database::query("DELETE FROM semestre_atribuicoes WHERE semestre_id = ?", [$semestreId]);
 
+        // Geração ativa do semestre (para limbo e sincronização).
+        $geracao = Database::fetchOne(
+            "SELECT id FROM geracoes WHERE semestre_id = ? ORDER BY created_at DESC LIMIT 1",
+            [$semestreId]
+        );
+        $geracaoId = $geracao ? (int)$geracao['id'] : null;
+
+        // Disciplinas que já têm pelo menos um horario nessa geração (para detectar novas).
+        $comHorario = [];
+        if ($geracaoId) {
+            foreach (Database::fetchAll(
+                "SELECT DISTINCT disciplina_id FROM horarios WHERE geracao_id = ?",
+                [$geracaoId]
+            ) as $r) {
+                $comHorario[(int)$r['disciplina_id']] = true;
+            }
+        }
+
         // $professores: [disciplina_id => [slot => professor_id]]
         foreach ($professores as $disciplinaId => $slots) {
             $disciplinaId = (int)$disciplinaId;
             $salaId = ($salas[$disciplinaId] ?? '') !== '' ? (int)$salas[$disciplinaId] : null;
             $trocas = [];
+            $eraVazia = !isset($atuais[$disciplinaId][1]);
             foreach ((array)$slots as $slot => $professorId) {
                 if ((string)$professorId === '') continue;
                 $slot        = (int)$slot;
@@ -73,10 +92,45 @@ class Semestre extends BaseModel
                 if ($antigo !== null && $antigo !== $professorId) {
                     $trocas[$antigo] = $professorId;
                 }
+
+                // Disciplina nova (sem horarios na geração): cria registros de limbo para o slot 1.
+                if ($slot === 1 && $eraVazia && $geracaoId && !($comHorario[$disciplinaId] ?? false)) {
+                    self::criarLimbo($geracaoId, $disciplinaId, $professorId, $salaId);
+                    $comHorario[$disciplinaId] = true; // evita duplicar se o loop rodar novamente
+                }
             }
             if ($trocas) {
                 self::sincronizarProfessorHorarios($semestreId, $disciplinaId, $trocas);
             }
+        }
+    }
+
+    // Insere registros de limbo (dia_semana=0) para uma disciplina recém-atribuída,
+    // um registro por encontro semanal, usando o turno_inicio do curso como hora base.
+    private static function criarLimbo(int $geracaoId, int $disciplinaId, int $professorId, ?int $salaId): void
+    {
+        $disc = Database::fetchOne(
+            "SELECT d.turma_id, d.qtd_encontros_semanais, d.qtd_aulas, c.turno_inicio, c.duracao_aula_minutos
+             FROM disciplinas d
+             JOIN turmas t ON t.id = d.turma_id
+             JOIN cursos c ON c.id = t.curso_id
+             WHERE d.id = ?",
+            [$disciplinaId]
+        );
+        if (!$disc) return;
+
+        $durMin    = (int)$disc['qtd_aulas'] * (int)$disc['duracao_aula_minutos'];
+        $inicioStr = $disc['turno_inicio'];
+        [$h, $m]   = array_map('intval', explode(':', $inicioStr));
+        $inicioMin = $h * 60 + $m;
+        $fimStr    = sprintf('%02d:%02d:00', intdiv($inicioMin + $durMin, 60), ($inicioMin + $durMin) % 60);
+
+        $stmt = Database::getInstance()->prepare(
+            "INSERT INTO horarios (geracao_id, disciplina_id, turma_id, professor_id, sala_id, dia_semana, hora_inicio, hora_fim)
+             VALUES (?, ?, ?, ?, ?, 0, ?, ?)"
+        );
+        for ($i = 0; $i < (int)$disc['qtd_encontros_semanais']; $i++) {
+            $stmt->execute([$geracaoId, $disciplinaId, (int)$disc['turma_id'], $professorId, $salaId, $inicioStr, $fimStr]);
         }
     }
 
