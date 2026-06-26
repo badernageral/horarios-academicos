@@ -25,8 +25,8 @@ $rows      = $diag['rows'] ?? [];
 <div class="alert alert-warning">
   <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Shortnames repetidos (resolvidos com sufixo numérico)</div>
   <ul class="small mb-0">
-    <?php foreach ($colisoes as $base => $discs): ?>
-    <li><code><?= htmlspecialchars($base) ?></code>: <?= htmlspecialchars(implode(' / ', $discs)) ?></li>
+    <?php foreach ($colisoes as $shortname => $discs): ?>
+    <li><code><?= htmlspecialchars($shortname) ?></code>: <?= htmlspecialchars(implode(' / ', $discs)) ?></li>
     <?php endforeach; ?>
   </ul>
   <div class="small mt-1">As iniciais coincidiram. Para shortnames mais limpos, ajuste o nome dessas disciplinas.</div>

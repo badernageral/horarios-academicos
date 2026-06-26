@@ -27,7 +27,11 @@ class MoodleExporter
     // Iniciais / shortname
     // ──────────────────────────────────────────────────────────────
 
-    /** Primeira letra de cada palavra, maiúscula e sem acento, ignorando conectivos. */
+    /**
+     * Primeira letra de cada palavra, maiúscula e sem acento, ignorando conectivos.
+     * Algarismos romanos de nível/série (I, II, III, IV, V, … até XXXIX) viram o
+     * número arábico em vez da letra — assim "Física II" → "F2" e não "FI".
+     */
     public static function iniciais(string $nome): string
     {
         $palavras = preg_split('/\s+/u', trim($nome)) ?: [];
@@ -35,11 +39,33 @@ class MoodleExporter
         foreach ($palavras as $w) {
             if ($w === '') continue;
             if (in_array(strtolower($w), self::CONECTIVOS, true)) continue;
-            if (preg_match('/^./u', $w, $m)) {
+            $romano = self::romanoParaInteiro($w);
+            if ($romano !== null) {
+                $out .= $romano;
+            } elseif (preg_match('/^./u', $w, $m)) {
                 $out .= strtoupper(self::semAcento($m[0]));
             }
         }
         return $out;
+    }
+
+    /**
+     * Converte um algarismo romano de nível em inteiro, ou null se a palavra não for um.
+     * Restrito a I/V/X (1..39) de propósito: evita interpretar letras de turma como
+     * "C" (=100), "L" (=50), "D" (=500) ou "M" (=1000) como romano.
+     */
+    private static function romanoParaInteiro(string $w): ?int
+    {
+        $w = strtoupper($w);
+        if ($w === '' || !preg_match('/^(X{0,3})(IX|IV|V?I{0,3})$/', $w)) return null;
+        $val   = ['I' => 1, 'V' => 5, 'X' => 10];
+        $total = 0; $prev = 0;
+        for ($i = strlen($w) - 1; $i >= 0; $i--) {
+            $v      = $val[$w[$i]];
+            $total += $v < $prev ? -$v : $v;
+            $prev   = $v;
+        }
+        return $total;
     }
 
     /** Extrai o número do período/série/módulo (ex.: "4º período" → "4"). */
