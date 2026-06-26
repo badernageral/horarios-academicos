@@ -119,7 +119,11 @@ class MoodleExporter
     // Dados
     // ──────────────────────────────────────────────────────────────
 
-    /** Disciplinas ativas ofertadas no semestre (uma por turma). */
+    /**
+     * Disciplinas ativas ofertadas no semestre (uma por turma).
+     * Disciplinas anuais (semestre_oferta = 3) só entram na exportação do 1º semestre —
+     * no 2º semestre o curso já foi criado no Moodle no início do ano.
+     */
     public static function disciplinasDoSemestre(int $semestreId): array
     {
         return Database::fetchAll(
@@ -131,6 +135,7 @@ class MoodleExporter
              JOIN semestres sem  ON sem.id = ?
              WHERE d.ativo = 1
                AND (d.semestre_oferta & sem.semestre) > 0
+               AND NOT (d.semestre_oferta = 3 AND sem.semestre = 2)
              ORDER BY c.nome, t.serie_periodo, d.nome",
             [$semestreId]
         );

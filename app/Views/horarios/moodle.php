@@ -19,6 +19,11 @@ $rows      = $diag['rows'] ?? [];
   O <strong>shortname</strong> de cada curso segue o padrão
   <code><?= $semestre['ano'] ?><?= $semestre['semestre'] ?>{curso}{período}{disciplina}</code>
   (ex.: <code><?= $semestre['ano'] ?><?= $semestre['semestre'] ?>A4LP</code>) e é a chave que liga os dois arquivos.
+  <?php if ((int)$semestre['semestre'] === 2): ?>
+  <div class="mt-2"><i class="bi bi-calendar-range me-1"></i>
+    Disciplinas <strong>anuais</strong> não entram nesta exportação (já foram criadas no 1º semestre).
+  </div>
+  <?php endif; ?>
 </div>
 
 <?php if (!empty($colisoes)): ?>
