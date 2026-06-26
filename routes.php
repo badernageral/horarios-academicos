@@ -2,6 +2,18 @@
 
 /** @var \App\Core\Router $router */
 
+// ── Autenticação ──────────────────────────────────────────────────
+$router->get('/login',   'AuthController@loginForm');
+$router->post('/login',  'AuthController@login');
+$router->get('/logout',  'AuthController@logout');
+
+// ── Usuários ──────────────────────────────────────────────────────
+$router->get('/usuarios',             'UsuariosController@index');
+$router->get('/usuarios/novo',        'UsuariosController@novo');
+$router->post('/usuarios/salvar',     'UsuariosController@salvar');
+$router->get('/usuarios/{id}/editar', 'UsuariosController@editar');
+$router->post('/usuarios/deletar',    'UsuariosController@deletar');
+
 // ── Dashboard ─────────────────────────────────────────────────────
 $router->get('/',           'DashboardController@index');
 $router->get('/dashboard',  'DashboardController@index');

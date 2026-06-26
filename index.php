@@ -45,4 +45,12 @@ require ROOT_PATH . '/routes.php';
 $method = $_SERVER['REQUEST_METHOD'];
 $uri    = $_SERVER['REQUEST_URI'];
 
+// ── Guarda de autenticação ────────────────────────────────────────
+// Tudo exige login, exceto a própria tela de login.
+$rotasPublicas = ['/login'];
+if (!\App\Core\Auth::check() && !in_array(REQUEST_PATH, $rotasPublicas, true)) {
+    header('Location: ' . BASE_PATH . '/login');
+    exit;
+}
+
 $router->dispatch($method, $uri);

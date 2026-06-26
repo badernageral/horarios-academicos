@@ -22,6 +22,7 @@ DROP TABLE IF EXISTS salas;
 DROP TABLE IF EXISTS professores;
 DROP TABLE IF EXISTS ndas;
 DROP TABLE IF EXISTS cursos;
+DROP TABLE IF EXISTS usuarios;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -270,3 +271,19 @@ INSERT INTO configuracoes_soft (chave, nome, valor, descricao) VALUES
 ('distribuicao_semana', 'Distribuição Semanal',           3.0, 'Penalidade por concentrar muitas aulas em um único dia'),
 ('horario_extremo',     'Evitar Horários Extremos',       2.0, 'Penalidade por horários muito cedo ou muito tarde'),
 ('balancear_professor', 'Balancear Carga do Professor',   4.0, 'Penalidade por desbalancear a carga diária do professor');
+
+-- ─────────────────────────────────────────────────────────────
+-- USUÁRIOS (acesso ao sistema; um único perfil com acesso total)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE usuarios (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    nome       VARCHAR(150) NOT NULL,
+    usuario    VARCHAR(60)  NOT NULL UNIQUE,
+    senha_hash VARCHAR(255) NOT NULL COMMENT 'password_hash() — bcrypt',
+    ativo      TINYINT(1)   NOT NULL DEFAULT 1,
+    criado_em  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Usuário padrão: admin / admin (hash bcrypt de "admin"; troque a senha após o 1º acesso)
+INSERT INTO usuarios (nome, usuario, senha_hash) VALUES
+('Administrador', 'admin', '$2y$12$27Egl95P0v5/niTiEs9vseJQIM7KoyJv9U.bWB2oBeUzi5L3NNr5m');

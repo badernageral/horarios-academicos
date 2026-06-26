@@ -76,6 +76,15 @@ Filosofia definida pelo usuário (jun/2026):
 
 ## Decisões do usuário (não sugerir de novo)
 
-- Sem login/autenticação. Sem capacidade de sala. Sábado não é letivo (grade renderiza só
+- Sem capacidade de sala. Sábado não é letivo (grade renderiza só
   seg–sex). NDAs mantidos (ajudam a visualizar professores). Disponibilidade 07:00–23:00 de
   todos os professores é intencional. Sem histórico de gerações.
+
+## Autenticação (jun/2026)
+
+Login por sessão com **perfil único** (acesso total; sem papéis/permissões). Tabela `usuarios`
+(`senha_hash` = `password_hash`/bcrypt), usuário padrão **admin/admin**. `App\Core\Auth`
+(`check/user/id/login/logout`); guarda em `index.php` antes do `dispatch` redireciona tudo para
+`/login`, exceto a rota `/login`. Tela de login é standalone (`auth/login.php` via
+`View::renderPartial`, sem o layout/sidebar). CRUD em `/usuarios` (não pode excluir/desativar a
+si mesmo nem deixar o sistema sem usuários). Logout em `/logout`.

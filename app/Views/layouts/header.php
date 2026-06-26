@@ -63,6 +63,12 @@
                 <i class="bi bi-calendar3 me-2"></i> Horários
             </a>
         </li>
+
+        <li class="nav-item mt-2">
+            <a href="<?= $base ?>/usuarios" class="nav-link <?= str_starts_with(REQUEST_PATH,'/usuarios')?'active':'' ?>">
+                <i class="bi bi-people me-2"></i> Usuários
+            </a>
+        </li>
     </ul>
 
     <div class="px-3 py-2 mt-auto sidebar-footer small text-muted">
@@ -73,10 +79,27 @@
 <!-- Page content -->
 <div id="page-content" class="flex-grow-1">
     <!-- Topbar -->
-    <nav class="navbar navbar-expand-lg topbar px-3 py-2">
+    <nav class="navbar navbar-expand-lg topbar px-3 py-2 d-flex justify-content-between">
         <span class="navbar-brand mb-0 fw-semibold text-dark">
             <?= htmlspecialchars($pageTitle ?? 'Dashboard') ?>
         </span>
+        <?php $authUser = \App\Core\Auth::user(); if ($authUser): ?>
+        <div class="dropdown">
+            <a href="#" class="text-decoration-none text-dark dropdown-toggle d-flex align-items-center"
+               data-bs-toggle="dropdown">
+                <i class="bi bi-person-circle fs-5 me-1"></i>
+                <span class="small fw-semibold"><?= htmlspecialchars($authUser['nome']) ?></span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                <li><span class="dropdown-item-text small text-muted">@<?= htmlspecialchars($authUser['usuario']) ?></span></li>
+                <li><a class="dropdown-item" href="<?= $base ?>/usuarios/<?= $authUser['id'] ?>/editar">
+                    <i class="bi bi-key me-2"></i>Minha conta</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="<?= $base ?>/logout">
+                    <i class="bi bi-box-arrow-right me-2"></i>Sair</a></li>
+            </ul>
+        </div>
+        <?php endif; ?>
     </nav>
 
     <div class="content-wrapper p-3 p-lg-4">
