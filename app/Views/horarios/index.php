@@ -121,6 +121,13 @@
       </a>
       <?php endif; ?>
 
+      <?php if ($s['qtd_atribuicoes'] > 0): ?>
+      <!-- Exportar Moodle -->
+      <a href="<?= $base ?>/horarios/<?= $s['id'] ?>/moodle" class="btn btn-sm btn-outline-info">
+        <i class="bi bi-mortarboard me-1"></i>Moodle
+      </a>
+      <?php endif; ?>
+
     </div>
 
     <?php if (!empty($s['avisos_viabilidade'])): ?>

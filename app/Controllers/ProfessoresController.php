@@ -66,10 +66,13 @@ class ProfessoresController extends BaseController
             return;
         }
 
+        $usuarioMoodle = trim($this->post('usuario_moodle', ''));
+
         $data = [
             'nome'          => trim($this->post('nome')),
             'matricula'     => $matricula,
             'nda_id'        => (int)$ndaId,
+            'usuario_moodle'=> $usuarioMoodle !== '' ? $usuarioMoodle : null,
             'ativo'         => $this->post('ativo', 1),
             'cor'           => $cor,
             'cor_secundaria'=> $corSec,

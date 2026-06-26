@@ -44,7 +44,7 @@ $dispExist  = $professor['disponibilidade'] ?? [];
                 <option value="0" <?= ($professor['ativo'] ?? 1) == 0 ? 'selected':'' ?>>Inativo</option>
               </select>
             </div>
-            <div class="col-12">
+            <div class="col-md-8">
               <label class="form-label">NDA (Área) <span class="text-danger">*</span></label>
               <select name="nda_id" class="form-select" required>
                 <option value="">Selecione uma opção</option>
@@ -55,6 +55,13 @@ $dispExist  = $professor['disponibilidade'] ?? [];
                 </option>
                 <?php endforeach; ?>
               </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Usuário Moodle</label>
+              <input type="text" name="usuario_moodle" class="form-control"
+                     value="<?= htmlspecialchars($professor['usuario_moodle'] ?? '') ?>"
+                     placeholder="ex: jose.alves">
+              <div class="form-text">Username p/ exportação de inscrições no Moodle</div>
             </div>
           </div>
         </div>

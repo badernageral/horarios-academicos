@@ -87,6 +87,7 @@ CREATE TABLE professores (
     nome                       VARCHAR(255) NOT NULL,
     matricula                  VARCHAR(50) NOT NULL UNIQUE,
     email                      VARCHAR(255),
+    usuario_moodle             VARCHAR(100) NULL COMMENT 'Username no Moodle (para export de inscrição de professores)',
     carga_horaria_diaria_max   SMALLINT UNSIGNED NOT NULL DEFAULT 360 COMMENT 'em minutos',
     carga_horaria_semanal_max  SMALLINT UNSIGNED NOT NULL DEFAULT 1200 COMMENT 'em minutos',
     nda_id                     INT UNSIGNED NULL,

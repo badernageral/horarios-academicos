@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use App\Models\{Horario, Turma, Professor, Sala, Semestre, Curso};
 use App\Core\Database;
-use App\Services\{ScheduleGenerator, Exporter, FeasibilityChecker};
+use App\Services\{ScheduleGenerator, Exporter, FeasibilityChecker, MoodleExporter};
 
 class HorariosController extends BaseController
 {
@@ -810,6 +810,70 @@ class HorariosController extends BaseController
         header('Content-Length: ' . filesize($arquivo));
         readfile($arquivo);
         exit;
+    }
+
+    // ── Exportação Moodle (CSVs de importação em massa) ──────────
+    public function verMoodle(string $id): void
+    {
+        $semestreId = (int)$id;
+        $semestre   = Database::fetchOne("SELECT * FROM semestres WHERE id = ?", [$semestreId]);
+        if (!$semestre) $this->redirect('/horarios');
+
+        $diag = MoodleExporter::diagnostico($semestreId);
+
+        // Turmas com disciplinas ofertadas no semestre (para os campos de categoria).
+        $turmas = [];
+        foreach ($diag['rows'] as $r) {
+            $turmas[(int)$r['turma_id']] ??= [
+                'turma_id'      => (int)$r['turma_id'],
+                'serie_periodo' => $r['serie_periodo'],
+                'curso_nome'    => $r['curso_nome'],
+                'qtd'           => 0,
+            ];
+            $turmas[(int)$r['turma_id']]['qtd']++;
+        }
+
+        $this->render('horarios/moodle', [
+            'semestre' => $semestre,
+            'turmas'   => array_values($turmas),
+            'diag'     => $diag,
+            'flash'    => null,
+        ]);
+    }
+
+    public function exportarMoodleDisciplinas(string $id): void
+    {
+        $semestreId = (int)$id;
+        $semestre   = Database::fetchOne("SELECT * FROM semestres WHERE id = ?", [$semestreId]);
+        if (!$semestre) $this->redirect('/horarios');
+
+        $categorias = $this->post('categoria', []);
+        $categorias = is_array($categorias) ? array_map('strval', $categorias) : [];
+
+        $startdate = $this->formatarDataMoodle($this->post('startdate', ''));
+        $enddate   = $this->formatarDataMoodle($this->post('enddate', ''));
+
+        $arquivo = "moodle_disciplinas_{$semestre['ano']}_{$semestre['semestre']}";
+        (new MoodleExporter())->disciplinasCSV($semestreId, $categorias, $startdate, $enddate, $arquivo);
+        exit;
+    }
+
+    public function exportarMoodleProfessores(string $id): void
+    {
+        $semestreId = (int)$id;
+        $semestre   = Database::fetchOne("SELECT * FROM semestres WHERE id = ?", [$semestreId]);
+        if (!$semestre) $this->redirect('/horarios');
+
+        $arquivo = "moodle_professores_{$semestre['ano']}_{$semestre['semestre']}";
+        (new MoodleExporter())->professoresCSV($semestreId, $arquivo);
+        exit;
+    }
+
+    // Converte AAAA-MM-DD (input date) para AA-MM-DD (formato do template Moodle do campus).
+    private function formatarDataMoodle(string $data): string
+    {
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', trim($data), $m)) return '';
+        return substr($m[1], 2) . '-' . $m[2] . '-' . $m[3];
     }
 
     // ── Impressão: todos os horários agrupados por professor ─────

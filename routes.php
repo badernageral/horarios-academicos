@@ -78,6 +78,9 @@ $router->post('/horarios/geracao/mover',               'HorariosController@mover
 $router->post('/horarios/geracao/trocar',              'HorariosController@trocarHorarios');
 $router->post('/horarios/{id}/clonar-atribuicoes',     'HorariosController@clonarAtribuicoes');
 $router->get('/horarios/backup',                       'HorariosController@backup');
+$router->get('/horarios/{id}/moodle',                  'HorariosController@verMoodle');
+$router->post('/horarios/{id}/moodle/disciplinas',     'HorariosController@exportarMoodleDisciplinas');
+$router->get('/horarios/{id}/moodle/professores',      'HorariosController@exportarMoodleProfessores');
 $router->post('/horarios/geracao/{id}/conflitos',      'HorariosController@verificarConflitos');
 $router->get('/horarios/geracao/{id}/imprimir/professores', 'HorariosController@imprimirProfessores');
 
