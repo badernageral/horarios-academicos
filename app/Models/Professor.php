@@ -20,7 +20,7 @@ class Professor extends BaseModel
 
     public static function allComNda(string $sort = 'nome', string $dir = 'asc'): array
     {
-        $map = ['nome' => 'p.nome', 'nda_nome' => 'n.nome', 'ativo' => 'p.ativo'];
+        $map = ['nome' => 'p.nome', 'nda_nome' => 'n.nome', 'usuario_moodle' => 'p.usuario_moodle', 'ativo' => 'p.ativo'];
         $col = $map[$sort] ?? 'p.nome';
         $dir = $dir === 'desc' ? 'DESC' : 'ASC';
         return Database::fetchAll(

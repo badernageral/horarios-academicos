@@ -37,13 +37,14 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
             <th>#</th>
             <?= $th('nome', 'Nome') ?>
             <?= $th('nda_nome', 'NDA') ?>
+            <?= $th('usuario_moodle', 'Usuário Moodle') ?>
             <?= $th('ativo', 'Status', ' class="text-center"') ?>
             <th class="text-end">Ações</th>
           </tr>
         </thead>
         <tbody>
         <?php if (empty($professores)): ?>
-          <tr><td colspan="4" class="text-center text-muted py-4">Nenhum professor cadastrado.</td></tr>
+          <tr><td colspan="5" class="text-center text-muted py-4">Nenhum professor cadastrado.</td></tr>
         <?php else: ?>
         <?php foreach ($professores as $p):
           $conflito = $conflitantes[$p['id']] ?? null;
@@ -62,6 +63,13 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
               <?php endif; ?>
             </td>
             <td class="text-muted small"><?= htmlspecialchars($p['nda_nome'] ?? '—') ?></td>
+            <td class="small">
+              <?php if (!empty($p['usuario_moodle'])): ?>
+                <code><?= htmlspecialchars($p['usuario_moodle']) ?></code>
+              <?php else: ?>
+                <span class="text-muted">—</span>
+              <?php endif; ?>
+            </td>
             <td class="text-center">
               <span class="badge <?= $p['ativo'] ? 'bg-success' : 'bg-secondary' ?>">
                 <?= $p['ativo'] ? 'Ativo' : 'Inativo' ?>

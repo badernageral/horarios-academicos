@@ -9,7 +9,7 @@ class ProfessoresController extends BaseController
 {
     public function index(): void
     {
-        [$sort, $dir] = $this->sortParams(['nome', 'nda_nome', 'ativo'], 'nome');
+        [$sort, $dir] = $this->sortParams(['nome', 'nda_nome', 'usuario_moodle', 'ativo'], 'nome');
         $professores = Professor::allComNda($sort, $dir);
         $flash       = $this->getFlash();
 
