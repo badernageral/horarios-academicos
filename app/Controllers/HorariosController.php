@@ -200,12 +200,20 @@ class HorariosController extends BaseController
     public function atribuir(string $id): void
     {
         $semestreId = (int)$id;
-        Semestre::salvarAtribuicoes(
+        $aoLimbo = Semestre::salvarAtribuicoes(
             $semestreId,
             $this->post('atribuicao', []),
             $this->post('sala', [])
         );
-        $this->flash('success', 'Atribuições salvas.');
+        if ($aoLimbo) {
+            $this->flash(
+                'warning',
+                'Atribuições salvas. Por conflito de horário do professor, foram enviadas ao limbo: '
+                . implode(', ', $aoLimbo) . '. Reposicione na grade ou regere o horário.'
+            );
+        } else {
+            $this->flash('success', 'Atribuições salvas.');
+        }
         $this->redirect('/horarios');
     }
 

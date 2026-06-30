@@ -40,7 +40,14 @@ class Semestre extends BaseModel
         return $rows;
     }
 
-    public static function salvarAtribuicoes(int $semestreId, array $professores, array $salas = []): void
+    /**
+     * Salva as atribuições do semestre e sincroniza a grade já gerada.
+     * Retorna os nomes das disciplinas cujos encontros foram enviados ao limbo
+     * por gerarem conflito de professor após a troca (lista vazia se nenhum).
+     *
+     * @return string[]
+     */
+    public static function salvarAtribuicoes(int $semestreId, array $professores, array $salas = []): array
     {
         // Atribuição atual (antes da troca), por disciplina: slot => professor_id.
         // Usado para sincronizar horarios.professor_id já gerados sem perder dia/hora/sala.
@@ -72,6 +79,9 @@ class Semestre extends BaseModel
             }
         }
 
+        // Disciplinas cujo professor mudou (introduzem possíveis conflitos na grade).
+        $disciplinasAlteradas = [];
+
         // $professores: [disciplina_id => [slot => professor_id]]
         foreach ($professores as $disciplinaId => $slots) {
             $disciplinaId = (int)$disciplinaId;
@@ -101,8 +111,68 @@ class Semestre extends BaseModel
             }
             if ($trocas) {
                 self::sincronizarProfessorHorarios($semestreId, $disciplinaId, $trocas);
+                $disciplinasAlteradas[] = $disciplinaId;
             }
         }
+
+        // Após sincronizar os professores na grade, uma troca pode colocar o mesmo
+        // professor em duas disciplinas no mesmo horário. Os encontros em conflito
+        // (das disciplinas alteradas) vão para o limbo para reposicionamento manual.
+        if ($geracaoId && $disciplinasAlteradas) {
+            return self::resolverConflitosProfessor($geracaoId, $disciplinasAlteradas);
+        }
+        return [];
+    }
+
+    // Detecta conflitos de professor (mesmo professor, mesmo dia, horários sobrepostos)
+    // na geração ativa e envia ao limbo (dia_semana=0) os encontros das disciplinas
+    // recém-alteradas que colidem. Retorna os nomes das disciplinas afetadas.
+    private static function resolverConflitosProfessor(int $geracaoId, array $disciplinasAlteradas): array
+    {
+        $rows = Database::fetchAll(
+            "SELECT id, disciplina_id, professor_id, dia_semana, hora_inicio, hora_fim
+             FROM horarios
+             WHERE geracao_id = ? AND dia_semana > 0
+             ORDER BY professor_id, dia_semana, hora_inicio",
+            [$geracaoId]
+        );
+
+        $alteradas = array_flip(array_map('intval', $disciplinasAlteradas));
+        $mover     = []; // ids de horarios a enviar ao limbo
+        $n         = count($rows);
+
+        for ($i = 0; $i < $n; $i++) {
+            for ($j = $i + 1; $j < $n; $j++) {
+                $a = $rows[$i];
+                $b = $rows[$j];
+                if ((int)$a['professor_id'] !== (int)$b['professor_id']) continue;
+                if ((int)$a['dia_semana']   !== (int)$b['dia_semana'])   continue;
+                // Sobreposição de intervalos (strings TIME HH:MM:SS comparam lexicograficamente).
+                if ($a['hora_inicio'] < $b['hora_fim'] && $b['hora_inicio'] < $a['hora_fim']) {
+                    // Move apenas o(s) lado(s) cuja disciplina foi alterada nesta operação;
+                    // o encontro pré-existente permanece no lugar.
+                    if (isset($alteradas[(int)$a['disciplina_id']])) $mover[(int)$a['id']] = true;
+                    if (isset($alteradas[(int)$b['disciplina_id']])) $mover[(int)$b['id']] = true;
+                }
+            }
+        }
+
+        if (!$mover) return [];
+
+        $ids = array_keys($mover);
+        $ph  = implode(',', array_fill(0, count($ids), '?'));
+        Database::query("UPDATE horarios SET dia_semana = 0 WHERE id IN ($ph)", $ids);
+
+        // Nomes distintos das disciplinas afetadas (para feedback ao usuário).
+        return array_column(
+            Database::fetchAll(
+                "SELECT DISTINCT d.nome
+                 FROM horarios h JOIN disciplinas d ON d.id = h.disciplina_id
+                 WHERE h.id IN ($ph) ORDER BY d.nome",
+                $ids
+            ),
+            'nome'
+        );
     }
 
     // Insere registros de limbo (dia_semana=0) para uma disciplina recém-atribuída,
