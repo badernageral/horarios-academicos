@@ -34,7 +34,7 @@ class BackupController extends BaseController
     {
         $dir = ROOT_PATH . '/backups';
         if (!is_dir($dir)) @mkdir($dir, 0775, true);
-        $arquivo = $dir . '/sga_backup_' . date('Ymd_His') . '.sqlite';
+        $arquivo = $dir . '/horarios_backup_' . date('Ymd_His') . '.sqlite';
 
         if (!$this->snapshot($this->dbPath(), $arquivo)) {
             @unlink($arquivo);
