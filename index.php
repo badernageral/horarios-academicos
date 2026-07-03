@@ -48,11 +48,19 @@ $method = $_SERVER['REQUEST_METHOD'];
 $uri    = $_SERVER['REQUEST_URI'];
 
 // ── Guarda de autenticação ────────────────────────────────────────
-// Tudo exige login, exceto a própria tela de login.
-$rotasPublicas = ['/login'];
-if (!\App\Core\Auth::check() && !in_array(REQUEST_PATH, $rotasPublicas, true)) {
-    header('Location: ' . BASE_PATH . '/login');
-    exit;
+// Sem usuário logado: se o sistema ainda não tem nenhum usuário, manda para
+// o cadastro do primeiro (/setup); caso contrário, para o login (/login).
+if (!\App\Core\Auth::check()) {
+    try {
+        $semUsuarios = (int) \App\Core\Database::fetchValue("SELECT COUNT(*) FROM usuarios") === 0;
+    } catch (\Throwable $e) {
+        $semUsuarios = true; // banco recém-criado / sem tabela → tratar como 1º acesso
+    }
+    $alvo = $semUsuarios ? '/setup' : '/login';
+    if (REQUEST_PATH !== $alvo) {
+        header('Location: ' . BASE_PATH . $alvo);
+        exit;
+    }
 }
 
 $router->dispatch($method, $uri);

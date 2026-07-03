@@ -3,6 +3,8 @@
 /** @var \App\Core\Router $router */
 
 // ── Autenticação ──────────────────────────────────────────────────
+$router->get('/setup',   'AuthController@setupForm');   // cadastro do 1º usuário
+$router->post('/setup',  'AuthController@setup');
 $router->get('/login',   'AuthController@loginForm');
 $router->post('/login',  'AuthController@login');
 $router->get('/logout',  'AuthController@logout');

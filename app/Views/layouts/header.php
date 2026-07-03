@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($pageTitle ?? 'SHA – Horários Acadêmicos') ?></title>
+    <title><?= htmlspecialchars($pageTitle ?? 'Horários Acadêmicos') ?></title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
     <link href="<?= $base ?>/assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link href="<?= $base ?>/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
@@ -16,7 +16,7 @@
 <nav id="sidebar" class="d-flex flex-column flex-shrink-0 p-0">
     <a href="<?= $base ?>/" class="sidebar-brand d-flex align-items-center px-3 py-3 text-decoration-none">
         <i class="bi bi-calendar2-week-fill me-2 fs-4"></i>
-        <span class="fw-bold">SHA</span>
+        <span class="fw-bold" style="line-height:1.1">Horários<br>Acadêmicos</span>
     </a>
     <hr class="sidebar-divider m-0">
 
@@ -77,7 +77,7 @@
     </ul>
 
     <div class="px-3 py-2 mt-auto sidebar-footer small text-muted">
-        SHA v1.0 &bull; PHP 8.3
+        Horários Acadêmicos &bull; v1.0
     </div>
 </nav>
 

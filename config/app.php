@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'name'     => 'SHA - Sistema de Horários Acadêmicos',
+    'name'     => 'Horários Acadêmicos',
     'version'  => '1.0.0',
     'debug'    => getenv('APP_DEBUG') === 'true' || true,
     'timezone' => 'America/Sao_Paulo',

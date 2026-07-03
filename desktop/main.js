@@ -1,5 +1,5 @@
 /**
- * SGA Desktop — orquestrador Electron (Windows), backend SQLite.
+ * Horários Acadêmicos — orquestrador Electron desktop (Windows), backend SQLite.
  *
  * Sem servidor de banco: o SQLite é um arquivo em %APPDATA%. Ao iniciar:
  *   1. na 1ª execução, cria o banco a partir do schema.sql (via PHP/pdo_sqlite);
@@ -109,13 +109,13 @@ app.whenReady().then(async () => {
 
     const win = new BrowserWindow({
       width: 1280, height: 840,
-      title: 'SHA — Horários Acadêmicos',
+      title: 'Horários Acadêmicos',
       webPreferences: { contextIsolation: true },
     });
     win.setMenuBarVisibility(false);
     win.loadURL(`http://127.0.0.1:${port}/`);
   } catch (e) {
-    dialog.showErrorBox('SHA — erro ao iniciar', String(e && e.message || e));
+    dialog.showErrorBox('Horários Acadêmicos — erro ao iniciar', String(e && e.message || e));
     app.quit();
   }
 });

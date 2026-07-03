@@ -1,4 +1,4 @@
-# SHA – Sistema de Horários Acadêmicos (antigo SGA)
+# Horários Acadêmicos (antigo SGA)
 
 Aplicação web para o IFTO que gera grades horárias automaticamente. PHP 8.3+ com MVC próprio
 (sem Composer/frameworks), **SQLite** (arquivo `database/sga.sqlite`; horas/JSON em `TEXT`),
@@ -91,10 +91,12 @@ Filosofia definida pelo usuário (jun/2026):
 ## Autenticação (jun/2026)
 
 Login por sessão com **perfil único** (acesso total; sem papéis/permissões). Tabela `usuarios`
-(`senha_hash` = `password_hash`/bcrypt), usuário padrão **admin/admin**. `App\Core\Auth`
-(`check/user/id/login/logout`); guarda em `index.php` antes do `dispatch` redireciona tudo para
-`/login`, exceto a rota `/login`. Tela de login é standalone (`auth/login.php` via
-`View::renderPartial`, sem o layout/sidebar). CRUD em `/usuarios` (não pode excluir/desativar a
+(`senha_hash` = `password_hash`/bcrypt). **Sem usuário padrão**: o `schema.sql` não semeia admin.
+`App\Core\Auth` (`check/user/id/login/logout`); a guarda em `index.php` (antes do `dispatch`),
+quando não há sessão, checa `COUNT(*) usuarios` — se **0**, redireciona para `/setup` (cadastro
+do 1º usuário, `AuthController@setup`, loga em seguida); senão para `/login`. Telas `/setup` e
+`/login` são standalone (`auth/setup.php`, `auth/login.php` via `View::renderPartial`). CRUD em
+`/usuarios` (não pode excluir/desativar a
 si mesmo nem deixar o sistema sem usuários). Logout em `/logout`.
 
 ## Banco SQLite (jul/2026)

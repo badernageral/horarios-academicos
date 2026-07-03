@@ -1,7 +1,7 @@
 {
-  "name": "sha-desktop",
+  "name": "horarios-academicos-desktop",
   "version": "1.0.0",
-  "description": "SHA — Horários Acadêmicos (empacotamento desktop para Windows)",
+  "description": "Horários Acadêmicos — empacotamento desktop para Windows",
   "author": "IFTO",
   "main": "main.js",
   "scripts": {
@@ -13,8 +13,8 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "br.edu.ifto.sha",
-    "productName": "SHA Horarios",
+    "appId": "br.edu.ifto.horarios",
+    "productName": "Horarios Academicos",
     "directories": { "output": "dist" },
     "files": ["main.js", "package.json"],
     "extraResources": [
@@ -44,7 +44,7 @@
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "guid": "75de4476-d62e-4c65-a5bb-f472d7c2fb00",
-      "artifactName": "SHA-Setup-${version}.${ext}",
+      "artifactName": "Horarios-Academicos-Setup-${version}.${ext}",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",

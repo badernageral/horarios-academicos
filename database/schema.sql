@@ -249,9 +249,8 @@ CREATE TABLE usuarios (
     criado_em  TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
--- Usuário padrão: admin / admin (hash bcrypt de "admin"; troque a senha após o 1º acesso)
-INSERT INTO usuarios (nome, usuario, senha_hash) VALUES
-('Administrador', 'admin', '$2y$12$27Egl95P0v5/niTiEs9vseJQIM7KoyJv9U.bWB2oBeUzi5L3NNr5m');
+-- Sem usuário padrão: na 1ª execução, sem nenhum usuário cadastrado, o sistema
+-- redireciona para /setup e oferece o cadastro do primeiro usuário.
 
 -- ── CONTROLE DE MIGRATIONS ────────────────────────────────────────
 CREATE TABLE schema_migrations (

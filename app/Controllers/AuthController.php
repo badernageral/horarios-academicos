@@ -41,4 +41,53 @@ class AuthController extends BaseController
         Auth::logout();
         $this->redirect('/login');
     }
+
+    // ── Primeiro acesso: cadastro do 1º usuário (só quando não há nenhum) ──
+    public function setupForm(): void
+    {
+        if (Usuario::count() > 0) {
+            $this->redirect('/login');
+        }
+        View::renderPartial('auth/setup', [
+            'base'  => BASE_PATH,
+            'erro'  => $this->getFlash(),
+        ]);
+    }
+
+    public function setup(): void
+    {
+        // Só permitido enquanto o sistema estiver sem usuários.
+        if (Usuario::count() > 0) {
+            $this->redirect('/login');
+        }
+
+        $nome     = trim($this->post('nome', ''));
+        $login    = trim($this->post('usuario', ''));
+        $senha    = (string) $this->post('senha', '');
+        $confirma = (string) $this->post('senha_confirma', '');
+
+        if ($nome === '' || $login === '' || $senha === '') {
+            $this->flash('danger', 'Preencha nome, usuário e senha.');
+            $this->redirect('/setup');
+        }
+        if (strlen($senha) < 4) {
+            $this->flash('danger', 'A senha deve ter ao menos 4 caracteres.');
+            $this->redirect('/setup');
+        }
+        if ($senha !== $confirma) {
+            $this->flash('danger', 'A confirmação de senha não confere.');
+            $this->redirect('/setup');
+        }
+
+        $id = Usuario::create([
+            'nome'       => $nome,
+            'usuario'    => $login,
+            'senha_hash' => Usuario::hash($senha),
+            'ativo'      => 1,
+        ]);
+
+        Auth::login(Usuario::find($id));
+        $this->flash('success', 'Usuário criado. Bem-vindo!');
+        $this->redirect('/');
+    }
 }

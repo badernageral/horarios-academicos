@@ -1,4 +1,4 @@
-# SHA – Sistema de Horários Acadêmicos
+# Horários Acadêmicos
 
 Sistema web completo para geração automática de horários escolares e acadêmicos, com suporte a **horários em tempo real** (sem períodos fixos), durações variáveis de aula e intervalos configuráveis por curso.
 
@@ -62,7 +62,7 @@ location ~ \.php$ { fastcgi_pass 127.0.0.1:9000; fastcgi_param SCRIPT_FILENAME $
 
 ## Versão Desktop (Windows)
 
-Além da versão web, o SGA pode ser distribuído como **aplicativo desktop para
+Além da versão web, o sistema pode ser distribuído como **aplicativo desktop para
 Windows**, offline e por máquina — **sem instalar Apache, MySQL ou configurar
 nada**. Basta baixar e abrir.
 
