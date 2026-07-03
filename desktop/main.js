@@ -76,10 +76,12 @@ function initDatabaseIfNeeded() {
     return false; // já inicializado
   }
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  // MariaDB: cria o datadir com root@localhost sem senha.
+  // MariaDB no Windows: cria o datadir com root sem senha (padrão).
+  // --basedir permite ao inicializador achar os templates em share/.
+  // (não use --auth-root-authentication-method: é opção só de Unix.)
   const r = spawnSync(INSTALLDB, [
     `--datadir=${DATA_DIR}`,
-    '--auth-root-authentication-method=normal',
+    `--basedir=${MARIA_DIR}`,
   ], { cwd: MARIA_DIR, stdio: 'inherit' });
   if (r.status !== 0) throw new Error('Falha ao inicializar o datadir do MariaDB');
   return true;
