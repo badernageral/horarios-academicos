@@ -67,9 +67,10 @@ class BackupController extends BaseController
         $this->dump($cfg, $seguranca);
 
         // Restaura: mysql lê o dump (DROP/CREATE/INSERT) na base atual.
+        // Senha via ambiente (cross-platform; o filho herda MYSQL_PWD).
+        putenv('MYSQL_PWD=' . $cfg['password']);
         $cmd = sprintf(
-            'MYSQL_PWD=%s mysql --host=%s --port=%s --user=%s %s < %s 2>&1',
-            escapeshellarg($cfg['password']),
+            'mysql --host=%s --port=%s --user=%s %s < %s 2>&1',
             escapeshellarg($cfg['host']),
             escapeshellarg($cfg['port']),
             escapeshellarg($cfg['user']),
@@ -91,14 +92,17 @@ class BackupController extends BaseController
     // ── Helper: dump completo do banco para um arquivo ────────────
     private function dump(array $cfg, string $arquivo): bool
     {
+        // Senha via ambiente (cross-platform; evita expor no comando).
+        putenv('MYSQL_PWD=' . $cfg['password']);
+        $null = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
         $cmd = sprintf(
-            'MYSQL_PWD=%s mysqldump --host=%s --port=%s --user=%s --single-transaction %s > %s 2>/dev/null',
-            escapeshellarg($cfg['password']),
+            'mysqldump --host=%s --port=%s --user=%s --single-transaction %s > %s 2>%s',
             escapeshellarg($cfg['host']),
             escapeshellarg($cfg['port']),
             escapeshellarg($cfg['user']),
             escapeshellarg($cfg['dbname']),
-            escapeshellarg($arquivo)
+            escapeshellarg($arquivo),
+            $null
         );
         exec($cmd, $out, $code);
         return $code === 0 && is_file($arquivo) && filesize($arquivo) > 0;

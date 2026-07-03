@@ -122,6 +122,8 @@ async function startPhp() {
     cwd: PHP_DIR, // resolve extension_dir="ext" do php.ini
     env: {
       ...process.env,
+      // mysqldump/mysql (backup) resolvidos a partir dos binários do MariaDB.
+      PATH: path.join(MARIA_DIR, 'bin') + path.delimiter + (process.env.PATH || ''),
       SGA_BASE_PATH: '',            // servir na raiz
       DB_HOST: '127.0.0.1',
       DB_PORT: String(mysqlPort),
