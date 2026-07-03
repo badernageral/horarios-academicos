@@ -1,6 +1,6 @@
 {
   "name": "sga-desktop",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "SGA — Horários Acadêmicos (empacotamento desktop para Windows)",
   "author": "IFTO",
   "main": "main.js",
@@ -29,7 +29,7 @@
       ] }
     ],
     "win": {
-      "target": ["nsis", "portable"]
+      "target": ["nsis"]
     },
     "nsis": {
       "oneClick": false,
@@ -43,9 +43,6 @@
       "artifactName": "SGA-Setup-${version}.${ext}",
       "installerLanguages": ["pt_BR"],
       "language": "1046"
-    },
-    "portable": {
-      "artifactName": "SGA-Portable-${version}.${ext}"
     }
   }
 }
