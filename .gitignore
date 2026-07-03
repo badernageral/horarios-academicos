@@ -28,3 +28,8 @@ Thumbs.db
 
 # Backups do banco
 /backups/
+
+# Desktop (Electron): binários e artefatos pesados não versionados
+/desktop/node_modules/
+/desktop/runtime/
+/desktop/dist/

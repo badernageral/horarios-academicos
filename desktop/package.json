@@ -1,0 +1,37 @@
+{
+  "name": "sga-desktop",
+  "version": "1.0.0",
+  "description": "SGA — Horários Acadêmicos (empacotamento desktop para Windows)",
+  "author": "IFTO",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "br.edu.ifto.sga",
+    "productName": "SGA Horarios",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "package.json"],
+    "extraResources": [
+      { "from": "runtime", "to": "runtime" },
+      { "from": "router.php", "to": "router.php" },
+      { "from": "../", "to": "app", "filter": [
+        "**/*",
+        "!desktop/**",
+        "!backups/**",
+        "!.git/**",
+        "!**/node_modules/**"
+      ] }
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "artifactName": "SGA-${version}-${arch}.${ext}"
+    },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+  }
+}

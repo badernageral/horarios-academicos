@@ -6,7 +6,9 @@ ini_set('pcre.jit', '0');
 
 define('ROOT_PATH', __DIR__);
 define('VIEW_PATH', ROOT_PATH . '/app/Views');
-define('BASE_PATH', '/horarios-academicos');
+// Padrão: '/horarios-academicos' (Apache). O modo desktop (php -S na raiz)
+// define SGA_BASE_PATH='' para servir a app na raiz. Sem a env var, nada muda.
+define('BASE_PATH', getenv('SGA_BASE_PATH') !== false ? getenv('SGA_BASE_PATH') : '/horarios-academicos');
 define('REQUEST_PATH', '/' . ltrim(substr(strtok($_SERVER['REQUEST_URI'], '?'), strlen(BASE_PATH)), '/'));
 
 date_default_timezone_set('America/Sao_Paulo');
