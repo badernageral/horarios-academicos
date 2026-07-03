@@ -1,88 +1,42 @@
 #!/usr/bin/env php
 <?php
 /**
- * Script de instalação do banco de dados
- * Uso: php database/install.php [--seed]
+ * Cria o banco a partir do database/schema.sql, conforme o driver de
+ * config/database.php (sqlite por padrão; mysql se DB_DRIVER=mysql).
+ * Uso: php database/install.php
  */
 
 define('ROOT_PATH', dirname(__DIR__));
-$cfg = require ROOT_PATH . '/config/database.php';
+$cfg    = require ROOT_PATH . '/config/database.php';
+$driver = $cfg['driver'] ?? 'sqlite';
+$schema = file_get_contents(ROOT_PATH . '/database/schema.sql');
 
 try {
-    // Conectar sem selecionar banco para poder criá-lo
-    $dsn = "mysql:host={$cfg['host']};port={$cfg['port']};charset={$cfg['charset']}";
-    $pdo = new PDO($dsn, $cfg['user'], $cfg['password'], $cfg['options']);
-    echo "✔ Conexão com MySQL estabelecida.\n";
-
-    $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$cfg['dbname']}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-    echo "✔ Banco '{$cfg['dbname']}' verificado.\n";
-
-    $pdo->exec("USE `{$cfg['dbname']}`");
-
-    // Ler e executar o schema em statements individuais, respeitando ordem
-    $schema = file_get_contents(ROOT_PATH . '/database/schema.sql');
-
-    // Remove comentários de linha
-    $schema = preg_replace('/--[^\n]*/', '', $schema);
-    // Remove comentários de bloco
-    $schema = preg_replace('/\/\*.*?\*\//s', '', $schema);
-
-    // Separar statements por ; ignorando ; dentro de strings
-    $statements = array_filter(
-        array_map('trim', explode(';', $schema)),
-        fn($s) => $s !== ''
-    );
-
-    $errors = 0;
-    foreach ($statements as $stmt) {
-        try {
-            $pdo->exec($stmt);
-        } catch (PDOException $e) {
-            echo "  ⚠ " . $e->getMessage() . "\n";
-            $errors++;
+    if ($driver === 'sqlite') {
+        $path = $cfg['path'];
+        if (is_file($path)) {
+            echo "ℹ Banco já existe em {$path} — nada a fazer (use migrations para atualizar).\n";
+            exit(0);
         }
-    }
-
-    if ($errors > 0) {
-        echo "  → {$errors} aviso(s) durante criação do schema.\n";
+        @mkdir(dirname($path), 0775, true);
+        $pdo = new PDO('sqlite:' . $path);
+        $pdo->exec('PRAGMA foreign_keys = ON');
+        $pdo->exec($schema);                 // pdo_sqlite executa vários comandos
+        echo "✔ Banco SQLite criado em {$path}\n";
     } else {
-        echo "✔ Schema criado sem erros.\n";
-    }
-
-    // Verificar tabelas criadas
-    $tabelas = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-    echo "✔ Tabelas criadas: " . implode(', ', $tabelas) . "\n";
-
-    if (empty($tabelas)) {
-        echo "✘ Nenhuma tabela criada! Verifique os erros acima.\n";
-        exit(1);
-    }
-
-    // Dados de exemplo
-    if (in_array('--seed', $argv ?? [])) {
-        $seed = file_get_contents(ROOT_PATH . '/database/seed.sql');
-        $seed = preg_replace('/--[^\n]*/', '', $seed);
-        $seedStmts = array_filter(
-            array_map('trim', explode(';', $seed)),
-            fn($s) => $s !== ''
-        );
-
-        $seedErrors = 0;
-        foreach ($seedStmts as $stmt) {
-            try {
-                $pdo->exec($stmt);
-            } catch (PDOException $e) {
-                echo "  ⚠ Seed: " . $e->getMessage() . "\n";
-                $seedErrors++;
-            }
+        // MySQL (legado)
+        $dsn = "mysql:host={$cfg['host']};port={$cfg['port']};charset={$cfg['charset']}";
+        $pdo = new PDO($dsn, $cfg['user'], $cfg['password'], $cfg['options']);
+        $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$cfg['dbname']}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        $pdo->exec("USE `{$cfg['dbname']}`");
+        foreach (array_filter(array_map('trim', explode(';', preg_replace('/--[^\n]*/', '', $schema)))) as $stmt) {
+            $pdo->exec($stmt);
         }
-        $total = $pdo->query("SELECT COUNT(*) FROM disciplinas")->fetchColumn();
-        echo "✔ Dados de exemplo inseridos. ($total disciplinas)\n";
+        echo "✔ Banco MySQL '{$cfg['dbname']}' criado.\n";
     }
 
-    echo "\n🎉 Instalação concluída! Acesse: http://localhost:8080\n";
-
+    echo "→ Para atualizações futuras de schema: php database/migrate.php\n";
 } catch (PDOException $e) {
-    echo "✘ Erro fatal: " . $e->getMessage() . "\n";
+    echo "✘ Erro: " . $e->getMessage() . "\n";
     exit(1);
 }

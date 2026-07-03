@@ -16,7 +16,6 @@ jobs:
 
     env:
       PHP_ZIP: php-8.3.32-Win32-vs16-x64.zip
-      MARIADB_VER: '11.4.12'
 
     steps:
       - uses: actions/checkout@v4
@@ -41,19 +40,7 @@ jobs:
           if (-not $ok) { throw "Não consegui baixar o PHP ($env:PHP_ZIP)" }
           Expand-Archive php.zip -DestinationPath desktop/runtime/php -Force
           Copy-Item desktop/php.ini desktop/runtime/php/php.ini -Force
-          if (-not (Test-Path desktop/runtime/php/ext/php_pdo_mysql.dll)) { throw "php_pdo_mysql.dll ausente no pacote PHP" }
-
-      # ── MariaDB portátil (compatível com MySQL) ─────────────────
-      - name: Baixar e extrair o MariaDB portátil
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $name = "mariadb-$env:MARIADB_VER-winx64"
-          $url  = "https://archive.mariadb.org/mariadb-$env:MARIADB_VER/winx64-packages/$name.zip"
-          Invoke-WebRequest $url -OutFile mariadb.zip
-          Expand-Archive mariadb.zip -DestinationPath desktop/runtime/_mdb -Force
-          Move-Item "desktop/runtime/_mdb/$name" desktop/runtime/mariadb -Force
-          if (-not (Test-Path desktop/runtime/mariadb/bin/mysqld.exe)) { throw "mysqld.exe ausente no pacote MariaDB" }
+          if (-not (Test-Path desktop/runtime/php/ext/php_pdo_sqlite.dll)) { throw "php_pdo_sqlite.dll ausente no pacote PHP" }
 
       # ── Build do instalador ─────────────────────────────────────
       - name: Instalar dependências e empacotar

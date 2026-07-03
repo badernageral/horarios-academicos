@@ -1,11 +1,11 @@
 -- ============================================================
 -- Sistema de Geração Automática de Horários Acadêmicos
--- Schema v1.1 | MySQL 8.0+ / MariaDB 10.6+
--- Horários baseados em tempo real (hora_inicio / hora_fim)
--- Sem períodos fixos
+-- Schema v2 | SQLite 3.24+
+-- Horários baseados em tempo real (hora_inicio / hora_fim em TEXT "HH:MM:SS")
+-- (versão MySQL histórica em database/schema.mysql.sql)
 -- ============================================================
 
-SET FOREIGN_KEY_CHECKS = 0;
+PRAGMA foreign_keys = ON;
 
 DROP TABLE IF EXISTS horarios;
 DROP TABLE IF EXISTS geracoes;
@@ -25,245 +25,211 @@ DROP TABLE IF EXISTS cursos;
 DROP TABLE IF EXISTS usuarios;
 DROP TABLE IF EXISTS schema_migrations;
 
-SET FOREIGN_KEY_CHECKS = 1;
-
--- ─────────────────────────────────────────────────────────────
--- CURSOS
--- ─────────────────────────────────────────────────────────────
+-- ── CURSOS ────────────────────────────────────────────────────────
+-- dias_semana: JSON array em TEXT (ex.: "[1,2,3,4,5]"); horas em TEXT "HH:MM:SS"
 CREATE TABLE cursos (
-    id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    nome           VARCHAR(255) NOT NULL,
-    descricao      TEXT,
-    turno_inicio   TIME NOT NULL DEFAULT '07:00:00',
-    turno_fim           TIME NOT NULL DEFAULT '12:00:00',
-    duracao_aula_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 50 COMMENT 'Duração de 1 aula em minutos',
-    -- JSON array de inteiros: 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sab
-    dias_semana    JSON NOT NULL,
-    cor            CHAR(7) NOT NULL DEFAULT '#3b82f6' COMMENT 'Cor hex para visualização',
-    ativo          TINYINT(1) NOT NULL DEFAULT 1,
-    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome                 TEXT NOT NULL,
+    descricao            TEXT,
+    turno_inicio         TEXT NOT NULL DEFAULT '07:00:00',
+    turno_fim            TEXT NOT NULL DEFAULT '12:00:00',
+    duracao_aula_minutos INTEGER NOT NULL DEFAULT 50,
+    dias_semana          TEXT NOT NULL,
+    cor                  TEXT NOT NULL DEFAULT '#3b82f6',
+    ativo                INTEGER NOT NULL DEFAULT 1,
+    created_at           TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at           TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
--- ─────────────────────────────────────────────────────────────
--- INTERVALOS POR CURSO (breaks configuráveis)
--- NULL em dia_semana = aplica a todos os dias do curso
--- ─────────────────────────────────────────────────────────────
+-- ── INTERVALOS POR CURSO (dia_semana NULL = todos os dias) ────────
 CREATE TABLE intervalos_curso (
-    id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    curso_id     INT UNSIGNED NOT NULL,
-    dia_semana   TINYINT UNSIGNED NULL COMMENT 'NULL = todos os dias',
-    hora_inicio  TIME NOT NULL,
-    hora_fim     TIME NOT NULL,
-    descricao    VARCHAR(100) DEFAULT 'Intervalo',
-    FOREIGN KEY (curso_id) REFERENCES cursos(id) ON DELETE CASCADE,
-    INDEX idx_curso_dia (curso_id, dia_semana)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    curso_id    INTEGER NOT NULL,
+    dia_semana  INTEGER,
+    hora_inicio TEXT NOT NULL,
+    hora_fim    TEXT NOT NULL,
+    descricao   TEXT DEFAULT 'Intervalo',
+    FOREIGN KEY (curso_id) REFERENCES cursos(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_intervalos_curso_dia ON intervalos_curso(curso_id, dia_semana);
 
--- ─────────────────────────────────────────────────────────────
--- NDAs (Núcleos de Desenvolvimento de Área)
--- ─────────────────────────────────────────────────────────────
+-- ── NDAs ──────────────────────────────────────────────────────────
 CREATE TABLE ndas (
-    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    nome        VARCHAR(255) NOT NULL,
-    ativo       TINYINT(1) NOT NULL DEFAULT 1,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome       TEXT NOT NULL,
+    ativo      INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
--- ─────────────────────────────────────────────────────────────
--- SALAS
--- ─────────────────────────────────────────────────────────────
+-- ── SALAS ─────────────────────────────────────────────────────────
 CREATE TABLE salas (
-    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    nome        VARCHAR(100) NOT NULL,
-    ativo       TINYINT(1) NOT NULL DEFAULT 1,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome       TEXT NOT NULL,
+    ativo      INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
--- ─────────────────────────────────────────────────────────────
--- PROFESSORES
--- ─────────────────────────────────────────────────────────────
+-- ── PROFESSORES ───────────────────────────────────────────────────
 CREATE TABLE professores (
-    id                         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    nome                       VARCHAR(255) NOT NULL,
-    matricula                  VARCHAR(50) NOT NULL UNIQUE,
-    email                      VARCHAR(255),
-    usuario_moodle             VARCHAR(100) NULL COMMENT 'Username no Moodle (para export de inscrição de professores)',
-    carga_horaria_diaria_max   SMALLINT UNSIGNED NOT NULL DEFAULT 360 COMMENT 'em minutos',
-    carga_horaria_semanal_max  SMALLINT UNSIGNED NOT NULL DEFAULT 1200 COMMENT 'em minutos',
-    nda_id                     INT UNSIGNED NULL,
-    cor                        CHAR(7) NOT NULL DEFAULT '#3b82f6' COMMENT 'Cor primária para identificação visual',
-    cor_secundaria             CHAR(7) NOT NULL DEFAULT '#f97316' COMMENT 'Cor secundária contrastante para identificação visual',
-    ativo                      TINYINT(1) NOT NULL DEFAULT 1,
-    created_at                 TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at                 TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (nda_id) REFERENCES ndas(id) ON DELETE SET NULL,
-    INDEX idx_nda (nda_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome                      TEXT NOT NULL,
+    matricula                 TEXT NOT NULL UNIQUE,
+    email                     TEXT,
+    usuario_moodle            TEXT,
+    carga_horaria_diaria_max  INTEGER NOT NULL DEFAULT 360,
+    carga_horaria_semanal_max INTEGER NOT NULL DEFAULT 1200,
+    nda_id                    INTEGER,
+    cor                       TEXT NOT NULL DEFAULT '#3b82f6',
+    cor_secundaria            TEXT NOT NULL DEFAULT '#f97316',
+    ativo                     INTEGER NOT NULL DEFAULT 1,
+    created_at                TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at                TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (nda_id) REFERENCES ndas(id) ON DELETE SET NULL
+);
+CREATE INDEX idx_prof_nda ON professores(nda_id);
 
--- ─────────────────────────────────────────────────────────────
--- DISPONIBILIDADE DO PROFESSOR por dia e janela de tempo
--- ─────────────────────────────────────────────────────────────
+-- ── DISPONIBILIDADE DO PROFESSOR ──────────────────────────────────
 CREATE TABLE disponibilidade_professor (
-    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    professor_id  INT UNSIGNED NOT NULL,
-    dia_semana    TINYINT UNSIGNED NOT NULL COMMENT '1=Segunda..6=Sábado',
-    hora_inicio   TIME NOT NULL,
-    hora_fim      TIME NOT NULL,
-    FOREIGN KEY (professor_id) REFERENCES professores(id) ON DELETE CASCADE,
-    INDEX idx_prof_dia (professor_id, dia_semana)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    professor_id INTEGER NOT NULL,
+    dia_semana   INTEGER NOT NULL,
+    hora_inicio  TEXT NOT NULL,
+    hora_fim     TEXT NOT NULL,
+    FOREIGN KEY (professor_id) REFERENCES professores(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_disp_prof_dia ON disponibilidade_professor(professor_id, dia_semana);
 
--- ─────────────────────────────────────────────────────────────
--- QUALIFICAÇÕES DO PROFESSOR (disciplinas que pode lecionar)
--- ─────────────────────────────────────────────────────────────
+-- ── QUALIFICAÇÕES DO PROFESSOR ────────────────────────────────────
 CREATE TABLE professor_qualificacao (
-    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    professor_id  INT UNSIGNED NOT NULL,
-    disciplina_nome VARCHAR(255) NOT NULL,
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    professor_id    INTEGER NOT NULL,
+    disciplina_nome TEXT NOT NULL,
     FOREIGN KEY (professor_id) REFERENCES professores(id) ON DELETE CASCADE,
-    UNIQUE KEY uq_prof_disc (professor_id, disciplina_nome)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE (professor_id, disciplina_nome)
+);
 
--- ─────────────────────────────────────────────────────────────
--- TURMAS
--- ─────────────────────────────────────────────────────────────
+-- ── TURMAS ────────────────────────────────────────────────────────
 CREATE TABLE turmas (
-    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    curso_id      INT UNSIGNED NOT NULL,
-    nome          VARCHAR(100) NOT NULL,
-    serie_periodo VARCHAR(50) NOT NULL,
-    qtd_alunos    SMALLINT UNSIGNED NOT NULL DEFAULT 30,
-    ano_letivo    YEAR NOT NULL DEFAULT 2025,
-    ativo         TINYINT(1) NOT NULL DEFAULT 1,
-    FOREIGN KEY (curso_id) REFERENCES cursos(id),
-    INDEX idx_curso (curso_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    curso_id      INTEGER NOT NULL,
+    nome          TEXT NOT NULL,
+    serie_periodo TEXT NOT NULL,
+    qtd_alunos    INTEGER NOT NULL DEFAULT 30,
+    ano_letivo    INTEGER NOT NULL DEFAULT 2025,
+    ativo         INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (curso_id) REFERENCES cursos(id)
+);
+CREATE INDEX idx_turmas_curso ON turmas(curso_id);
 
--- ─────────────────────────────────────────────────────────────
--- DISCIPLINAS
--- carga_horaria_semanal = qtd_encontros_semanais × duracao_encontro_minutos
--- ─────────────────────────────────────────────────────────────
+-- ── DISCIPLINAS ───────────────────────────────────────────────────
 CREATE TABLE disciplinas (
-    id                       INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    nome                     VARCHAR(255) NOT NULL,
-    sigla                    VARCHAR(50),
-    curso_id                 INT UNSIGNED NOT NULL,
-    turma_id                 INT UNSIGNED NOT NULL,
-    professor_id             INT UNSIGNED NULL,
-    qtd_encontros_semanais   TINYINT UNSIGNED NOT NULL DEFAULT 2,
-    qtd_aulas                TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT 'Aulas por encontro (× duracao_aula_minutos do curso)',
-    qtd_aulas_ead            TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Aulas EaD por semana (contam na carga semanal, não ocupam horário-relógio na grade)',
-    qtd_professores          TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Número de professores para esta disciplina',
-    semestre_oferta          TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT 'Bitmask: 1=1º sem, 2=2º sem, 3=ambos',
-    cor                      CHAR(7) NOT NULL DEFAULT '#6366f1',
-    ativo                    TINYINT(1) NOT NULL DEFAULT 1,
+    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome                   TEXT NOT NULL,
+    sigla                  TEXT,
+    curso_id               INTEGER NOT NULL,
+    turma_id               INTEGER NOT NULL,
+    professor_id           INTEGER,
+    qtd_encontros_semanais INTEGER NOT NULL DEFAULT 2,
+    qtd_aulas              INTEGER NOT NULL DEFAULT 2,
+    qtd_aulas_ead          INTEGER NOT NULL DEFAULT 0,
+    qtd_professores        INTEGER NOT NULL DEFAULT 1,
+    semestre_oferta        INTEGER NOT NULL DEFAULT 3,
+    cor                    TEXT NOT NULL DEFAULT '#6366f1',
+    ativo                  INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (curso_id) REFERENCES cursos(id),
     FOREIGN KEY (turma_id) REFERENCES turmas(id),
-    FOREIGN KEY (professor_id) REFERENCES professores(id) ON DELETE SET NULL,
-    INDEX idx_turma (turma_id),
-    INDEX idx_professor (professor_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (professor_id) REFERENCES professores(id) ON DELETE SET NULL
+);
+CREATE INDEX idx_disc_turma ON disciplinas(turma_id);
+CREATE INDEX idx_disc_professor ON disciplinas(professor_id);
 
--- ─────────────────────────────────────────────────────────────
--- SEMESTRES (agrupamentos de disciplinas para geração)
--- ─────────────────────────────────────────────────────────────
+-- ── SEMESTRES ─────────────────────────────────────────────────────
 CREATE TABLE semestres (
-    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    semestre    TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1 ou 2',
-    ano         YEAR NOT NULL,
-    descricao   VARCHAR(255) NULL,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    semestre   INTEGER NOT NULL DEFAULT 1,
+    ano        INTEGER NOT NULL,
+    descricao  TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
--- ─────────────────────────────────────────────────────────────
--- ATRIBUIÇÕES POR SEMESTRE (professor → disciplina neste semestre)
--- ─────────────────────────────────────────────────────────────
+-- ── ATRIBUIÇÕES POR SEMESTRE ──────────────────────────────────────
 CREATE TABLE semestre_atribuicoes (
-    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    semestre_id   INT UNSIGNED NOT NULL,
-    disciplina_id INT UNSIGNED NOT NULL,
-    professor_id  INT UNSIGNED NOT NULL,
-    slot          TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Posição do professor (1=principal, 2=secundário...)',
-    sala_id       INT UNSIGNED NULL COMMENT 'Sala preferencial (slot 1)',
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    semestre_id   INTEGER NOT NULL,
+    disciplina_id INTEGER NOT NULL,
+    professor_id  INTEGER NOT NULL,
+    slot          INTEGER NOT NULL DEFAULT 1,
+    sala_id       INTEGER,
     FOREIGN KEY (semestre_id)   REFERENCES semestres(id) ON DELETE CASCADE,
     FOREIGN KEY (disciplina_id) REFERENCES disciplinas(id) ON DELETE CASCADE,
     FOREIGN KEY (professor_id)  REFERENCES professores(id),
     FOREIGN KEY (sala_id)       REFERENCES salas(id) ON DELETE SET NULL,
-    UNIQUE KEY uq_sem_disc_slot (semestre_id, disciplina_id, slot),
-    INDEX idx_semestre (semestre_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE (semestre_id, disciplina_id, slot)
+);
+CREATE INDEX idx_atrib_semestre ON semestre_atribuicoes(semestre_id);
 
--- ─────────────────────────────────────────────────────────────
--- ENSALAMENTO POR SEMESTRE (sala padrão por turma)
--- ─────────────────────────────────────────────────────────────
+-- ── ENSALAMENTO POR SEMESTRE ──────────────────────────────────────
 CREATE TABLE semestre_salas (
-    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    semestre_id INT UNSIGNED NOT NULL,
-    turma_id    INT UNSIGNED NOT NULL,
-    sala_id     INT UNSIGNED NOT NULL,
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    semestre_id INTEGER NOT NULL,
+    turma_id    INTEGER NOT NULL,
+    sala_id     INTEGER NOT NULL,
     FOREIGN KEY (semestre_id) REFERENCES semestres(id) ON DELETE CASCADE,
     FOREIGN KEY (turma_id)    REFERENCES turmas(id) ON DELETE CASCADE,
     FOREIGN KEY (sala_id)     REFERENCES salas(id),
-    UNIQUE KEY uq_sem_turma (semestre_id, turma_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE (semestre_id, turma_id)
+);
 
--- ─────────────────────────────────────────────────────────────
--- GERAÇÕES (execuções do algoritmo)
--- ─────────────────────────────────────────────────────────────
+-- ── GERAÇÕES ──────────────────────────────────────────────────────
+-- status: 'pendente' | 'processando' | 'concluido' | 'parcial' | 'erro'
 CREATE TABLE geracoes (
-    id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    semestre_id           INT UNSIGNED NULL,
-    descricao             VARCHAR(255),
-    status                ENUM('pendente','processando','concluido','parcial','erro') NOT NULL DEFAULT 'pendente',
-    total_atividades      INT UNSIGNED DEFAULT 0,
-    atividades_agendadas  INT UNSIGNED DEFAULT 0,
-    atividades_falhas     INT UNSIGNED DEFAULT 0,
-    configuracao          JSON,
-    log                   TEXT,
-    created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    finished_at           TIMESTAMP NULL,
-    FOREIGN KEY (semestre_id) REFERENCES semestres(id) ON DELETE CASCADE,
-    INDEX idx_semestre (semestre_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    semestre_id          INTEGER,
+    descricao            TEXT,
+    status               TEXT NOT NULL DEFAULT 'pendente',
+    total_atividades     INTEGER DEFAULT 0,
+    atividades_agendadas INTEGER DEFAULT 0,
+    atividades_falhas    INTEGER DEFAULT 0,
+    configuracao         TEXT,
+    log                  TEXT,
+    created_at           TEXT DEFAULT CURRENT_TIMESTAMP,
+    finished_at          TEXT,
+    FOREIGN KEY (semestre_id) REFERENCES semestres(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_ger_semestre ON geracoes(semestre_id);
 
--- ─────────────────────────────────────────────────────────────
--- HORÁRIOS GERADOS
--- hora_inicio e hora_fim são tempos reais, sem períodos fixos
--- ─────────────────────────────────────────────────────────────
+-- ── HORÁRIOS GERADOS ──────────────────────────────────────────────
 CREATE TABLE horarios (
-    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    geracao_id      INT UNSIGNED NOT NULL,
-    disciplina_id   INT UNSIGNED NOT NULL,
-    turma_id        INT UNSIGNED NOT NULL,
-    professor_id    INT UNSIGNED NOT NULL,
-    sala_id         INT UNSIGNED NULL,
-    dia_semana      TINYINT UNSIGNED NOT NULL COMMENT '0=Limbo (sem horário) 1=Seg 2=Ter 3=Qua 4=Qui 5=Sex 6=Sab',
-    hora_inicio     TIME NOT NULL,
-    hora_fim        TIME NOT NULL,
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    geracao_id    INTEGER NOT NULL,
+    disciplina_id INTEGER NOT NULL,
+    turma_id      INTEGER NOT NULL,
+    professor_id  INTEGER NOT NULL,
+    sala_id       INTEGER,
+    dia_semana    INTEGER NOT NULL,
+    hora_inicio   TEXT NOT NULL,
+    hora_fim      TEXT NOT NULL,
     FOREIGN KEY (geracao_id)    REFERENCES geracoes(id) ON DELETE CASCADE,
     FOREIGN KEY (disciplina_id) REFERENCES disciplinas(id),
     FOREIGN KEY (turma_id)      REFERENCES turmas(id),
     FOREIGN KEY (professor_id)  REFERENCES professores(id),
-    FOREIGN KEY (sala_id)       REFERENCES salas(id),
-    INDEX idx_geracao (geracao_id),
-    INDEX idx_turma_dia (turma_id, dia_semana),
-    INDEX idx_prof_dia (professor_id, dia_semana),
-    INDEX idx_sala_dia (sala_id, dia_semana)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (sala_id)       REFERENCES salas(id)
+);
+CREATE INDEX idx_hor_geracao   ON horarios(geracao_id);
+CREATE INDEX idx_hor_turma_dia ON horarios(turma_id, dia_semana);
+CREATE INDEX idx_hor_prof_dia  ON horarios(professor_id, dia_semana);
+CREATE INDEX idx_hor_sala_dia  ON horarios(sala_id, dia_semana);
 
--- ─────────────────────────────────────────────────────────────
--- PESOS DAS RESTRIÇÕES SOFT (configuráveis)
--- ─────────────────────────────────────────────────────────────
+-- ── PESOS DAS RESTRIÇÕES SOFT ─────────────────────────────────────
 CREATE TABLE configuracoes_soft (
-    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    chave      VARCHAR(100) NOT NULL UNIQUE,
-    nome       VARCHAR(200) NOT NULL,
-    valor      DECIMAL(10,2) NOT NULL DEFAULT 1.00,
-    descricao  TEXT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    chave     TEXT NOT NULL UNIQUE,
+    nome      TEXT NOT NULL,
+    valor     REAL NOT NULL DEFAULT 1.00,
+    descricao TEXT
+);
 
 INSERT INTO configuracoes_soft (chave, nome, valor, descricao) VALUES
 ('janela_professor',    'Janelas do Professor',          10.0, 'Penalidade por janela (tempo livre entre aulas) para professores'),
@@ -273,27 +239,22 @@ INSERT INTO configuracoes_soft (chave, nome, valor, descricao) VALUES
 ('horario_extremo',     'Evitar Horários Extremos',       2.0, 'Penalidade por horários muito cedo ou muito tarde'),
 ('balancear_professor', 'Balancear Carga do Professor',   4.0, 'Penalidade por desbalancear a carga diária do professor');
 
--- ─────────────────────────────────────────────────────────────
--- USUÁRIOS (acesso ao sistema; um único perfil com acesso total)
--- ─────────────────────────────────────────────────────────────
+-- ── USUÁRIOS ──────────────────────────────────────────────────────
 CREATE TABLE usuarios (
-    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    nome       VARCHAR(150) NOT NULL,
-    usuario    VARCHAR(60)  NOT NULL UNIQUE,
-    senha_hash VARCHAR(255) NOT NULL COMMENT 'password_hash() — bcrypt',
-    ativo      TINYINT(1)   NOT NULL DEFAULT 1,
-    criado_em  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome       TEXT NOT NULL,
+    usuario    TEXT NOT NULL UNIQUE,
+    senha_hash TEXT NOT NULL,
+    ativo      INTEGER NOT NULL DEFAULT 1,
+    criado_em  TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Usuário padrão: admin / admin (hash bcrypt de "admin"; troque a senha após o 1º acesso)
 INSERT INTO usuarios (nome, usuario, senha_hash) VALUES
 ('Administrador', 'admin', '$2y$12$27Egl95P0v5/niTiEs9vseJQIM7KoyJv9U.bWB2oBeUzi5L3NNr5m');
 
--- ─────────────────────────────────────────────────────────────
--- CONTROLE DE MIGRATIONS (mudanças incrementais de schema)
--- Ver database/migrations/ e database/migrate.php
--- ─────────────────────────────────────────────────────────────
+-- ── CONTROLE DE MIGRATIONS ────────────────────────────────────────
 CREATE TABLE schema_migrations (
-    migration  VARCHAR(255) NOT NULL PRIMARY KEY,
-    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    migration  TEXT NOT NULL PRIMARY KEY,
+    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

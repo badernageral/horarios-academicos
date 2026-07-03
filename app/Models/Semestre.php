@@ -15,7 +15,10 @@ class Semestre extends BaseModel
                     d.qtd_encontros_semanais, d.qtd_aulas, d.semestre_oferta, d.qtd_professores,
                     c.nome AS curso_nome, c.duracao_aula_minutos,
                     t.serie_periodo AS turma_nome,
-                    GROUP_CONCAT(sa.professor_id ORDER BY sa.slot SEPARATOR ',') AS professores_atribuidos,
+                    (SELECT GROUP_CONCAT(x.professor_id, ',')
+                       FROM (SELECT professor_id FROM semestre_atribuicoes
+                              WHERE disciplina_id = d.id AND semestre_id = ?
+                              ORDER BY slot) x) AS professores_atribuidos,
                     MAX(CASE WHEN sa.slot = 1 THEN sa.sala_id ELSE NULL END) AS sala_atribuida
              FROM disciplinas d
              JOIN cursos c       ON c.id = d.curso_id
@@ -29,7 +32,7 @@ class Semestre extends BaseModel
                       d.qtd_encontros_semanais, d.qtd_aulas, d.semestre_oferta, d.qtd_professores,
                       c.nome, c.duracao_aula_minutos, t.serie_periodo
              ORDER BY c.nome, t.serie_periodo, d.nome",
-            [$semestreId, $semestreId]
+            [$semestreId, $semestreId, $semestreId]
         );
 
         foreach ($rows as &$row) {

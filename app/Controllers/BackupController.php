@@ -2,18 +2,26 @@
 
 namespace App\Controllers;
 
+use PDO;
+
 class BackupController extends BaseController
 {
+    // Caminho do arquivo SQLite atual (via config).
+    private function dbPath(): string
+    {
+        $cfg = require ROOT_PATH . '/config/database.php';
+        return $cfg['path'] ?? (ROOT_PATH . '/database/sga.sqlite');
+    }
+
     // ── Página: exportar / importar ───────────────────────────────
     public function index(): void
     {
-        $dir     = ROOT_PATH . '/backups';
+        $dir      = ROOT_PATH . '/backups';
         $arquivos = [];
         if (is_dir($dir)) {
-            foreach (glob($dir . '/*.sql') ?: [] as $f) {
+            foreach (glob($dir . '/*.sqlite') ?: [] as $f) {
                 $arquivos[] = ['nome' => basename($f), 'tamanho' => filesize($f), 'data' => filemtime($f)];
             }
-            // mais recentes primeiro
             usort($arquivos, fn($a, $b) => $b['data'] <=> $a['data']);
             $arquivos = array_slice($arquivos, 0, 10);
         }
@@ -21,90 +29,85 @@ class BackupController extends BaseController
         $this->render('backup/index', compact('arquivos', 'flash'));
     }
 
-    // ── Exportar: gera o dump e envia para download ───────────────
+    // ── Exportar: snapshot consistente do .sqlite e download ──────
     public function exportar(): void
     {
-        $cfg = require ROOT_PATH . '/config/database.php';
         $dir = ROOT_PATH . '/backups';
         if (!is_dir($dir)) @mkdir($dir, 0775, true);
+        $arquivo = $dir . '/sga_backup_' . date('Ymd_His') . '.sqlite';
 
-        $arquivo = $dir . '/sga_backup_' . date('Ymd_His') . '.sql';
-        if (!$this->dump($cfg, $arquivo)) {
+        if (!$this->snapshot($this->dbPath(), $arquivo)) {
             @unlink($arquivo);
-            $this->flash('danger', 'Falha ao gerar o backup. Verifique se o mysqldump está disponível.');
+            $this->flash('danger', 'Falha ao gerar o backup do banco.');
             $this->redirect('/backup');
             return;
         }
 
-        header('Content-Type: application/sql; charset=utf-8');
+        header('Content-Type: application/octet-stream');
         header('Content-Disposition: attachment; filename="' . basename($arquivo) . '"');
         header('Content-Length: ' . filesize($arquivo));
         readfile($arquivo);
         exit;
     }
 
-    // ── Importar: restaura o banco a partir de um .sql enviado ────
+    // ── Importar: substitui o banco por um .sqlite enviado ────────
     public function importar(): void
     {
         $up = $_FILES['arquivo'] ?? null;
         if (!$up || $up['error'] !== UPLOAD_ERR_OK) {
-            $this->flash('danger', 'Selecione um arquivo .sql válido para importar.');
+            $this->flash('danger', 'Selecione um arquivo .sqlite válido para importar.');
             $this->redirect('/backup');
             return;
         }
-        if (!preg_match('/\.sql$/i', (string)$up['name'])) {
-            $this->flash('danger', 'O arquivo deve ter a extensão .sql.');
+        if (!preg_match('/\.sqlite$/i', (string)$up['name'])) {
+            $this->flash('danger', 'O arquivo deve ter a extensão .sqlite.');
             $this->redirect('/backup');
             return;
         }
 
-        $cfg = require ROOT_PATH . '/config/database.php';
-        $dir = ROOT_PATH . '/backups';
+        // Valida que é um banco SQLite íntegro antes de tocar no atual.
+        try {
+            $t  = new PDO('sqlite:' . $up['tmp_name']);
+            $ic = $t->query('PRAGMA integrity_check')->fetchColumn();
+            $t  = null;
+            if ($ic !== 'ok') throw new \RuntimeException('integridade');
+        } catch (\Throwable $e) {
+            $this->flash('danger', 'O arquivo enviado não é um banco SQLite válido.');
+            $this->redirect('/backup');
+            return;
+        }
+
+        $path = $this->dbPath();
+        $dir  = ROOT_PATH . '/backups';
         if (!is_dir($dir)) @mkdir($dir, 0775, true);
 
-        // Rede de segurança: salva o estado atual antes de sobrescrever.
-        $seguranca = $dir . '/pre_import_' . date('Ymd_His') . '.sql';
-        $this->dump($cfg, $seguranca);
+        // Rede de segurança: snapshot do estado atual antes de sobrescrever.
+        $seguranca = $dir . '/pre_import_' . date('Ymd_His') . '.sqlite';
+        $this->snapshot($path, $seguranca);
 
-        // Restaura: mysql lê o dump (DROP/CREATE/INSERT) na base atual.
-        // Senha via ambiente (cross-platform; o filho herda MYSQL_PWD).
-        putenv('MYSQL_PWD=' . $cfg['password']);
-        $cmd = sprintf(
-            'mysql --host=%s --port=%s --user=%s %s < %s 2>&1',
-            escapeshellarg($cfg['host']),
-            escapeshellarg($cfg['port']),
-            escapeshellarg($cfg['user']),
-            escapeshellarg($cfg['dbname']),
-            escapeshellarg($up['tmp_name'])
-        );
-        exec($cmd, $out, $code);
-
-        if ($code !== 0) {
-            $this->flash('danger', 'Falha ao importar o backup: ' . htmlspecialchars(implode(' ', array_slice($out, 0, 3))));
+        // Substitui o arquivo vivo e remove WAL/SHM antigos (senão corrompem o novo).
+        if (!copy($up['tmp_name'], $path)) {
+            $this->flash('danger', 'Falha ao gravar o banco importado.');
             $this->redirect('/backup');
             return;
         }
+        @unlink($path . '-wal');
+        @unlink($path . '-shm');
 
         $this->flash('success', 'Backup importado com sucesso. O estado anterior foi salvo em backups/' . basename($seguranca) . '.');
         $this->redirect('/backup');
     }
 
-    // ── Helper: dump completo do banco para um arquivo ────────────
-    private function dump(array $cfg, string $arquivo): bool
+    // ── Helper: snapshot consistente do banco (VACUUM INTO) ───────
+    private function snapshot(string $origem, string $destino): bool
     {
-        // Senha via ambiente (cross-platform; evita expor no comando).
-        putenv('MYSQL_PWD=' . $cfg['password']);
-        $null = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
-        $cmd = sprintf(
-            'mysqldump --host=%s --port=%s --user=%s --single-transaction %s > %s 2>%s',
-            escapeshellarg($cfg['host']),
-            escapeshellarg($cfg['port']),
-            escapeshellarg($cfg['user']),
-            escapeshellarg($cfg['dbname']),
-            escapeshellarg($arquivo),
-            $null
-        );
-        exec($cmd, $out, $code);
-        return $code === 0 && is_file($arquivo) && filesize($arquivo) > 0;
+        try {
+            $pdo = new PDO('sqlite:' . $origem);
+            $pdo->exec('VACUUM INTO ' . $pdo->quote($destino));
+            $pdo = null;
+        } catch (\Throwable $e) {
+            return false;
+        }
+        return is_file($destino) && filesize($destino) > 0;
     }
 }

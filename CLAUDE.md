@@ -1,8 +1,10 @@
 # SGA – Sistema de Geração Automática de Horários Acadêmicos
 
 Aplicação web para o IFTO que gera grades horárias automaticamente. PHP 8.3+ com MVC próprio
-(sem Composer/frameworks), MySQL, Bootstrap 5.3 via CDN. Horários em TIME real
-(`hora_inicio`/`hora_fim`), sem períodos fixos no banco.
+(sem Composer/frameworks), **SQLite** (arquivo `database/sga.sqlite`; horas/JSON em `TEXT`),
+Bootstrap 5.3 servido localmente (`assets/vendor/`, sem CDN). Horários em tempo real
+(`hora_inicio`/`hora_fim` como texto "HH:MM:SS"), sem períodos fixos. Também roda como app
+desktop Windows (Electron + PHP embutido + SQLite; ver `desktop/`).
 
 ## ⚠️ Regras críticas
 
@@ -75,8 +77,9 @@ Filosofia definida pelo usuário (jun/2026):
 - Cores: blocos com fundo = cor primária do professor + sufixo alpha `59` (~35%), texto preto,
   faixa inferior na cor secundária com o nome do professor em branco.
 - Backup: item de menu `/backup` (`BackupController`). Exportar = `GET /backup/exportar`
-  (mysqldump → `backups/` + download). Importar = `POST /backup/importar` (upload `.sql`,
-  salva cópia de segurança `pre_import_*` e restaura via `mysql`, substituindo os dados).
+  (`VACUUM INTO` → `.sqlite` em `backups/` + download). Importar = `POST /backup/importar`
+  (upload `.sqlite`, valida `integrity_check`, salva `pre_import_*` e substitui o arquivo do
+  banco, removendo `-wal`/`-shm` antigos). Tudo via PHP/pdo_sqlite, sem binários externos.
 - Clonar atribuições entre semestres: dropdown em `/horarios` (aparece com 2+ semestres).
 
 ## Decisões do usuário (não sugerir de novo)
@@ -94,6 +97,17 @@ Login por sessão com **perfil único** (acesso total; sem papéis/permissões).
 `View::renderPartial`, sem o layout/sidebar). CRUD em `/usuarios` (não pode excluir/desativar a
 si mesmo nem deixar o sistema sem usuários). Logout em `/logout`.
 
+## Banco SQLite (jul/2026)
+
+Migrado de MySQL para **SQLite** (decisão do usuário: app monousuário, em dev). `App\Core\Database`
+seleciona o driver por `config/database.php` (`$cfg['driver']`): `sqlite` (padrão) ou `mysql`
+(mantido via env `DB_DRIVER=mysql` para acessar o banco legado). SQLite habilita
+`PRAGMA foreign_keys=ON` e `journal_mode=WAL` por conexão. Arquivo em `database/sga.sqlite`
+(gitignored; bloqueado na web por `database/.htaccess` e no desktop pelo `router.php`).
+No localhost o arquivo é de `www-data` (Apache mod_php grava). Requer a extensão `pdo_sqlite`.
+Schema em dialeto SQLite (`schema.sql`); versão MySQL histórica em `schema.mysql.sql`.
+Migração de dados única: `database/migrate_mysql_to_sqlite.php` (só lê o MySQL).
+
 ## Migrations (jul/2026)
 
 `database/migrate.php` (runner sem framework) + `database/migrations/NNN_*.sql` (incrementais)
@@ -101,7 +115,7 @@ si mesmo nem deixar o sistema sem usuários). Logout em `/logout`.
 = deltas para atualizar bancos **existentes** sem perder dados.
 - `php database/migrate.php` (up) aplica pendentes; `status` lista; `baseline` marca as atuais
   como aplicadas **sem** rodar (para banco que já está no estado do `schema.sql`).
-- Desktop: `main.js` roda `baseline` logo após criar um banco novo (`loadSchema`) e `up` em
+- Desktop: `main.js` roda `baseline` ao criar o `.sqlite` novo (`ensureDatabase`) e `up` em
   toda abertura → "instalar por cima" atualiza o schema automaticamente.
 - **Servidor de produção (fazer 1×):** `php database/migrate.php baseline` para colocá-lo sob
   controle; depois `php database/migrate.php` a cada deploy. Não aplicar mais schema à mão.

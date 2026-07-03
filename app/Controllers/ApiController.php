@@ -84,7 +84,7 @@ class ApiController extends BaseController
             $this->json(['success' => true, 'data' => $resultado]);
         } catch (\Throwable $e) {
             Database::query(
-                "UPDATE geracoes SET status='erro', log=?, finished_at=NOW() WHERE id=?",
+                "UPDATE geracoes SET status='erro', log=?, finished_at=CURRENT_TIMESTAMP WHERE id=?",
                 [$e->getMessage(), $geracaoId]
             );
             $this->json(['success' => false, 'error' => $e->getMessage()], 500);

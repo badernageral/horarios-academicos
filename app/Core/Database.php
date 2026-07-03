@@ -12,11 +12,22 @@ class Database
     public static function getInstance(): PDO
     {
         if (self::$instance === null) {
-            $cfg = require ROOT_PATH . '/config/database.php';
-            $dsn = "mysql:host={$cfg['host']};port={$cfg['port']};dbname={$cfg['dbname']};charset={$cfg['charset']}";
+            $cfg    = require ROOT_PATH . '/config/database.php';
+            $driver = $cfg['driver'] ?? 'mysql';
 
             try {
-                self::$instance = new PDO($dsn, $cfg['user'], $cfg['password'], $cfg['options']);
+                if ($driver === 'sqlite') {
+                    $dir = dirname($cfg['path']);
+                    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+                    self::$instance = new PDO('sqlite:' . $cfg['path'], null, null, $cfg['options']);
+                    // Integridade referencial precisa ser habilitada por conexão.
+                    self::$instance->exec('PRAGMA foreign_keys = ON');
+                    // Melhor concorrência de leitura/escrita para um único usuário.
+                    self::$instance->exec('PRAGMA journal_mode = WAL');
+                } else {
+                    $dsn = "mysql:host={$cfg['host']};port={$cfg['port']};dbname={$cfg['dbname']};charset={$cfg['charset']}";
+                    self::$instance = new PDO($dsn, $cfg['user'], $cfg['password'], $cfg['options']);
+                }
             } catch (PDOException $e) {
                 http_response_code(500);
                 die(json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]));

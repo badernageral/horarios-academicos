@@ -20,8 +20,8 @@
       </div>
       <div class="card-body d-flex flex-column">
         <p class="small text-muted">
-          Gera um dump completo do banco (estrutura + dados) via <code>mysqldump</code>,
-          salva uma cópia em <code>backups/</code> e baixa o arquivo <code>.sql</code>.
+          Gera uma cópia consistente do banco SQLite (estrutura + dados),
+          salva em <code>backups/</code> e baixa o arquivo <code>.sqlite</code>.
         </p>
         <a href="<?= $base ?>/backup/exportar" class="btn btn-primary mt-auto">
           <i class="bi bi-download me-1"></i>Baixar backup agora
@@ -45,8 +45,8 @@
         <form method="POST" action="<?= $base ?>/backup/importar" enctype="multipart/form-data"
               onsubmit="return confirm('Isto vai SUBSTITUIR todos os dados atuais pelo arquivo enviado. Deseja continuar?');">
           <div class="mb-3">
-            <label class="form-label small fw-semibold">Arquivo de backup (.sql)</label>
-            <input type="file" name="arquivo" accept=".sql" class="form-control" required>
+            <label class="form-label small fw-semibold">Arquivo de backup (.sqlite)</label>
+            <input type="file" name="arquivo" accept=".sqlite" class="form-control" required>
           </div>
           <button type="submit" class="btn btn-danger">
             <i class="bi bi-upload me-1"></i>Importar e substituir

@@ -1,0 +1,3 @@
+# Bloqueia acesso web a TODO o diretório database/ (schema, migrations, e o
+# arquivo SQLite com os dados). Nada aqui deve ser servido pelo navegador.
+Require all denied

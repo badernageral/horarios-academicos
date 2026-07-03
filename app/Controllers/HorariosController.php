@@ -153,7 +153,8 @@ class HorariosController extends BaseController
                 Database::query(
                     "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot)
                      VALUES (?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE professor_id = VALUES(professor_id)",
+                     ON CONFLICT(semestre_id, disciplina_id, slot)
+                     DO UPDATE SET professor_id = excluded.professor_id",
                     [$semestreId, $discId, $profId, $slot]
                 );
                 $atribuidas++;
@@ -281,7 +282,7 @@ class HorariosController extends BaseController
             );
         } catch (\Throwable $e) {
             Database::query(
-                "UPDATE geracoes SET status='erro', log=?, finished_at=NOW() WHERE id=?",
+                "UPDATE geracoes SET status='erro', log=?, finished_at=CURRENT_TIMESTAMP WHERE id=?",
                 [$e->getMessage(), $geracaoId]
             );
             $this->flash('danger', 'Erro na geração: ' . $e->getMessage());

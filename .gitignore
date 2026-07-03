@@ -29,6 +29,11 @@ Thumbs.db
 # Backups do banco
 /backups/
 
+# Banco SQLite (dados locais — nunca versionar)
+/database/*.sqlite
+/database/*.sqlite-wal
+/database/*.sqlite-shm
+
 # Desktop (Electron): binários e artefatos pesados não versionados
 /desktop/node_modules/
 /desktop/runtime/
