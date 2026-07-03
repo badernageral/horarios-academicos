@@ -60,6 +60,35 @@ location / { try_files $uri $uri/ /index.php?$query_string; }
 location ~ \.php$ { fastcgi_pass 127.0.0.1:9000; fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name; include fastcgi_params; }
 ```
 
+## Versão Desktop (Windows)
+
+Além da versão web, o SGA pode ser distribuído como **aplicativo desktop para
+Windows**, offline e por máquina — **sem instalar Apache, MySQL ou configurar
+nada**. Basta baixar e abrir.
+
+- **Como usar:** baixe o `.exe` (instalador ou versão portátil) na aba
+  **[Releases](../../releases)** e execute. Na primeira abertura o app cria seu
+  próprio banco local e o usuário padrão **admin / admin**.
+- **Como funciona:** um shell **Electron** (`desktop/main.js`) sobe um **MariaDB
+  portátil** (compatível com MySQL, com datadir próprio em `%APPDATA%` e porta
+  isolada) e o **servidor embutido do PHP**, depois abre a janela do sistema.
+  O código PHP é o mesmo da versão web — nenhuma lógica é duplicada.
+- **Dados:** cada instalação tem seu próprio banco local e independente; não
+  interfere em nenhum servidor MySQL já instalado na máquina.
+
+### Gerar o instalador (via GitHub Actions)
+
+Não é preciso ter uma máquina Windows: o workflow
+[`.github/workflows/desktop-build.yml`](.github/workflows/desktop-build.yml)
+baixa o PHP e o MariaDB e empacota o `.exe` num runner `windows-latest`.
+
+- **Manual:** aba **Actions** → *Build Desktop (Windows)* → **Run workflow**
+  (o instalador sai como artefato do run).
+- **Por tag:** `git tag v1.0.0 && git push origin v1.0.0` — o `.exe` é anexado
+  automaticamente à Release correspondente.
+
+Detalhes de build local e dos binários em [`desktop/README.md`](desktop/README.md).
+
 ## Arquitetura
 
 ```
