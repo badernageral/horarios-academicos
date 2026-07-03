@@ -237,7 +237,9 @@ INSERT INTO configuracoes_soft (chave, nome, valor, descricao) VALUES
 ('agrupa_disciplina',   'Agrupar Disciplina no Dia',      5.0, 'Penalidade por colocar dois encontros da mesma disciplina no mesmo dia'),
 ('distribuicao_semana', 'Distribuição Semanal',           3.0, 'Penalidade por concentrar muitas aulas em um único dia'),
 ('horario_extremo',     'Evitar Horários Extremos',       2.0, 'Penalidade por horários muito cedo ou muito tarde'),
-('balancear_professor', 'Balancear Carga do Professor',   4.0, 'Penalidade por desbalancear a carga diária do professor');
+('balancear_professor', 'Balancear Carga do Professor',   4.0, 'Penalidade por desbalancear a carga diária do professor'),
+('compactar_professor', 'Compactar Semana do Professor',  2500.0, 'Penalidade por agendar aula em dia distante dos dias em que o professor já leciona (agrupa a semana em dias consecutivos)'),
+('preferencia_dia2',    'Proximidade do 2º Dia do Professor', 2000.0, 'Penalidade por abrir o segundo dia de aula do professor longe do primeiro (evita seg+sex; prefere dias adjacentes)');
 
 -- ── USUÁRIOS ──────────────────────────────────────────────────────
 CREATE TABLE usuarios (

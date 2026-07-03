@@ -109,6 +109,11 @@ seleciona o driver por `config/database.php` (`$cfg['driver']`): `sqlite` (padr�
 No localhost o arquivo é de `www-data` (Apache mod_php grava). Requer a extensão `pdo_sqlite`.
 Schema em dialeto SQLite (`schema.sql`); versão MySQL histórica em `schema.mysql.sql`.
 Migração de dados única: `database/migrate_mysql_to_sqlite.php` (só lê o MySQL).
+**Dialeto**: NUNCA usar sintaxe MySQL-only — `UPDATE/DELETE ... JOIN` (usar subconsulta no
+WHERE), `INSERT IGNORE` (usar `INSERT OR IGNORE`), `TIME_TO_SEC/TIMEDIFF` (aritmética
+`substr(hora,1,2)*60+substr(hora,4,2)`), `NOW()` (usar `?` + `date('Y-m-d H:i:s')` do PHP —
+`CURRENT_TIMESTAMP` do SQLite é UTC, 3h à frente). Comparação de texto é case/acento-SENSÍVEL
+(MySQL não era); para matching de nomes usar `LOWER()` dos dois lados.
 
 ## Migrations (jul/2026)
 

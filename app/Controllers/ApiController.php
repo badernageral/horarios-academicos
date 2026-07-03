@@ -72,9 +72,9 @@ class ApiController extends BaseController
         // Mesmo comportamento da geração via web: substitui a geração anterior
         Database::query("DELETE FROM geracoes WHERE semestre_id = ?", [$semestreId]);
         Database::query(
-            "INSERT INTO geracoes (semestre_id, descricao, status, configuracao)
-             VALUES (?, ?, 'processando', ?)",
-            [$semestreId, $descricao, json_encode($pesos)]
+            "INSERT INTO geracoes (semestre_id, descricao, status, configuracao, created_at)
+             VALUES (?, ?, 'processando', ?, ?)",
+            [$semestreId, $descricao, json_encode($pesos), date('Y-m-d H:i:s')]
         );
         $geracaoId = (int) Database::lastInsertId();
 
@@ -84,8 +84,8 @@ class ApiController extends BaseController
             $this->json(['success' => true, 'data' => $resultado]);
         } catch (\Throwable $e) {
             Database::query(
-                "UPDATE geracoes SET status='erro', log=?, finished_at=CURRENT_TIMESTAMP WHERE id=?",
-                [$e->getMessage(), $geracaoId]
+                "UPDATE geracoes SET status='erro', log=?, finished_at=? WHERE id=?",
+                [$e->getMessage(), date('Y-m-d H:i:s'), $geracaoId]
             );
             $this->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
@@ -139,7 +139,8 @@ class ApiController extends BaseController
             ),
             'carga_por_professor' => Database::fetchAll(
                 "SELECT p.nome, COUNT(*) AS encontros,
-                        SUM(TIME_TO_SEC(TIMEDIFF(h.hora_fim, h.hora_inicio))/60) AS minutos
+                        SUM((substr(h.hora_fim,1,2)*60 + substr(h.hora_fim,4,2))
+                          - (substr(h.hora_inicio,1,2)*60 + substr(h.hora_inicio,4,2))) AS minutos
                  FROM horarios h
                  JOIN professores p ON p.id = h.professor_id
                  WHERE h.geracao_id = ? AND h.dia_semana >= 1

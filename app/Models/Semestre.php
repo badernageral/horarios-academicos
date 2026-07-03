@@ -223,10 +223,10 @@ class Semestre extends BaseModel
         $placeholders = implode(',', array_fill(0, count($antigos), '?'));
 
         Database::query(
-            "UPDATE horarios h
-             JOIN geracoes g ON g.id = h.geracao_id
-             SET h.professor_id = CASE h.professor_id " . implode(' ', $cases) . " ELSE h.professor_id END
-             WHERE g.semestre_id = ? AND h.disciplina_id = ? AND h.professor_id IN ($placeholders)",
+            "UPDATE horarios
+             SET professor_id = CASE professor_id " . implode(' ', $cases) . " ELSE professor_id END
+             WHERE geracao_id IN (SELECT id FROM geracoes WHERE semestre_id = ?)
+               AND disciplina_id = ? AND professor_id IN ($placeholders)",
             [...$params, $semestreId, $disciplinaId, ...$antigos]
         );
     }

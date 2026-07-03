@@ -268,8 +268,9 @@ class HorariosController extends BaseController
 
         $descricao = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
         Database::query(
-            "INSERT INTO geracoes (semestre_id, descricao, status, configuracao) VALUES (?, ?, 'processando', ?)",
-            [$semestreId, $descricao, json_encode($pesos)]
+            "INSERT INTO geracoes (semestre_id, descricao, status, configuracao, created_at)
+             VALUES (?, ?, 'processando', ?, ?)",
+            [$semestreId, $descricao, json_encode($pesos), date('Y-m-d H:i:s')]
         );
         $geracaoId = (int)Database::lastInsertId();
 
@@ -282,8 +283,8 @@ class HorariosController extends BaseController
             );
         } catch (\Throwable $e) {
             Database::query(
-                "UPDATE geracoes SET status='erro', log=?, finished_at=CURRENT_TIMESTAMP WHERE id=?",
-                [$e->getMessage(), $geracaoId]
+                "UPDATE geracoes SET status='erro', log=?, finished_at=? WHERE id=?",
+                [$e->getMessage(), date('Y-m-d H:i:s'), $geracaoId]
             );
             $this->flash('danger', 'Erro na geração: ' . $e->getMessage());
             $this->redirect('/horarios');
@@ -914,7 +915,7 @@ class HorariosController extends BaseController
                  FROM disciplinas d
                  JOIN turmas t ON t.id = d.turma_id
                  JOIN cursos c ON c.id = d.curso_id
-                 WHERE d.ativo = 1 AND d.nome = ?",
+                 WHERE d.ativo = 1 AND LOWER(d.nome) = LOWER(?)",
                 [$nome]
             );
             if (empty($discs)) {

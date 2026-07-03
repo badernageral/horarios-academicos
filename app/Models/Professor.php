@@ -72,7 +72,7 @@ class Professor extends BaseModel
             $nome = trim($nome);
             if ($nome !== '') {
                 Database::query(
-                    "INSERT IGNORE INTO professor_qualificacao (professor_id, disciplina_nome) VALUES (?, ?)",
+                    "INSERT OR IGNORE INTO professor_qualificacao (professor_id, disciplina_nome) VALUES (?, ?)",
                     [$professorId, $nome]
                 );
             }
@@ -82,7 +82,10 @@ class Professor extends BaseModel
     public static function cargaHorariaSemanal(int $professorId, int $geracaoId): int
     {
         $result = Database::fetchOne(
-            "SELECT COALESCE(SUM(TIME_TO_SEC(TIMEDIFF(hora_fim, hora_inicio))/60), 0) AS total
+            "SELECT COALESCE(SUM(
+                        (substr(hora_fim,1,2)*60 + substr(hora_fim,4,2))
+                      - (substr(hora_inicio,1,2)*60 + substr(hora_inicio,4,2))
+                    ), 0) AS total
              FROM horarios
              WHERE professor_id = ? AND geracao_id = ?",
             [$professorId, $geracaoId]

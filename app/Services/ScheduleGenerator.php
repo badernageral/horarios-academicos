@@ -706,9 +706,9 @@ class ScheduleGenerator
 
         Database::query(
             "UPDATE geracoes SET status=?, total_atividades=?, atividades_agendadas=?,
-             atividades_falhas=?, log=?, finished_at=CURRENT_TIMESTAMP
+             atividades_falhas=?, log=?, finished_at=?
              WHERE id=?",
-            [$status, $total, $agendados, $falhas, implode("\n", $logLines), $this->geracaoId]
+            [$status, $total, $agendados, $falhas, implode("\n", $logLines), date('Y-m-d H:i:s'), $this->geracaoId]
         );
 
         if ($agendados > 0 || $falhas > 0) {
