@@ -11,7 +11,10 @@ Aplicação web para o IFTO que gera grades horárias automaticamente. PHP 8.3+ 
   Para testar o gerador sem gravar: replicar `gerar()` via Reflection pulando `salvar()` (só SELECTs).
 - **mbstring NÃO está instalado**: proibido `mb_*`. Para UTF-8 usar PCRE com flag `/u`
   (ex.: `preg_match('/^.{0,50}/us', ...)` para truncar sem quebrar acentos).
-- Toda mudança de schema deve ser aplicada no banco vivo **e** em `database/schema.sql`.
+- Toda mudança de schema: escrever uma **migration** incremental em
+  `database/migrations/NNN_*.sql` (ALTER/CREATE IF NOT EXISTS, não destrutiva) **e**
+  refletir no `database/schema.sql` (usado só para bancos novos). Aplicar com
+  `php database/migrate.php` (up). Ver "Migrations" abaixo.
 
 ## Estrutura
 
@@ -90,3 +93,17 @@ Login por sessão com **perfil único** (acesso total; sem papéis/permissões).
 `/login`, exceto a rota `/login`. Tela de login é standalone (`auth/login.php` via
 `View::renderPartial`, sem o layout/sidebar). CRUD em `/usuarios` (não pode excluir/desativar a
 si mesmo nem deixar o sistema sem usuários). Logout em `/logout`.
+
+## Migrations (jul/2026)
+
+`database/migrate.php` (runner sem framework) + `database/migrations/NNN_*.sql` (incrementais)
++ tabela `schema_migrations`. `schema.sql` = schema completo para bancos **novos**; migrations
+= deltas para atualizar bancos **existentes** sem perder dados.
+- `php database/migrate.php` (up) aplica pendentes; `status` lista; `baseline` marca as atuais
+  como aplicadas **sem** rodar (para banco que já está no estado do `schema.sql`).
+- Desktop: `main.js` roda `baseline` logo após criar um banco novo (`loadSchema`) e `up` em
+  toda abertura → "instalar por cima" atualiza o schema automaticamente.
+- **Servidor de produção (fazer 1×):** `php database/migrate.php baseline` para colocá-lo sob
+  controle; depois `php database/migrate.php` a cada deploy. Não aplicar mais schema à mão.
+- Conexão via `config/database.php` (env `DB_*`); o `exec()` do PDO roda múltiplos comandos por
+  arquivo.

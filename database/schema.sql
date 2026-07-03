@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS professores;
 DROP TABLE IF EXISTS ndas;
 DROP TABLE IF EXISTS cursos;
 DROP TABLE IF EXISTS usuarios;
+DROP TABLE IF EXISTS schema_migrations;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -287,3 +288,12 @@ CREATE TABLE usuarios (
 -- Usuário padrão: admin / admin (hash bcrypt de "admin"; troque a senha após o 1º acesso)
 INSERT INTO usuarios (nome, usuario, senha_hash) VALUES
 ('Administrador', 'admin', '$2y$12$27Egl95P0v5/niTiEs9vseJQIM7KoyJv9U.bWB2oBeUzi5L3NNr5m');
+
+-- ─────────────────────────────────────────────────────────────
+-- CONTROLE DE MIGRATIONS (mudanças incrementais de schema)
+-- Ver database/migrations/ e database/migrate.php
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE schema_migrations (
+    migration  VARCHAR(255) NOT NULL PRIMARY KEY,
+    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

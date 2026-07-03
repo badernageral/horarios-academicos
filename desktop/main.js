@@ -97,6 +97,32 @@ function loadSchema() {
   if (p.status !== 0) throw new Error('Falha ao carregar o schema.sql');
 }
 
+// Ambiente compartilhado pelos processos PHP (servidor e migrations).
+function phpEnv() {
+  return {
+    ...process.env,
+    // mysqldump/mysql (backup) resolvidos a partir dos binários do MariaDB.
+    PATH: path.join(MARIA_DIR, 'bin') + path.delimiter + (process.env.PATH || ''),
+    SGA_BASE_PATH: '',            // servir na raiz
+    DB_HOST: '127.0.0.1',
+    DB_PORT: String(mysqlPort),
+    DB_NAME,
+    DB_USER: 'root',
+    DB_PASS: '',
+  };
+}
+
+// Roda o runner de migrations (up | baseline). Aplica mudanças incrementais de
+// schema ao atualizar o app, preservando os dados existentes.
+function runMigrations(mode) {
+  const r = spawnSync(PHP_EXE, [
+    '-c', PHP_INI,
+    path.join(APP_DIR, 'database', 'migrate.php'),
+    mode,
+  ], { cwd: PHP_DIR, env: phpEnv(), stdio: 'inherit' });
+  if (r.status !== 0) throw new Error('Falha ao aplicar migrations (' + mode + ')');
+}
+
 // ── Processos ─────────────────────────────────────────────────────
 async function startMysql() {
   const firstRun = initDatabaseIfNeeded();
@@ -108,7 +134,12 @@ async function startMysql() {
   ], { cwd: MARIA_DIR });
   mysqldProc.stderr.on('data', d => console.log('[mysqld]', d.toString().trim()));
   await waitForPort(mysqlPort);
-  if (firstRun) loadSchema();
+
+  if (firstRun) {
+    loadSchema();               // banco novo: schema.sql completo
+    runMigrations('baseline');  // marca as migrations atuais como já presentes
+  }
+  runMigrations('up');          // aplica pendentes (nada, se já atualizado)
 }
 
 async function startPhp() {
@@ -119,18 +150,8 @@ async function startPhp() {
     '-t', APP_DIR,
     ROUTER,
   ], {
-    cwd: PHP_DIR, // resolve extension_dir="ext" do php.ini
-    env: {
-      ...process.env,
-      // mysqldump/mysql (backup) resolvidos a partir dos binários do MariaDB.
-      PATH: path.join(MARIA_DIR, 'bin') + path.delimiter + (process.env.PATH || ''),
-      SGA_BASE_PATH: '',            // servir na raiz
-      DB_HOST: '127.0.0.1',
-      DB_PORT: String(mysqlPort),
-      DB_NAME,
-      DB_USER: 'root',
-      DB_PASS: '',
-    },
+    cwd: PHP_DIR,       // resolve extension_dir="ext" do php.ini
+    env: phpEnv(),
   });
   phpProc.stderr.on('data', d => console.log('[php]', d.toString().trim()));
   return phpPort;
