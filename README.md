@@ -4,83 +4,67 @@ Sistema web completo para geração automática de horários escolares e acadêm
 
 ## Requisitos
 
-- PHP 8.3+
-- MySQL 8.0+ ou MariaDB 10.6+
-- Servidor web: Apache (com mod_rewrite) ou Nginx
+- PHP 8.3+ com a extensão **pdo_sqlite** (pacote `php-sqlite3`)
+- Servidor web: Apache com `mod_rewrite` (mod_php ou php-fpm) — ou rode como **app desktop** (ver abaixo)
+- **Não precisa de servidor de banco**: os dados ficam num único arquivo **SQLite**
 
-## Instalação
+## Instalação (web)
 
-### 1. Configurar banco de dados
+### 1. Servir a aplicação
 
-Edite `config/database.php` com suas credenciais:
+Coloque o projeto sob o Apache e habilite `mod_rewrite`. O `.htaccess` incluído cuida
+do roteamento (front controller `index.php`). Por padrão o app assume o subcaminho
+`/horarios-academicos`; para servir na raiz do domínio, defina a env `SGA_BASE_PATH=''`.
 
-```php
-return [
-    'host'     => 'localhost',
-    'dbname'   => 'horarios_academicos',
-    'user'     => 'seu_usuario',
-    'password' => 'sua_senha',
-    ...
-];
+Para desenvolvimento, o servidor embutido do PHP também funciona:
+```bash
+php -S localhost:8080 -t . desktop/router.php
 ```
 
-Ou via variáveis de ambiente:
-```bash
-export DB_HOST=localhost
-export DB_NAME=horarios_academicos
-export DB_USER=root
-export DB_PASS=senha
-```
+### 2. Banco de dados (SQLite)
 
-### 2. Criar o banco
-
+O banco é o arquivo `database/sga.sqlite`. Crie-o a partir do schema com:
 ```bash
-# Apenas o schema
 php database/install.php
-
-# Com dados de exemplo (recomendado para demonstração)
-php database/install.php --seed
 ```
+Ele precisa ser gravável pelo usuário do servidor web (ex.: `www-data`), assim como o
+diretório `database/` (para os arquivos `-wal`/`-shm`). Configuração em
+`config/database.php` (driver `sqlite` por padrão; `mysql` ainda disponível via
+`DB_DRIVER=mysql`, para acessar bancos legados).
 
-### 3. Configurar servidor web
+### 3. Primeiro acesso
 
-**Apache** – aponte o DocumentRoot para `public/` e habilite `mod_rewrite`. O `.htaccess` já está configurado.
+Sem nenhum usuário cadastrado, o sistema abre em **`/setup`** e pede a criação do
+**primeiro usuário** (acesso total). Depois disso, o login normal fica em `/login`.
 
-**PHP Built-in (desenvolvimento)**:
+### Atualizações de schema (migrations)
+
+Mudanças de banco são incrementais, em `database/migrations/`:
 ```bash
-cd public
-php -S localhost:8080
-```
-
-**Nginx**:
-```nginx
-root /path/to/horarios-academicos/public;
-index index.php;
-location / { try_files $uri $uri/ /index.php?$query_string; }
-location ~ \.php$ { fastcgi_pass 127.0.0.1:9000; fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name; include fastcgi_params; }
+php database/migrate.php          # aplica as pendentes
+php database/migrate.php status   # lista aplicadas × pendentes
 ```
 
 ## Versão Desktop (Windows)
 
-Além da versão web, o sistema pode ser distribuído como **aplicativo desktop para
-Windows**, offline e por máquina — **sem instalar Apache, MySQL ou configurar
-nada**. Basta baixar e abrir.
+Além da versão web, o sistema roda como **aplicativo desktop para Windows**,
+offline e por máquina — **sem instalar nada**. Basta baixar e abrir.
 
-- **Como usar:** baixe o `.exe` (instalador ou versão portátil) na aba
-  **[Releases](../../releases)** e execute. Na primeira abertura o app cria seu
-  próprio banco local e o usuário padrão **admin / admin**.
-- **Como funciona:** um shell **Electron** (`desktop/main.js`) sobe um **MariaDB
-  portátil** (compatível com MySQL, com datadir próprio em `%APPDATA%` e porta
-  isolada) e o **servidor embutido do PHP**, depois abre a janela do sistema.
-  O código PHP é o mesmo da versão web — nenhuma lógica é duplicada.
-- **Dados:** cada instalação tem seu próprio banco local e independente; não
-  interfere em nenhum servidor MySQL já instalado na máquina.
+- **Como usar:** baixe o `.exe` na aba **[Releases](../../releases)** e execute.
+  Na primeira abertura o app cria seu próprio banco local e pede o cadastro do
+  **primeiro usuário**.
+- **Como funciona:** um shell **Electron** (`desktop/main.js`) sobe o **servidor
+  embutido do PHP** com backend **SQLite** (um arquivo em `%APPDATA%`) e abre a
+  janela do sistema. O código PHP é o mesmo da versão web — nenhuma lógica é
+  duplicada.
+- **Dados:** cada instalação tem seu próprio `sga.sqlite`, preservado entre
+  atualizações (as migrations rodam a cada abertura).
 
 ### Gerar o instalador (via GitHub Actions)
 
 Não é preciso ter uma máquina Windows: o workflow
 [`.github/workflows/desktop-build.yml`](.github/workflows/desktop-build.yml)
-baixa o PHP e o MariaDB e empacota o `.exe` num runner `windows-latest`.
+baixa o PHP e empacota o `.exe` num runner `windows-latest`.
 
 - **Manual:** aba **Actions** → *Build Desktop (Windows)* → **Run workflow**
   (o instalador sai como artefato do run).
@@ -93,26 +77,28 @@ Detalhes de build local e dos binários em [`desktop/README.md`](desktop/README.
 
 ```
 horarios-academicos/
+├── index.php                ← Front controller
+├── .htaccess                ← Rewrite (mod_rewrite)
+├── routes.php
 ├── app/
-│   ├── Controllers/          # MVC – Controllers
-│   ├── Models/               # MVC – Models (PDO)
+│   ├── Core/                # Router, Database (PDO), View, Auth
+│   ├── Controllers/         # MVC – Controllers
+│   ├── Models/              # MVC – Models (PDO)
 │   ├── Services/
 │   │   ├── ScheduleGenerator.php  ← Algoritmo central
 │   │   ├── TimeHelper.php         ← Utilitários de tempo
 │   │   └── Exporter.php           ← CSV / Excel / PDF
-│   └── Views/                # Templates PHP
+│   └── Views/               # Templates PHP
+├── assets/                  # CSS/JS + vendor (Bootstrap local, sem CDN)
 ├── config/
 │   ├── database.php
 │   └── app.php
 ├── database/
-│   ├── schema.sql            ← Estrutura completa do BD
-│   ├── seed.sql              ← Dados de exemplo
-│   └── install.php           ← Script de instalação
-├── public/
-│   ├── index.php             ← Front controller
-│   ├── .htaccess
-│   └── assets/css/ js/
-└── routes.php
+│   ├── schema.sql           ← Estrutura (SQLite)
+│   ├── migrate.php          ← Runner de migrations
+│   ├── migrations/          ← Mudanças incrementais de schema
+│   └── sga.sqlite           ← Banco (gerado; não versionado)
+└── desktop/                 ← Empacotamento Electron (Windows)
 ```
 
 ## Algoritmo de Geração
@@ -135,7 +121,7 @@ O `ScheduleGenerator` implementa:
 - Cada disciplina define sua **duração em minutos** (45, 60, 90min…)
 - Intervalos (breaks) são configurados por curso com **hora_inicio** e **hora_fim**
 - O algoritmo busca slots livres a partir dos limites do turno e adjacentes às ocupações existentes
-- Armazenamento: `hora_inicio TIME` e `hora_fim TIME` (ex: `07:00:00` → `07:45:00`)
+- Armazenamento: `hora_inicio` e `hora_fim` como texto `"HH:MM:SS"` (ex: `07:00:00` → `07:45:00`)
 
 ## Restrições Hard (verificadas pelo algoritmo)
 
