@@ -1,4 +1,4 @@
-# SGA – Sistema de Geração Automática de Horários Acadêmicos
+# SHA – Sistema de Horários Acadêmicos (antigo SGA)
 
 Aplicação web para o IFTO que gera grades horárias automaticamente. PHP 8.3+ com MVC próprio
 (sem Composer/frameworks), **SQLite** (arquivo `database/sga.sqlite`; horas/JSON em `TEXT`),

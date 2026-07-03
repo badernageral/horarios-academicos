@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entrar — SGA</title>
+    <title>Entrar — SHA</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
     <link href="<?= $base ?>/assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link href="<?= $base ?>/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
@@ -17,7 +17,7 @@
     <div class="login-card">
         <div class="text-center text-white mb-4">
             <i class="bi bi-calendar2-week-fill fs-1"></i>
-            <h4 class="fw-bold mt-2 mb-0">SGA</h4>
+            <h4 class="fw-bold mt-2 mb-0">SHA</h4>
             <small class="text-white-50">Horários Acadêmicos</small>
         </div>
 

@@ -109,13 +109,13 @@ app.whenReady().then(async () => {
 
     const win = new BrowserWindow({
       width: 1280, height: 840,
-      title: 'SGA — Horários Acadêmicos',
+      title: 'SHA — Horários Acadêmicos',
       webPreferences: { contextIsolation: true },
     });
     win.setMenuBarVisibility(false);
     win.loadURL(`http://127.0.0.1:${port}/`);
   } catch (e) {
-    dialog.showErrorBox('SGA — erro ao iniciar', String(e && e.message || e));
+    dialog.showErrorBox('SHA — erro ao iniciar', String(e && e.message || e));
     app.quit();
   }
 });

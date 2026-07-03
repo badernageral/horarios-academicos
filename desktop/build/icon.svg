@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- fundo arredondado -->
+  <rect x="0" y="0" width="256" height="256" rx="56" fill="url(#bg)"/>
+
+  <!-- corpo do calendário -->
+  <rect x="46" y="62" width="164" height="150" rx="20" fill="#ffffff"/>
+
+  <!-- faixa superior -->
+  <path d="M46 82 a20 20 0 0 1 20 -20 h124 a20 20 0 0 1 20 20 v18 H46 Z" fill="#1d4ed8"/>
+
+  <!-- argolas -->
+  <rect x="86" y="44" width="16" height="34" rx="8" fill="#dbe6ff"/>
+  <rect x="154" y="44" width="16" height="34" rx="8" fill="#dbe6ff"/>
+
+  <!-- grade de dias -->
+  <g fill="#bfdbfe">
+    <rect x="66"  y="116" width="18" height="18" rx="5"/>
+    <rect x="100" y="116" width="18" height="18" rx="5"/>
+    <rect x="134" y="116" width="18" height="18" rx="5"/>
+    <rect x="168" y="116" width="18" height="18" rx="5"/>
+
+    <rect x="66"  y="148" width="18" height="18" rx="5"/>
+    <rect x="100" y="148" width="18" height="18" rx="5"/>
+    <rect x="168" y="148" width="18" height="18" rx="5"/>
+
+    <rect x="66"  y="180" width="18" height="18" rx="5"/>
+    <rect x="100" y="180" width="18" height="18" rx="5"/>
+    <rect x="134" y="180" width="18" height="18" rx="5"/>
+  </g>
+
+  <!-- dia destacado -->
+  <rect x="134" y="148" width="18" height="18" rx="5" fill="#2563eb"/>
+</svg>

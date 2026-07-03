@@ -1,4 +1,4 @@
-# SGA – Sistema de Geração Automática de Horários Acadêmicos
+# SHA – Sistema de Horários Acadêmicos
 
 Sistema web completo para geração automática de horários escolares e acadêmicos, com suporte a **horários em tempo real** (sem períodos fixos), durações variáveis de aula e intervalos configuráveis por curso.
 
