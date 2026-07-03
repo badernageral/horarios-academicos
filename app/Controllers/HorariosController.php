@@ -786,40 +786,6 @@ class HorariosController extends BaseController
         $this->redirect('/horarios/' . $destinoId . '/atribuir');
     }
 
-    // ── Backup do banco (mysqldump) ───────────────────────────────
-    public function backup(): void
-    {
-        $cfg = require ROOT_PATH . '/config/database.php';
-        $dir = ROOT_PATH . '/backups';
-        if (!is_dir($dir)) @mkdir($dir, 0775, true);
-
-        $arquivo = $dir . '/sga_backup_' . date('Ymd_His') . '.sql';
-        $cmd = sprintf(
-            'MYSQL_PWD=%s mysqldump --host=%s --port=%s --user=%s --single-transaction %s > %s 2>&1',
-            escapeshellarg($cfg['password']),
-            escapeshellarg($cfg['host']),
-            escapeshellarg($cfg['port']),
-            escapeshellarg($cfg['user']),
-            escapeshellarg($cfg['dbname']),
-            escapeshellarg($arquivo)
-        );
-        exec($cmd, $out, $code);
-
-        if ($code !== 0 || !is_file($arquivo) || filesize($arquivo) === 0) {
-            @unlink($arquivo);
-            $this->flash('danger', 'Falha ao gerar o backup. Verifique se o mysqldump está disponível.');
-            $this->redirect('/horarios');
-            return;
-        }
-
-        // Mantém a cópia em backups/ e envia para download
-        header('Content-Type: application/sql; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . basename($arquivo) . '"');
-        header('Content-Length: ' . filesize($arquivo));
-        readfile($arquivo);
-        exit;
-    }
-
     // ── Exportação Moodle (CSVs de importação em massa) ──────────
     public function verMoodle(string $id): void
     {

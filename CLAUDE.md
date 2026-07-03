@@ -71,7 +71,9 @@ Filosofia definida pelo usuário (jun/2026):
   disponibilidade.
 - Cores: blocos com fundo = cor primária do professor + sufixo alpha `59` (~35%), texto preto,
   faixa inferior na cor secundária com o nome do professor em branco.
-- Backup: botão no Dashboard → `GET /horarios/backup` (mysqldump → `backups/` + download).
+- Backup: item de menu `/backup` (`BackupController`). Exportar = `GET /backup/exportar`
+  (mysqldump → `backups/` + download). Importar = `POST /backup/importar` (upload `.sql`,
+  salva cópia de segurança `pre_import_*` e restaura via `mysql`, substituindo os dados).
 - Clonar atribuições entre semestres: dropdown em `/horarios` (aparece com 2+ semestres).
 
 ## Decisões do usuário (não sugerir de novo)

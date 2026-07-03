@@ -69,6 +69,11 @@
                 <i class="bi bi-people me-2"></i> Usuários
             </a>
         </li>
+        <li class="nav-item">
+            <a href="<?= $base ?>/backup" class="nav-link <?= str_starts_with(REQUEST_PATH,'/backup')?'active':'' ?>">
+                <i class="bi bi-shield-check me-2"></i> Backup
+            </a>
+        </li>
     </ul>
 
     <div class="px-3 py-2 mt-auto sidebar-footer small text-muted">

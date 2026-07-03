@@ -1,12 +1,5 @@
 <?php $pageTitle = 'Dashboard'; ?>
 
-<div class="d-flex justify-content-end mb-3">
-  <a href="<?= $base ?>/horarios/backup" class="btn btn-outline-secondary btn-sm"
-     title="Gera um dump completo do banco (mysqldump), salva em backups/ e baixa o arquivo">
-    <i class="bi bi-shield-check me-1"></i>Backup do Banco
-  </a>
-</div>
-
 <!-- Stat cards -->
 <div class="row g-3 mb-4">
   <?php

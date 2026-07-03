@@ -14,6 +14,11 @@ $router->post('/usuarios/salvar',     'UsuariosController@salvar');
 $router->get('/usuarios/{id}/editar', 'UsuariosController@editar');
 $router->post('/usuarios/deletar',    'UsuariosController@deletar');
 
+// ── Backup (exportar / importar o banco) ──────────────────────────
+$router->get('/backup',            'BackupController@index');
+$router->get('/backup/exportar',   'BackupController@exportar');
+$router->post('/backup/importar',  'BackupController@importar');
+
 // ── Dashboard ─────────────────────────────────────────────────────
 $router->get('/',           'DashboardController@index');
 $router->get('/dashboard',  'DashboardController@index');
@@ -89,7 +94,6 @@ $router->get('/horarios/geracao/{id}/grade',           'HorariosController@verGr
 $router->post('/horarios/geracao/mover',               'HorariosController@moverHorario');
 $router->post('/horarios/geracao/trocar',              'HorariosController@trocarHorarios');
 $router->post('/horarios/{id}/clonar-atribuicoes',     'HorariosController@clonarAtribuicoes');
-$router->get('/horarios/backup',                       'HorariosController@backup');
 $router->get('/horarios/{id}/moodle',                  'HorariosController@verMoodle');
 $router->post('/horarios/{id}/moodle/disciplinas',     'HorariosController@exportarMoodleDisciplinas');
 $router->get('/horarios/{id}/moodle/professores',      'HorariosController@exportarMoodleProfessores');
