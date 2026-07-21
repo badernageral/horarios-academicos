@@ -23,9 +23,11 @@ class TurmasController extends BaseController
     public function salvar(): void
     {
         $id = $this->post('id');
+        $seriePeriodo = trim($this->post('serie_periodo'));
         $data = [
             'curso_id'     => (int)$this->post('curso_id'),
-            'serie_periodo'=> trim($this->post('serie_periodo')),
+            'nome'         => $seriePeriodo,
+            'serie_periodo'=> $seriePeriodo,
             'ativo'        => (int)$this->post('ativo', 1),
         ];
 
