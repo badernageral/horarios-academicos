@@ -19,6 +19,18 @@ class TimeHelper
         return sprintf('%02d:%02d', $h, $m);
     }
 
+    /**
+     * Normaliza "HH:MM" ou "HH:MM:SS" para "HH:MM:SS" (formato canônico do banco).
+     * No SQLite as colunas de hora são TEXT e comparam lexicograficamente: formatos
+     * mistos geram falsos conflitos ("10:20:00" > "10:20"). Todo valor gravado em
+     * horarios.hora_inicio/hora_fim DEVE passar por aqui.
+     */
+    public static function toHms(string $time): string
+    {
+        $parts = explode(':', trim($time));
+        return sprintf('%02d:%02d:%02d', (int)$parts[0], (int)($parts[1] ?? 0), (int)($parts[2] ?? 0));
+    }
+
     /** Duração entre dois tempos em minutos */
     public static function duration(string $inicio, string $fim): int
     {

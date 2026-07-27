@@ -114,6 +114,10 @@ WHERE), `INSERT IGNORE` (usar `INSERT OR IGNORE`), `TIME_TO_SEC/TIMEDIFF` (aritm
 `substr(hora,1,2)*60+substr(hora,4,2)`), `NOW()` (usar `?` + `date('Y-m-d H:i:s')` do PHP —
 `CURRENT_TIMESTAMP` do SQLite é UTC, 3h à frente). Comparação de texto é case/acento-SENSÍVEL
 (MySQL não era); para matching de nomes usar `LOWER()` dos dois lados.
+**Horas**: colunas de hora são TEXT e comparam lexicograficamente — TODO valor gravado em
+`horarios.hora_inicio/hora_fim` deve ser "HH:MM:SS" via `TimeHelper::toHms()` (o MySQL
+normalizava "HH:MM"→"HH:MM:SS" na coluna TIME; o SQLite não, e formato misto gera falso
+conflito no drag & drop: `'10:20:00' > '10:20'` é true como string).
 
 ## Migrations (jul/2026)
 

@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use App\Models\{Horario, Turma, Professor, Sala, Semestre, Curso};
 use App\Core\Database;
-use App\Services\{ScheduleGenerator, Exporter, FeasibilityChecker, MoodleExporter};
+use App\Services\{ScheduleGenerator, Exporter, FeasibilityChecker, MoodleExporter, TimeHelper};
 
 class HorariosController extends BaseController
 {
@@ -502,6 +502,7 @@ class HorariosController extends BaseController
         }
 
         if ($novaHoraInicio !== '') {
+            $novaHoraInicio = TimeHelper::toHms($novaHoraInicio);
             $janela = $this->calcularJanelaAula($horarioId, $novaHoraInicio);
             if ($janela === null) {
                 echo json_encode(['ok' => false, 'erro' => 'A disciplina não cabe neste horário: ultrapassaria o fim do turno.']);
@@ -509,13 +510,13 @@ class HorariosController extends BaseController
             }
             $novaHoraFim = $janela['fim'];
         } else {
-            $novaHoraInicio = $h['hora_inicio'];
-            $novaHoraFim    = $h['hora_fim'];
+            $novaHoraInicio = TimeHelper::toHms($h['hora_inicio']);
+            $novaHoraFim    = TimeHelper::toHms($h['hora_fim']);
         }
 
         // Sem mudança
         if ((int)$h['dia_semana'] === $novoDia
-            && $h['hora_inicio'] === $novaHoraInicio . ':00'
+            && TimeHelper::toHms($h['hora_inicio']) === $novaHoraInicio
         ) {
             echo json_encode(['ok' => true, 'anterior' => $anterior]);
             return;
@@ -717,7 +718,10 @@ class HorariosController extends BaseController
 
         if ($t > \App\Services\TimeHelper::toMinutes($disc['turno_fim'])) return null;
 
-        return ['inicio' => $horaInicio, 'fim' => \App\Services\TimeHelper::fromMinutes($t)];
+        return [
+            'inicio' => TimeHelper::toHms($horaInicio),
+            'fim'    => TimeHelper::toHms(TimeHelper::fromMinutes($t)),
+        ];
     }
 
     /**
@@ -726,6 +730,9 @@ class HorariosController extends BaseController
      */
     private function conflitosNaPosicao(array $h, int $dia, string $ini, string $fim, array $excluir): ?string
     {
+        // Comparação lexicográfica exige formato uniforme HH:MM:SS dos dois lados
+        $ini = TimeHelper::toHms($ini);
+        $fim = TimeHelper::toHms($fim);
         $checks = [
             ['turma_id',     (int)$h['turma_id'],          'Conflito de turma neste horário.'],
             ['professor_id', (int)($h['professor_id'] ?? 0), 'Conflito de professor neste horário.'],

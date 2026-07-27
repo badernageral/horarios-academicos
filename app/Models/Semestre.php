@@ -193,7 +193,7 @@ class Semestre extends BaseModel
         if (!$disc) return;
 
         $durMin    = (int)$disc['qtd_aulas'] * (int)$disc['duracao_aula_minutos'];
-        $inicioStr = $disc['turno_inicio'];
+        $inicioStr = \App\Services\TimeHelper::toHms($disc['turno_inicio']);
         [$h, $m]   = array_map('intval', explode(':', $inicioStr));
         $inicioMin = $h * 60 + $m;
         $fimStr    = sprintf('%02d:%02d:00', intdiv($inicioMin + $durMin, 60), ($inicioMin + $durMin) % 60);

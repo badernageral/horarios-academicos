@@ -730,8 +730,8 @@ class ScheduleGenerator
                         $ag['atividade']['professor_id'],
                         $ag['sala_id'],
                         $ag['dia'],
-                        TimeHelper::fromMinutes($ag['inicio']),
-                        TimeHelper::fromMinutes($ag['fim']),
+                        TimeHelper::toHms(TimeHelper::fromMinutes($ag['inicio'])),
+                        TimeHelper::toHms(TimeHelper::fromMinutes($ag['fim'])),
                     ]);
                 }
 
@@ -744,8 +744,8 @@ class ScheduleGenerator
                         $f['professor_id'],
                         $this->salasPorDisciplina[$f['disciplina_id']] ?? null,
                         0,
-                        TimeHelper::fromMinutes($f['turno_inicio']),
-                        TimeHelper::fromMinutes($f['turno_inicio'] + $f['duracao']),
+                        TimeHelper::toHms(TimeHelper::fromMinutes($f['turno_inicio'])),
+                        TimeHelper::toHms(TimeHelper::fromMinutes($f['turno_inicio'] + $f['duracao'])),
                     ]);
                 }
 
