@@ -753,7 +753,7 @@ class HorariosController extends BaseController
         return null;
     }
 
-    // ── Clonar atribuições de outro semestre ──────────────────────
+    // ── Clonar atribuições + grade de outro semestre ──────────────
     public function clonarAtribuicoes(string $id): void
     {
         $destinoId = (int)$id;
@@ -767,10 +767,12 @@ class HorariosController extends BaseController
             return;
         }
 
+        // Disciplinas ativas e ofertadas no semestre de destino
+        $oferta = (int)$destino['semestre'];
+
         Database::beginTransaction();
         try {
             Database::query("DELETE FROM semestre_atribuicoes WHERE semestre_id=?", [$destinoId]);
-            // Copia apenas disciplinas ativas e ofertadas no semestre de destino
             Database::query(
                 "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot, sala_id)
                  SELECT ?, sa.disciplina_id, sa.professor_id, sa.slot, sa.sala_id
@@ -778,20 +780,80 @@ class HorariosController extends BaseController
                  JOIN disciplinas d ON d.id = sa.disciplina_id
                  WHERE sa.semestre_id = ? AND d.ativo = 1
                    AND (d.semestre_oferta & ?) > 0",
-                [$destinoId, $origemId, (int)$destino['semestre']]
+                [$destinoId, $origemId, $oferta]
             );
-            $qtd = Database::fetchValue(
+            $qtd = (int) Database::fetchValue(
                 "SELECT COUNT(*) FROM semestre_atribuicoes WHERE semestre_id=?", [$destinoId]
             );
+
+            // A grade do destino sempre é substituída: manter a antiga deixaria
+            // horários apontando para atribuições que acabaram de ser trocadas.
+            Database::query("DELETE FROM geracoes WHERE semestre_id=?", [$destinoId]);
+
+            $gerOrigem = Database::fetchOne(
+                "SELECT * FROM geracoes WHERE semestre_id=? ORDER BY id DESC LIMIT 1", [$origemId]
+            );
+            $novaGeracaoId = null;
+            if ($gerOrigem) {
+                $agora = date('Y-m-d H:i:s');
+                Database::query(
+                    "INSERT INTO geracoes (semestre_id, descricao, status, configuracao, log, created_at, finished_at)
+                     VALUES (?, ?, 'concluido', ?, ?, ?, ?)",
+                    [
+                        $destinoId,
+                        $destino['semestre'] . 'º Semestre / ' . $destino['ano'],
+                        $gerOrigem['configuracao'],
+                        "Grade copiada do {$origem['semestre']}º Semestre/{$origem['ano']}.",
+                        $agora,
+                        $agora,
+                    ]
+                );
+                $novaGeracaoId = (int) Database::lastInsertId();
+
+                Database::query(
+                    "INSERT INTO horarios
+                     (geracao_id, disciplina_id, turma_id, professor_id, sala_id, dia_semana, hora_inicio, hora_fim)
+                     SELECT ?, h.disciplina_id, h.turma_id, h.professor_id, h.sala_id,
+                            h.dia_semana, h.hora_inicio, h.hora_fim
+                     FROM horarios h
+                     JOIN disciplinas d ON d.id = h.disciplina_id
+                     WHERE h.geracao_id = ? AND d.ativo = 1
+                       AND (d.semestre_oferta & ?) > 0",
+                    [$novaGeracaoId, (int)$gerOrigem['id'], $oferta]
+                );
+
+                // Recontagem: o filtro de oferta pode descartar parte da origem
+                $agendadas = (int) Database::fetchValue(
+                    "SELECT COUNT(*) FROM horarios WHERE geracao_id=? AND dia_semana >= 1", [$novaGeracaoId]
+                );
+                $noLimbo = (int) Database::fetchValue(
+                    "SELECT COUNT(*) FROM horarios WHERE geracao_id=? AND dia_semana = 0", [$novaGeracaoId]
+                );
+                Database::query(
+                    "UPDATE geracoes SET total_atividades=?, atividades_agendadas=?, atividades_falhas=?, status=?
+                     WHERE id=?",
+                    [$agendadas + $noLimbo, $agendadas, $noLimbo, $noLimbo > 0 ? 'parcial' : 'concluido', $novaGeracaoId]
+                );
+            }
+
             Database::commit();
         } catch (\Throwable $e) {
             Database::rollback();
-            $this->flash('danger', 'Erro ao clonar atribuições: ' . $e->getMessage());
+            $this->flash('danger', 'Erro ao copiar semestre: ' . $e->getMessage());
             $this->redirect('/horarios');
             return;
         }
 
-        $this->flash('success', "Atribuições copiadas de {$origem['semestre']}º Semestre/{$origem['ano']}: {$qtd} registro(s). Revise antes de gerar.");
+        $msg = "Copiado de {$origem['semestre']}º Semestre/{$origem['ano']}: {$qtd} atribuição(ões)";
+        if ($novaGeracaoId) {
+            $msg .= " e a grade ({$agendadas} aula(s)"
+                  . ($noLimbo > 0 ? ", {$noLimbo} no limbo" : '') . '). Revise antes de usar.';
+            $this->flash('success', $msg);
+            $this->redirect('/horarios/geracao/' . $novaGeracaoId . '/grade');
+            return;
+        }
+
+        $this->flash('success', $msg . '. A origem não tinha grade gerada — gere a deste semestre.');
         $this->redirect('/horarios/' . $destinoId . '/atribuir');
     }
 

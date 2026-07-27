@@ -68,15 +68,15 @@
         <?php if (!empty($outros)): ?>
         <div class="dropdown">
           <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"
-                  title="Copiar atribuições de outro semestre">
+                  title="Copiar atribuições e grade de outro semestre">
             <i class="bi bi-copy"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><h6 class="dropdown-header">Copiar atribuições de:</h6></li>
+            <li><h6 class="dropdown-header">Copiar atribuições e grade de:</h6></li>
             <?php foreach ($outros as $o): ?>
             <li>
               <form method="POST" action="<?= $base ?>/horarios/<?= $s['id'] ?>/clonar-atribuicoes"
-                    onsubmit="return confirm('Substituir as atribuições de <?= $s['semestre'] ?>º/<?= $s['ano'] ?> pelas de <?= $o['semestre'] ?>º/<?= $o['ano'] ?>?')">
+                    onsubmit="return confirm('Substituir as atribuições E a grade de <?= $s['semestre'] ?>º/<?= $s['ano'] ?> pelas de <?= $o['semestre'] ?>º/<?= $o['ano'] ?>?')">
                 <input type="hidden" name="origem_id" value="<?= $o['id'] ?>">
                 <button type="submit" class="dropdown-item">
                   <?= $o['semestre'] ?>º Semestre / <?= $o['ano'] ?>

@@ -80,7 +80,11 @@ Filosofia definida pelo usuário (jun/2026):
   (`VACUUM INTO` → `.sqlite` em `backups/` + download). Importar = `POST /backup/importar`
   (upload `.sqlite`, valida `integrity_check`, salva `pre_import_*` e substitui o arquivo do
   banco, removendo `-wal`/`-shm` antigos). Tudo via PHP/pdo_sqlite, sem binários externos.
-- Clonar atribuições entre semestres: dropdown em `/horarios` (aparece com 2+ semestres).
+- Copiar semestre: dropdown em `/horarios` (aparece com 2+ semestres) — leva atribuições
+  **e a grade** (`geracoes` + `horarios`, contadores recalculados), ambas filtradas pela
+  oferta do destino (`d.semestre_oferta & destino.semestre`). A grade do destino é sempre
+  substituída (mesmo se a origem não tiver grade), para não sobrar horário apontando para
+  atribuição trocada. Redireciona para a grade copiada.
 
 ## Decisões do usuário (não sugerir de novo)
 
