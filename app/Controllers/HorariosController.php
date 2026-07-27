@@ -848,13 +848,12 @@ class HorariosController extends BaseController
         if ($novaGeracaoId) {
             $msg .= " e a grade ({$agendadas} aula(s)"
                   . ($noLimbo > 0 ? ", {$noLimbo} no limbo" : '') . '). Revise antes de usar.';
-            $this->flash('success', $msg);
-            $this->redirect('/horarios/geracao/' . $novaGeracaoId . '/grade');
-            return;
+        } else {
+            $msg .= '. A origem não tinha grade gerada — gere a deste semestre.';
         }
 
-        $this->flash('success', $msg . '. A origem não tinha grade gerada — gere a deste semestre.');
-        $this->redirect('/horarios/' . $destinoId . '/atribuir');
+        $this->flash('success', $msg);
+        $this->redirect('/horarios');
     }
 
     // ── Exportação Moodle (CSVs de importação em massa) ──────────
