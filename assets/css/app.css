@@ -245,4 +245,11 @@ code {
   #page-content { width: 100% !important; padding: 0 !important; }
   .card { box-shadow: none !important; border: 1px solid #ccc !important; }
   .aula-block { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* No papel 100vh vale uma folha inteira: as alturas de tela esticam o
+     conteúdo até o fim da página e o resíduo cai numa folha em branco. */
+  html, body, #wrapper, #page-content, .content-wrapper {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+  #page-content { overflow: visible !important; }
 }
