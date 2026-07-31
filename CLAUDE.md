@@ -77,7 +77,9 @@ Filosofia definida pelo usuário (jun/2026):
   no `afterprint`, deixando marcadores de comentário no lugar. Esconder com `display:none`
   NÃO serve: o bloco oculto ainda conta para `.turma-bloco + .turma-bloco { break-before }`
   em alguns navegadores e sai folha em branco. O bloco `@media print` também **compacta**
-  a tabela com `!important` e aplica `zoom: 0.85` (afeta o layout no Firefox 126+/Chrome) —
+  a tabela com `!important` e aplica `zoom: 0.85` (afeta o layout no Firefox 126+/Chrome;
+  `0.75` em retrato, via classe `print-retrato` no `<html>`) — o modal tem seletor de
+  orientação, que reescreve o `<style id="regra-pagina">` (`@page` não aceita seletor) —
   sem folga, a turma mais alta passa da área útil (impressora real impõe margens > 8mm do
   `@page`) e o cabeçalho repetido cai numa 2ª página que parece vazia) e "todos por professor"
   (`/horarios/geracao/{id}/imprimir/professores`), verificador de conflitos para aluno

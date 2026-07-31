@@ -161,9 +161,15 @@ $corSemProf = '#94a3b8';
      e o cabeçalho repetido vira uma "folha em branco". zoom afeta o layout
      (Firefox 126+/Chrome), então a paginação enxerga o tamanho reduzido. */
   .grade-table { zoom: 0.85; }
+  /* Retrato: a folha é ~30% mais estreita e as 5 colunas de dias passariam
+     da margem direita — precisa encolher mais que a paisagem. */
+  html.print-retrato .grade-table { zoom: 0.75; }
 }
-@page { size: landscape; margin: 8mm; }
 </style>
+
+<!-- Regra de página isolada: @page não pode ser trocada por classe, então o
+     seletor de orientação do #modalImprimir reescreve este bloco. -->
+<style id="regra-pagina">@page { size: landscape; margin: 8mm; }</style>
 
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap no-print">
   <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-secondary">
@@ -216,6 +222,13 @@ $corSemProf = '#94a3b8';
         <?php if (empty($grade)): ?>
         <p class="text-muted mb-0">Nenhuma turma nesta grade.</p>
         <?php else: ?>
+        <div class="mb-3">
+          <label class="form-label small mb-1" for="imprimir-orientacao">Orientação do papel</label>
+          <select id="imprimir-orientacao" class="form-select form-select-sm">
+            <option value="landscape" selected>Paisagem (deitado)</option>
+            <option value="portrait">Retrato (em pé)</option>
+          </select>
+        </div>
         <p class="small text-muted">Cada turma marcada sai em uma página.</p>
         <div class="form-check border-bottom pb-2 mb-2">
           <input class="form-check-input" type="checkbox" id="imprimir-todas" checked>
@@ -849,9 +862,21 @@ const base = '<?= $base ?>';
     retirados = [];
   }
 
+  // A orientação do papel vive numa regra @page própria, que não pode ser
+  // selecionada por classe — daí reescrever o conteúdo do <style>.
+  const regra = document.getElementById('regra-pagina');
+  const orientacao = document.getElementById('imprimir-orientacao');
+  const PADRAO = 'landscape';
+  const aplicarOrientacao = (valor) => {
+    regra.textContent = '@page { size: ' + valor + '; margin: 8mm; }';
+    // Em retrato a grade precisa encolher mais para caber na largura
+    document.documentElement.classList.toggle('print-retrato', valor === 'portrait');
+  };
+
   botao.addEventListener('click', () => {
     // Imprime só depois que o modal sumir de fato (evita o backdrop na página)
     modalEl.addEventListener('hidden.bs.modal', () => {
+      aplicarOrientacao(orientacao ? orientacao.value : PADRAO);
       retirarNaoSelecionados();
       window.print();
     }, { once: true });
