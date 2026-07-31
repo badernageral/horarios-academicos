@@ -225,10 +225,6 @@ $corSemProf = '#94a3b8';
         <?php if (empty($grade)): ?>
         <p class="text-muted mb-0">Nenhuma turma nesta grade.</p>
         <?php else: ?>
-        <div class="alert alert-info py-2 small d-none" id="imprimir-dica-pdf">
-          <i class="bi bi-download me-1"></i>
-          O arquivo é gerado no servidor e baixado direto, sem passar pela janela de impressão.
-        </div>
         <div class="mb-3">
           <label class="form-label small mb-1" for="imprimir-orientacao">Orientação do papel</label>
           <select id="imprimir-orientacao" class="form-select form-select-sm">
@@ -895,8 +891,6 @@ const base = '<?= $base ?>';
       const e = document.getElementById(id);
       if (e) e.className = 'bi ' + ico + (id === 'imprimir-icone' ? ' me-2' : ' me-1');
     });
-    const dica = document.getElementById('imprimir-dica-pdf');
-    if (dica) dica.classList.toggle('d-none', !pdf);
   });
 
   botao.addEventListener('click', () => {
