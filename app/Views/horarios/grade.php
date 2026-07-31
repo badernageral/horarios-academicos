@@ -194,9 +194,10 @@ $corSemProf = '#94a3b8';
       </li>
     </ul>
   </div>
-  <a href="<?= $base ?>/horarios/geracao/<?= $geracaoId ?>/exportar/csv" class="btn btn-sm btn-outline-success">
-    <i class="bi bi-filetype-csv me-1"></i>Exportar CSV
-  </a>
+  <button type="button" class="btn btn-sm btn-outline-success"
+          data-bs-toggle="modal" data-bs-target="#modalImprimir" data-modo="pdf">
+    <i class="bi bi-filetype-pdf me-1"></i>Exportar PDF
+  </button>
   <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalConflitos">
     <i class="bi bi-exclamation-triangle me-1"></i>Verificar Conflitos
   </button>
@@ -210,18 +211,25 @@ $corSemProf = '#94a3b8';
   <?php endif; ?>
 </div>
 
-<!-- Modal: escolher turmas a imprimir -->
+<!-- Modal: escolher turmas para imprimir ou exportar em PDF (mesmas opções) -->
 <div class="modal fade" id="modalImprimir" tabindex="-1">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h6 class="modal-title"><i class="bi bi-printer me-2"></i>Imprimir grade por turma</h6>
+        <h6 class="modal-title">
+          <i class="bi bi-printer me-2" id="imprimir-icone"></i><span id="imprimir-titulo">Imprimir grade por turma</span>
+        </h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <?php if (empty($grade)): ?>
         <p class="text-muted mb-0">Nenhuma turma nesta grade.</p>
         <?php else: ?>
+        <div class="alert alert-info py-2 small d-none" id="imprimir-dica-pdf">
+          <i class="bi bi-info-circle me-1"></i>
+          Na janela que abrir, escolha <strong>Salvar como PDF</strong>
+          (no Firefox, <strong>Imprimir no arquivo</strong>) como destino.
+        </div>
         <div class="mb-3">
           <label class="form-label small mb-1" for="imprimir-orientacao">Orientação do papel</label>
           <select id="imprimir-orientacao" class="form-select form-select-sm">
@@ -248,7 +256,7 @@ $corSemProf = '#94a3b8';
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
         <button type="button" class="btn btn-dark" id="imprimir-confirmar" <?= empty($grade) ? 'disabled' : '' ?>>
-          <i class="bi bi-printer me-1"></i>Imprimir
+          <i class="bi bi-printer me-1" id="imprimir-botao-icone"></i><span id="imprimir-botao-texto">Imprimir</span>
         </button>
       </div>
     </div>
@@ -872,6 +880,23 @@ const base = '<?= $base ?>';
     // Em retrato a grade precisa encolher mais para caber na largura
     document.documentElement.classList.toggle('print-retrato', valor === 'portrait');
   };
+
+  // O mesmo modal serve para imprimir e para exportar em PDF — só muda o
+  // texto. Em ambos os casos quem gera a saída é o motor de impressão do
+  // navegador (não há biblioteca de PDF no servidor).
+  modalEl.addEventListener('show.bs.modal', (ev) => {
+    const pdf = ev.relatedTarget && ev.relatedTarget.dataset.modo === 'pdf';
+    const t = (id, txt) => { const e = document.getElementById(id); if (e) e.textContent = txt; };
+    t('imprimir-titulo', pdf ? 'Exportar grade em PDF' : 'Imprimir grade por turma');
+    t('imprimir-botao-texto', pdf ? 'Exportar PDF' : 'Imprimir');
+    const ico = pdf ? 'bi-filetype-pdf' : 'bi-printer';
+    ['imprimir-icone', 'imprimir-botao-icone'].forEach(id => {
+      const e = document.getElementById(id);
+      if (e) e.className = 'bi ' + ico + (id === 'imprimir-icone' ? ' me-2' : ' me-1');
+    });
+    const dica = document.getElementById('imprimir-dica-pdf');
+    if (dica) dica.classList.toggle('d-none', !pdf);
+  });
 
   botao.addEventListener('click', () => {
     // Imprime só depois que o modal sumir de fato (evita o backdrop na página)

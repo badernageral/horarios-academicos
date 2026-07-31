@@ -79,7 +79,11 @@ Filosofia definida pelo usuário (jun/2026):
   em alguns navegadores e sai folha em branco. O bloco `@media print` também **compacta**
   a tabela com `!important` e aplica `zoom: 0.85` (afeta o layout no Firefox 126+/Chrome;
   `0.75` em retrato, via classe `print-retrato` no `<html>`) — o modal tem seletor de
-  orientação, que reescreve o `<style id="regra-pagina">` (`@page` não aceita seletor) —
+  orientação, que reescreve o `<style id="regra-pagina">` (`@page` não aceita seletor); o
+  botão **Exportar PDF** abre o MESMO modal (`data-modo="pdf"` → troca título/rótulo e mostra
+  a dica de destino) e também usa `window.print()` — não há biblioteca de PDF no servidor
+  (sem Composer, sem pdf/gd/imagick); a exportação CSV foi retirada só da grade, segue em
+  `gerar.php`/`detalhe.php` —
   sem folga, a turma mais alta passa da área útil (impressora real impõe margens > 8mm do
   `@page`) e o cabeçalho repetido cai numa 2ª página que parece vazia) e "todos por professor"
   (`/horarios/geracao/{id}/imprimir/professores`), verificador de conflitos para aluno
