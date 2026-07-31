@@ -123,7 +123,17 @@ class PdfExporter
         }
     }
 
-    /** Altura por slot que faz a turma inteira caber na página */
+    /**
+     * Altura por slot que faz a turma inteira caber na página.
+     *
+     * A divisão nunca considera menos que SLOTS_REFERENCIA linhas: sem isso uma
+     * turma com poucos horários espalharia a página inteira entre suas poucas
+     * linhas, gerando blocos enormes. Turmas cheias (>= referência) continuam
+     * ocupando a folha toda, e o limite acompanha a orientação (em retrato há
+     * mais altura disponível, então as linhas ficam proporcionalmente maiores).
+     */
+    private const SLOTS_REFERENCIA = 12;
+
     private function alturaSlot(array $turma, float $restante): float
     {
         $aulas      = 0;
@@ -133,8 +143,9 @@ class PdfExporter
         }
         if ($aulas === 0) return 6.0;
         // Intervalos ocupam no máximo 5mm; o resto se divide entre as aulas
-        $sobra = $restante - min(5.0, $restante / max(1, count($turma['slots']))) * $intervalos;
-        return max(4.0, $sobra / $aulas);
+        $sobra   = $restante - min(5.0, $restante / max(1, count($turma['slots']))) * $intervalos;
+        $divisor = max($aulas, self::SLOTS_REFERENCIA);
+        return max(4.0, $sobra / $divisor);
     }
 
     private function desenharBloco(array $bloco, float $x, float $y, float $w, float $h): void
