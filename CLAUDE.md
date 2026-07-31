@@ -70,7 +70,11 @@ Filosofia definida pelo usuário (jun/2026):
   `porGeracao()` (a grade precisa).
 - Cada geração SUBSTITUI a anterior (`DELETE FROM geracoes WHERE semestre_id`) — decisão do
   usuário: Regerar = reset intencional. Não exibir "Geração #id" na UI (sem significado).
-- Grade (`app/Views/horarios/grade.php`): drag & drop com swap (soltar sobre célula ocupada
+- Grade (`app/Views/horarios/grade.php`): **linhas de horário com altura fixa**
+  (`tr.slot-row` 70px na tela / 44px no papel; `tr.intervalo-row` menor), para um bloco de N
+  aulas ficar N vezes maior que um de 1 aula — sem isso a linha se ajusta ao conteúdo e um
+  bloco de 2 aulas fica do tamanho de um de 1. O `.disc-block` é posicionado sobre a célula
+  (`position:absolute`; altura percentual não resolve dentro de `<td>`). Drag & drop com swap (soltar sobre célula ocupada
   troca — `POST /horarios/geracao/trocar`), Desfazer via sessionStorage (`sgaUndo`; mover
   retorna `anterior`), filtros curso/turma/professor/sala (filtro ativo = somente leitura,
   sem JS de drag), relatório vivo da grade (painel persiste aberto via localStorage),

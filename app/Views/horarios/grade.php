@@ -58,6 +58,20 @@ $corSemProf = '#94a3b8';
   left: 0;
   z-index: 2;
 }
+/* Toda linha de horário tem a MESMA altura, então um bloco de N aulas fica
+   N vezes maior que um de 1 aula. Sem isso a linha se ajusta ao conteúdo e
+   uma disciplina de 2 aulas antes do intervalo acaba do mesmo tamanho de
+   uma de 1 aula (as duas linhas dividem a altura entre si). */
+.grade-table tbody tr.slot-row      { height: 70px; }
+.grade-table tbody tr.intervalo-row { height: 24px; }
+/* Blocos preenchem a célula inteira, para o tamanho refletir a duração.
+   Altura percentual não resolve dentro de <td>, então o bloco é posicionado
+   sobre a célula (a faixa do professor volta a ficar rente à base). */
+.grade-cell { position: relative; }
+.grade-cell > .disc-block {
+  position: absolute;
+  top: 4px; right: 4px; bottom: 4px; left: 4px;
+}
 .grade-cell {
   vertical-align: top;
   padding: 3px;
@@ -161,6 +175,11 @@ $corSemProf = '#94a3b8';
      e o cabeçalho repetido vira uma "folha em branco". zoom afeta o layout
      (Firefox 126+/Chrome), então a paginação enxerga o tamanho reduzido. */
   .grade-table { zoom: 0.85; }
+  /* Linhas uniformes também no papel (proporção mantida), porém menores para
+     a turma continuar cabendo com folga em uma folha. */
+  .grade-table tbody tr.slot-row      { height: 44px !important; }
+  .grade-table tbody tr.intervalo-row { height: 12px !important; }
+  .intervalo-row td { padding: 0 !important; font-size: 8px !important; line-height: 1.1 !important; }
   /* Retrato: a folha é ~30% mais estreita e as 5 colunas de dias passariam
      da margem direita — precisa encolher mais que a paisagem. */
   html.print-retrato .grade-table { zoom: 0.75; }
@@ -453,7 +472,7 @@ $corSemProf = '#94a3b8';
         <?php if ($slot['type'] === 'intervalo'): ?>
 
         <!-- Linha de intervalo -->
-        <tr>
+        <tr class="intervalo-row">
           <td class="col-hora" style="background:#fef9c3;color:#92400e;font-style:italic;font-size:10px;">
             <?= \App\Services\TimeHelper::fromMinutes($slot['min']) ?>–<?= \App\Services\TimeHelper::fromMinutes($slot['fim']) ?>
           </td>
@@ -464,7 +483,7 @@ $corSemProf = '#94a3b8';
 
         <?php else: /* slot de aula */ ?>
         <?php $slotMin = $slot['min']; $slotFimMin = $slot['fim']; ?>
-        <tr data-turma-id="<?= $turmaId ?>">
+        <tr class="slot-row" data-turma-id="<?= $turmaId ?>">
 
           <!-- Rótulo de hora -->
           <td class="col-hora">
