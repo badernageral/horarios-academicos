@@ -155,6 +155,12 @@ $corSemProf = '#94a3b8';
   .grade-cell              { padding: 0 !important; }
   .disc-block              { padding: 2px 4px 12px !important; line-height: 1.15 !important; }
   .disc-faixa              { font-size: 9px !important; padding: 1px 4px !important; }
+  /* Folga de ~15% em altura E largura: impressoras reais impõem margens
+     mínimas maiores que os 8mm do @page, e configurações salvas (escala,
+     retrato) encolhem a área útil — sem folga, a turma mais alta transborda
+     e o cabeçalho repetido vira uma "folha em branco". zoom afeta o layout
+     (Firefox 126+/Chrome), então a paginação enxerga o tamanho reduzido. */
+  .grade-table { zoom: 0.85; }
 }
 @page { size: landscape; margin: 8mm; }
 </style>
