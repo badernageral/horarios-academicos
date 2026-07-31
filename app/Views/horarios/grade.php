@@ -136,6 +136,9 @@ $corSemProf = '#94a3b8';
   /* Uma turma por página */
   .turma-bloco + .turma-bloco { break-before: page; page-break-before: always; }
   .turma-bloco { break-inside: avoid-page; }
+  /* Seleção de turmas a imprimir (ver modalImprimir) */
+  .turma-bloco.print-skip  { display: none !important; }
+  .turma-bloco.print-first { break-before: auto !important; page-break-before: auto !important; }
   .content-wrapper { padding: 0 !important; }
   #page-content { width: 100% !important; }
   .card { box-shadow: none !important; border: none !important; }
@@ -160,8 +163,8 @@ $corSemProf = '#94a3b8';
     </button>
     <ul class="dropdown-menu">
       <li>
-        <a class="dropdown-item" href="#" onclick="window.print(); return false;">
-          <i class="bi bi-grid-3x3-gap me-2"></i>Grade (por turma)
+        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalImprimir">
+          <i class="bi bi-grid-3x3-gap me-2"></i>Grade (por turma)…
         </a>
       </li>
       <li>
@@ -185,6 +188,44 @@ $corSemProf = '#94a3b8';
     </button>
   </form>
   <?php endif; ?>
+</div>
+
+<!-- Modal: escolher turmas a imprimir -->
+<div class="modal fade" id="modalImprimir" tabindex="-1">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-printer me-2"></i>Imprimir grade por turma</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <?php if (empty($grade)): ?>
+        <p class="text-muted mb-0">Nenhuma turma nesta grade.</p>
+        <?php else: ?>
+        <p class="small text-muted">Cada turma marcada sai em uma página.</p>
+        <div class="form-check border-bottom pb-2 mb-2">
+          <input class="form-check-input" type="checkbox" id="imprimir-todas" checked>
+          <label class="form-check-label fw-semibold" for="imprimir-todas">Todas as turmas</label>
+        </div>
+        <?php foreach ($grade as $turmaId => $row): ?>
+        <div class="form-check">
+          <input class="form-check-input imprimir-turma" type="checkbox"
+                 id="imprimir-turma-<?= $turmaId ?>" value="<?= $turmaId ?>" checked>
+          <label class="form-check-label" for="imprimir-turma-<?= $turmaId ?>">
+            <?= htmlspecialchars($row['curso_nome']) ?> — <strong><?= htmlspecialchars($row['turma_nome']) ?></strong>
+          </label>
+        </div>
+        <?php endforeach; ?>
+        <?php endif; ?>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-dark" id="imprimir-confirmar" <?= empty($grade) ? 'disabled' : '' ?>>
+          <i class="bi bi-printer me-1"></i>Imprimir
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Modal: verificar conflitos entre disciplinas -->
@@ -355,7 +396,7 @@ $corSemProf = '#94a3b8';
       <?php foreach ($grade as $turmaId => $row): ?>
 
     <!-- Uma tabela por turma (na impressão, uma turma por página) -->
-    <div class="turma-bloco">
+    <div class="turma-bloco" data-turma-id="<?= $turmaId ?>">
     <table class="grade-table w-100">
       <colgroup>
         <col style="width:90px">
@@ -745,6 +786,60 @@ const base = '<?= $base ?>';
   if (localStorage.getItem('sgaRelatorioAberto') === '1') painel.classList.add('show');
   painel.addEventListener('shown.bs.collapse',  () => localStorage.setItem('sgaRelatorioAberto', '1'));
   painel.addEventListener('hidden.bs.collapse', () => localStorage.setItem('sgaRelatorioAberto', '0'));
+})();
+
+// Impressão por turma: só as turmas marcadas vão para a impressora
+(function () {
+  const modalEl = document.getElementById('modalImprimir');
+  if (!modalEl) return;
+  const todas  = document.getElementById('imprimir-todas');
+  const itens  = () => Array.from(document.querySelectorAll('.imprimir-turma'));
+  const botao  = document.getElementById('imprimir-confirmar');
+
+  function sincronizarMestre() {
+    const marcados = itens().filter(c => c.checked).length;
+    todas.checked      = marcados === itens().length;
+    todas.indeterminate = marcados > 0 && marcados < itens().length;
+    botao.disabled      = marcados === 0;
+  }
+
+  if (todas) {
+    todas.addEventListener('change', () => {
+      itens().forEach(c => { c.checked = todas.checked; });
+      todas.indeterminate = false;
+      botao.disabled = !todas.checked;
+    });
+    itens().forEach(c => c.addEventListener('change', sincronizarMestre));
+  }
+
+  // Marca os blocos não selecionados; o CSS de impressão os oculta.
+  function aplicarSelecao() {
+    const ids = itens().filter(c => c.checked).map(c => c.value);
+    let primeiro = true;
+    document.querySelectorAll('.turma-bloco').forEach(bloco => {
+      const incluir = ids.includes(bloco.dataset.turmaId);
+      bloco.classList.toggle('print-skip', !incluir);
+      bloco.classList.remove('print-first');
+      // O primeiro bloco visível não pode herdar a quebra de página,
+      // senão a impressão começa com uma folha em branco.
+      if (incluir && primeiro) { bloco.classList.add('print-first'); primeiro = false; }
+    });
+  }
+
+  function limparSelecao() {
+    document.querySelectorAll('.turma-bloco').forEach(bloco => {
+      bloco.classList.remove('print-skip', 'print-first');
+    });
+  }
+
+  botao.addEventListener('click', () => {
+    aplicarSelecao();
+    // Imprime só depois que o modal sumir de fato (evita o backdrop na página)
+    modalEl.addEventListener('hidden.bs.modal', () => window.print(), { once: true });
+    bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+  });
+
+  window.addEventListener('afterprint', limparSelecao);
 })();
 
 // Verificação de conflitos entre disciplinas (independe de filtro)

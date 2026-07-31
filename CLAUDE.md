@@ -59,6 +59,10 @@ Filosofia definida pelo usuário (jun/2026):
 
 ## Convenções não-óbvias
 
+- Trocar professor na atribuição sincroniza a grade gerada (`salvarAtribuicoes`): troca
+  1-para-1 no mesmo slot usa `sincronizarProfessorHorarios` (CASE antigo→novo); professor
+  adicionado/removido (estrutura de slots mudou) usa `redistribuirEncontros` (mesma regra
+  do gerador: teto nos primeiros slots, ordem dia/hora). Conflitos resultantes vão ao limbo.
 - **Limbo**: `horarios.dia_semana = 0` = disciplina sem horário (zona de limbo por turma na
   grade, drag & drop). Excluído de exportações (`semLimbo()`) e da API stats; presente em
   `porGeracao()` (a grade precisa).
@@ -68,7 +72,9 @@ Filosofia definida pelo usuário (jun/2026):
   troca — `POST /horarios/geracao/trocar`), Desfazer via sessionStorage (`sgaUndo`; mover
   retorna `anterior`), filtros curso/turma/professor/sala (filtro ativo = somente leitura,
   sem JS de drag), relatório vivo da grade (painel persiste aberto via localStorage),
-  impressão por turma (1/página, `@media print`) e "todos por professor"
+  impressão por turma (1/página, `@media print`; modal `#modalImprimir` escolhe as turmas
+  por checkbox — JS marca `.print-skip` nas não selecionadas e `.print-first` na 1ª visível,
+  senão a quebra de página herdada gera folha em branco) e "todos por professor"
   (`/horarios/geracao/{id}/imprimir/professores`), verificador de conflitos para aluno
   multi-período (`POST .../conflitos`, nomes 1/linha).
 - `FeasibilityChecker::verificar(semestreId)` roda em `/horarios` e na tela de atribuição:
