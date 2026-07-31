@@ -177,9 +177,16 @@ $corSemProf = '#94a3b8';
   .grade-table { zoom: 0.85; }
   /* Linhas uniformes também no papel (proporção mantida), porém menores para
      a turma continuar cabendo com folga em uma folha. */
-  .grade-table tbody tr.slot-row      { height: 44px !important; }
+  .grade-table tbody tr.slot-row      { height: 50px !important; }
   .grade-table tbody tr.intervalo-row { height: 12px !important; }
   .intervalo-row td { padding: 0 !important; font-size: 8px !important; line-height: 1.1 !important; }
+  /* Cada linha traz nome + horário + professor, então a tipografia do bloco
+     encolhe para caber na altura de UMA linha (o !important vence os
+     font-size inline da marcação). */
+  .grade-cell > .disc-block { top: 2px; right: 2px; bottom: 2px; left: 2px; }
+  .disc-block        { padding: 1px 4px 9px !important; }
+  .disc-block > div  { font-size: 10px !important; line-height: 1.15 !important; }
+  .disc-faixa        { font-size: 8px !important; padding: 0 3px !important; }
   /* Retrato: a folha é ~30% mais estreita e as 5 colunas de dias passariam
      da margem direita — precisa encolher mais que a paisagem. */
   html.print-retrato .grade-table { zoom: 0.75; }

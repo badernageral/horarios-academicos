@@ -44,8 +44,9 @@ busca local (swap de falhas) → `otimizar()` (hill climbing) → `garantirDoisD
 
 - **Slots**: `slotsAula()` gera a MESMA malha da grade visual (passos de `duracao_aula_minutos`
   pulando intervalos). Encontros podem ATRAVESSAR intervalos (ex.: 6 aulas = 07:00–11:50 com
-  break embutido; `hora_fim` inclui o intervalo). A view `grade.php` divide blocos que cruzam
-  intervalo em grupos com rowspan.
+  break embutido; `hora_fim` inclui o intervalo). `GradeLayout` gera **um bloco por linha de
+  horário** (rowspan sempre 1): cada linha repete disciplina, o horário daquela linha e o
+  professor — decisão do usuário, para não sobrar vazio entre o nome e a faixa em blocos altos.
 - **Falhas** são gravadas no limbo (ver abaixo) e listadas no log da geração.
 
 ### Pesos soft (defaults no código; `configuracoes_soft` alimenta o formulário; POST sobrescreve)

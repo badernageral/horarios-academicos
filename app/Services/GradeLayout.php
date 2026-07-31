@@ -89,7 +89,10 @@ class GradeLayout
                 $skip[$dia] = array_fill(0, $numSlots, false);
             }
 
-            // Coloca disciplinas, dividindo em grupos quando cruzam intervalo.
+            // Um bloco POR LINHA de horário: cada slot ocupado repete disciplina,
+            // o horário daquela linha e o professor. Assim nenhum bloco fica alto
+            // com um vazio entre o nome e a faixa do professor — e o comportamento
+            // fica igual ao de quem já era partido por intervalo.
             // Usa qtd_aulas para contar slots — hora_fim no BD pode ignorar intervalo.
             foreach ($tData['por_dia'] as $dia => $diaList) {
                 foreach ($diaList as $h) {
@@ -98,30 +101,15 @@ class GradeLayout
                     $firstIdx = $slotMap[$hIni] ?? null;
                     if ($firstIdx === null) continue;
 
-                    $groups   = [];
-                    $cur      = null;
                     $consumed = 0;
                     for ($i = $firstIdx; $i < $numSlots && $consumed < $qtdAulas; $i++) {
-                        $s = $slots[$i];
-                        if ($s['type'] === 'intervalo') {
-                            if ($cur !== null) { $groups[] = $cur; $cur = null; }
-                            continue;
-                        }
-                        if ($cur === null) $cur = ['start' => $i, 'end' => $i, 'count' => 1];
-                        else { $cur['end'] = $i; $cur['count']++; }
-                        $consumed++;
-                    }
-                    if ($cur !== null) $groups[] = $cur;
-
-                    foreach ($groups as $g) {
-                        $grid[$dia][$g['start']] = array_merge($h, [
-                            'rowspan'  => $g['count'],
-                            'slot_ini' => $slots[$g['start']]['min'],
-                            'slot_fim' => $slots[$g['end']]['fim'],
+                        if ($slots[$i]['type'] === 'intervalo') continue;
+                        $grid[$dia][$i] = array_merge($h, [
+                            'rowspan'  => 1,
+                            'slot_ini' => $slots[$i]['min'],
+                            'slot_fim' => $slots[$i]['fim'],
                         ]);
-                        for ($i = $g['start'] + 1; $i <= $g['end']; $i++) {
-                            $skip[$dia][$i] = true;
-                        }
+                        $consumed++;
                     }
                 }
             }
