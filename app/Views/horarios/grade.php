@@ -133,12 +133,10 @@ $corSemProf = '#94a3b8';
 @media print {
   #sidebar, .topbar, .no-print, .limbo-row, #toast-container,
   .modal, .modal-backdrop { display: none !important; }
-  /* Uma turma por página */
+  /* Uma turma por página. A seleção do #modalImprimir retira do DOM as turmas
+     não escolhidas (ver JS), então esta regra só enxerga as que vão imprimir e
+     a primeira delas nunca herda quebra — nada de folha em branco. */
   .turma-bloco + .turma-bloco { break-before: page; page-break-before: always; }
-  .turma-bloco { break-inside: avoid-page; }
-  /* Seleção de turmas a imprimir (ver modalImprimir) */
-  .turma-bloco.print-skip  { display: none !important; }
-  .turma-bloco.print-first { break-before: auto !important; page-break-before: auto !important; }
   .content-wrapper { padding: 0 !important; }
   #page-content { width: 100% !important; }
   .card { box-shadow: none !important; border: none !important; }
@@ -812,34 +810,46 @@ const base = '<?= $base ?>';
     itens().forEach(c => c.addEventListener('change', sincronizarMestre));
   }
 
-  // Marca os blocos não selecionados; o CSS de impressão os oculta.
-  function aplicarSelecao() {
+  // Tira do DOM as turmas não selecionadas, deixando um comentário no lugar para
+  // devolvê-las depois. Esconder por CSS não serve: dependendo do navegador, o
+  // bloco oculto ainda conta para a quebra de página e sai uma folha em branco.
+  let retirados = [];
+
+  function retirarNaoSelecionados() {
+    devolverRetirados();
     const ids = itens().filter(c => c.checked).map(c => c.value);
-    let primeiro = true;
     document.querySelectorAll('.turma-bloco').forEach(bloco => {
-      const incluir = ids.includes(bloco.dataset.turmaId);
-      bloco.classList.toggle('print-skip', !incluir);
-      bloco.classList.remove('print-first');
-      // O primeiro bloco visível não pode herdar a quebra de página,
-      // senão a impressão começa com uma folha em branco.
-      if (incluir && primeiro) { bloco.classList.add('print-first'); primeiro = false; }
+      if (ids.includes(bloco.dataset.turmaId)) return;
+      const marca = document.createComment('turma-oculta');
+      bloco.parentNode.replaceChild(marca, bloco);
+      retirados.push([marca, bloco]);
     });
   }
 
-  function limparSelecao() {
-    document.querySelectorAll('.turma-bloco').forEach(bloco => {
-      bloco.classList.remove('print-skip', 'print-first');
+  function devolverRetirados() {
+    retirados.forEach(([marca, bloco]) => {
+      if (marca.parentNode) marca.parentNode.replaceChild(bloco, marca);
     });
+    retirados = [];
   }
 
   botao.addEventListener('click', () => {
-    aplicarSelecao();
     // Imprime só depois que o modal sumir de fato (evita o backdrop na página)
-    modalEl.addEventListener('hidden.bs.modal', () => window.print(), { once: true });
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      retirarNaoSelecionados();
+      window.print();
+    }, { once: true });
     bootstrap.Modal.getOrCreateInstance(modalEl).hide();
   });
 
-  window.addEventListener('afterprint', limparSelecao);
+  // Só devolve depois que a impressão termina — devolver logo após print()
+  // quebraria em navegador onde a chamada não bloqueia.
+  let imprimindo = false;
+  window.addEventListener('beforeprint', () => { imprimindo = true; });
+  window.addEventListener('afterprint', () => { imprimindo = false; devolverRetirados(); });
+  // Rede de segurança para quem não dispara 'afterprint': devolve ao voltar o
+  // foco, mas nunca durante a pré-visualização.
+  window.addEventListener('focus', () => { if (!imprimindo) devolverRetirados(); });
 })();
 
 // Verificação de conflitos entre disciplinas (independe de filtro)

@@ -73,8 +73,10 @@ Filosofia definida pelo usuário (jun/2026):
   retorna `anterior`), filtros curso/turma/professor/sala (filtro ativo = somente leitura,
   sem JS de drag), relatório vivo da grade (painel persiste aberto via localStorage),
   impressão por turma (1/página, `@media print`; modal `#modalImprimir` escolhe as turmas
-  por checkbox — JS marca `.print-skip` nas não selecionadas e `.print-first` na 1ª visível,
-  senão a quebra de página herdada gera folha em branco) e "todos por professor"
+  por checkbox — o JS **retira do DOM** as não selecionadas antes de `print()` e as devolve
+  no `afterprint`, deixando marcadores de comentário no lugar. Esconder com `display:none`
+  NÃO serve: o bloco oculto ainda conta para `.turma-bloco + .turma-bloco { break-before }`
+  em alguns navegadores e sai folha em branco) e "todos por professor"
   (`/horarios/geracao/{id}/imprimir/professores`), verificador de conflitos para aluno
   multi-período (`POST .../conflitos`, nomes 1/linha).
 - `FeasibilityChecker::verificar(semestreId)` roda em `/horarios` e na tela de atribuição:
