@@ -145,6 +145,16 @@ $corSemProf = '#94a3b8';
   .grade-table th, .grade-table th.col-hora, .grade-table td.col-hora,
   .grade-turma-header td { position: static !important; }
   .disc-block { cursor: default; }
+  /* Compacta a grade no papel. Sem isso a turma ocupa quase exatamente a
+     altura da folha, e qualquer ajuste de fonte do navegador (tamanho
+     mínimo, "ignorar fontes da página", escala) empurra o rodapé da
+     tabela para uma segunda folha praticamente vazia. */
+  .grade-table th          { padding: 2px 4px !important; }
+  .grade-table td.col-hora { padding: 1px 6px !important; }
+  .grade-turma-header td   { padding: 2px 8px !important; }
+  .grade-cell              { padding: 0 !important; }
+  .disc-block              { padding: 2px 4px 12px !important; line-height: 1.15 !important; }
+  .disc-faixa              { font-size: 9px !important; padding: 1px 4px !important; }
 }
 @page { size: landscape; margin: 8mm; }
 </style>

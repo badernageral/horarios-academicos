@@ -76,7 +76,9 @@ Filosofia definida pelo usuário (jun/2026):
   por checkbox — o JS **retira do DOM** as não selecionadas antes de `print()` e as devolve
   no `afterprint`, deixando marcadores de comentário no lugar. Esconder com `display:none`
   NÃO serve: o bloco oculto ainda conta para `.turma-bloco + .turma-bloco { break-before }`
-  em alguns navegadores e sai folha em branco) e "todos por professor"
+  em alguns navegadores e sai folha em branco. O bloco `@media print` também **compacta**
+  a tabela com `!important` — sem isso a turma mais alta passa da folha no Firefox com
+  escala 100% e o cabeçalho repetido cai numa 2ª página que parece vazia) e "todos por professor"
   (`/horarios/geracao/{id}/imprimir/professores`), verificador de conflitos para aluno
   multi-período (`POST .../conflitos`, nomes 1/linha).
 - `FeasibilityChecker::verificar(semestreId)` roda em `/horarios` e na tela de atribuição:
