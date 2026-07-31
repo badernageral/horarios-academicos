@@ -89,7 +89,8 @@ class Semestre extends BaseModel
         foreach ($professores as $disciplinaId => $slots) {
             $disciplinaId = (int)$disciplinaId;
             $salaId = ($salas[$disciplinaId] ?? '') !== '' ? (int)$salas[$disciplinaId] : null;
-            $trocas = [];
+            $trocas     = [];
+            $novosSlots = []; // slot => professor_id efetivamente gravado
             $eraVazia = !isset($atuais[$disciplinaId][1]);
             foreach ((array)$slots as $slot => $professorId) {
                 if ((string)$professorId === '') continue;
@@ -100,6 +101,7 @@ class Semestre extends BaseModel
                      VALUES (?, ?, ?, ?, ?)",
                     [$semestreId, $disciplinaId, $professorId, $slot, $slot === 1 ? $salaId : null]
                 );
+                $novosSlots[$slot] = $professorId;
 
                 $antigo = $atuais[$disciplinaId][$slot] ?? null;
                 if ($antigo !== null && $antigo !== $professorId) {
@@ -112,7 +114,21 @@ class Semestre extends BaseModel
                     $comHorario[$disciplinaId] = true; // evita duplicar se o loop rodar novamente
                 }
             }
-            if ($trocas) {
+
+            $slotsAntigos = array_keys($atuais[$disciplinaId] ?? []);
+            $slotsAtuais  = array_keys($novosSlots);
+            sort($slotsAntigos);
+            sort($slotsAtuais);
+
+            if ($geracaoId && $novosSlots && $slotsAntigos !== $slotsAtuais
+                && ($comHorario[$disciplinaId] ?? false)
+            ) {
+                // Professor adicionado ou removido (estrutura de slots mudou): não há
+                // "troca" 1-para-1 — redistribui os encontros existentes entre os
+                // professores atuais, na mesma proporção que o gerador usaria.
+                self::redistribuirEncontros($geracaoId, $disciplinaId, $novosSlots);
+                $disciplinasAlteradas[] = $disciplinaId;
+            } elseif ($trocas) {
                 self::sincronizarProfessorHorarios($semestreId, $disciplinaId, $trocas);
                 $disciplinasAlteradas[] = $disciplinaId;
             }
@@ -204,6 +220,38 @@ class Semestre extends BaseModel
         );
         for ($i = 0; $i < (int)$disc['qtd_encontros_semanais']; $i++) {
             $stmt->execute([$geracaoId, $disciplinaId, (int)$disc['turma_id'], $professorId, $salaId, $inicioStr, $fimStr]);
+        }
+    }
+
+    // Redistribui os encontros já gerados de uma disciplina entre os professores
+    // atuais quando a estrutura de slots muda (professor adicionado/removido),
+    // preservando dia/hora/sala. Mesma regra do gerador: primeiros slots recebem
+    // o teto (intdiv + resto), na ordem dia/hora.
+    private static function redistribuirEncontros(int $geracaoId, int $disciplinaId, array $slotsProfessores): void
+    {
+        ksort($slotsProfessores);
+        $horarios = Database::fetchAll(
+            "SELECT id FROM horarios WHERE geracao_id = ? AND disciplina_id = ?
+             ORDER BY dia_semana, hora_inicio, id",
+            [$geracaoId, $disciplinaId]
+        );
+        $total = count($horarios);
+        if ($total === 0) return;
+
+        $profs = array_values($slotsProfessores);
+        $qtd   = count($profs);
+        $base  = intdiv($total, $qtd);
+        $extra = $total % $qtd;
+
+        $i = 0;
+        foreach ($profs as $k => $professorId) {
+            $n = $base + ($k < $extra ? 1 : 0);
+            for ($j = 0; $j < $n && $i < $total; $j++, $i++) {
+                Database::query(
+                    "UPDATE horarios SET professor_id = ? WHERE id = ?",
+                    [$professorId, $horarios[$i]['id']]
+                );
+            }
         }
     }
 
