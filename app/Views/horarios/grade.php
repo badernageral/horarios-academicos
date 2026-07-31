@@ -226,9 +226,8 @@ $corSemProf = '#94a3b8';
         <p class="text-muted mb-0">Nenhuma turma nesta grade.</p>
         <?php else: ?>
         <div class="alert alert-info py-2 small d-none" id="imprimir-dica-pdf">
-          <i class="bi bi-info-circle me-1"></i>
-          Na janela que abrir, escolha <strong>Salvar como PDF</strong>
-          (no Firefox, <strong>Imprimir no arquivo</strong>) como destino.
+          <i class="bi bi-download me-1"></i>
+          O arquivo é gerado no servidor e baixado direto, sem passar pela janela de impressão.
         </div>
         <div class="mb-3">
           <label class="form-label small mb-1" for="imprimir-orientacao">Orientação do papel</label>
@@ -884,8 +883,10 @@ const base = '<?= $base ?>';
   // O mesmo modal serve para imprimir e para exportar em PDF — só muda o
   // texto. Em ambos os casos quem gera a saída é o motor de impressão do
   // navegador (não há biblioteca de PDF no servidor).
+  let modoPdf = false;
   modalEl.addEventListener('show.bs.modal', (ev) => {
-    const pdf = ev.relatedTarget && ev.relatedTarget.dataset.modo === 'pdf';
+    const pdf = !!(ev.relatedTarget && ev.relatedTarget.dataset.modo === 'pdf');
+    modoPdf = pdf;
     const t = (id, txt) => { const e = document.getElementById(id); if (e) e.textContent = txt; };
     t('imprimir-titulo', pdf ? 'Exportar grade em PDF' : 'Imprimir grade por turma');
     t('imprimir-botao-texto', pdf ? 'Exportar PDF' : 'Imprimir');
@@ -899,9 +900,20 @@ const base = '<?= $base ?>';
   });
 
   botao.addEventListener('click', () => {
+    const orient = orientacao ? orientacao.value : PADRAO;
+
+    // PDF: baixa o arquivo gerado no servidor (FPDF), sem janela de impressão
+    if (modoPdf) {
+      const ids = itens().filter(c => c.checked).map(c => c.value).join(',');
+      bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+      window.location.href = '<?= $base ?>/horarios/geracao/<?= $geracaoId ?>/exportar/pdf'
+        + '?turmas=' + encodeURIComponent(ids) + '&orientacao=' + encodeURIComponent(orient);
+      return;
+    }
+
     // Imprime só depois que o modal sumir de fato (evita o backdrop na página)
     modalEl.addEventListener('hidden.bs.modal', () => {
-      aplicarOrientacao(orientacao ? orientacao.value : PADRAO);
+      aplicarOrientacao(orient);
       retirarNaoSelecionados();
       window.print();
     }, { once: true });

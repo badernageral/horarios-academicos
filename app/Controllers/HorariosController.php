@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use App\Models\{Horario, Turma, Professor, Sala, Semestre, Curso};
 use App\Core\Database;
-use App\Services\{ScheduleGenerator, Exporter, FeasibilityChecker, MoodleExporter, TimeHelper};
+use App\Services\{ScheduleGenerator, Exporter, FeasibilityChecker, MoodleExporter, TimeHelper, GradeLayout, PdfExporter};
 
 class HorariosController extends BaseController
 {
@@ -333,135 +333,8 @@ class HorariosController extends BaseController
         $professoresFiltro = Professor::allAtivos();
         $salasFiltro       = Sala::allAtivas();
 
-        // Intervalos dedupicados por curso_id (flat, sem duplicar por dia)
-        $intervalos = [];
-        foreach (Database::fetchAll("SELECT * FROM intervalos_curso ORDER BY hora_inicio") as $iv) {
-            $inicio = \App\Services\TimeHelper::toMinutes($iv['hora_inicio']);
-            $fim    = \App\Services\TimeHelper::toMinutes($iv['hora_fim']);
-            $key    = $iv['curso_id'] . '-' . $inicio . '-' . $fim;
-            $intervalos[$iv['curso_id']][$key] = ['inicio' => $inicio, 'fim' => $fim];
-        }
-
-        // 1. Agrupar por turma (dia_semana = 0 → limbo: sem horário atribuído)
-        $raw = [];
-        foreach ($todosHorarios as $h) {
-            $dia = (int)$h['dia_semana'];
-            if ($dia > 5) continue;
-            $tid = $h['turma_id'];
-            if (!isset($raw[$tid])) {
-                $raw[$tid] = [
-                    'curso_id'   => (int)$h['curso_id'],
-                    'curso_nome' => $h['curso_nome'],
-                    'turma_nome' => $h['serie_periodo'],
-                    'duracao'    => max(1, (int)$h['duracao_aula_minutos']),
-                    'turno_ini'  => \App\Services\TimeHelper::toMinutes($h['turno_inicio']),
-                    'turno_fim'  => \App\Services\TimeHelper::toMinutes($h['turno_fim']),
-                    'por_dia'    => [1=>[], 2=>[], 3=>[], 4=>[], 5=>[]],
-                    'limbo'      => [],
-                ];
-            }
-            if ($dia < 1) {
-                $raw[$tid]['limbo'][] = $h;
-                continue;
-            }
-            $raw[$tid]['por_dia'][$dia][] = $h;
-        }
-
-        // 2. Montar grade com slots do turno completo (incluindo linhas de intervalo)
-        $grade = [];
-        foreach ($raw as $tid => $tData) {
-            $dur      = $tData['duracao'];
-            $turnoIni = $tData['turno_ini'];
-            $turnoFim = $tData['turno_fim'];
-            $cursoId  = $tData['curso_id'];
-            $ivList   = array_values($intervalos[$cursoId] ?? []);
-
-            // Gerar slots incluindo entradas de intervalo
-            // Cada slot: ['min'=>int, 'fim'=>int, 'type'=>'aula'|'intervalo']
-            $slots = [];
-            $t = $turnoIni;
-            while ($t < $turnoFim) {
-                $inIv = null;
-                foreach ($ivList as $iv) {
-                    if ($t >= $iv['inicio'] && $t < $iv['fim']) { $inIv = $iv; break; }
-                }
-                if ($inIv) {
-                    $slots[] = ['min' => $t, 'fim' => $inIv['fim'], 'type' => 'intervalo'];
-                    $t = $inIv['fim'];
-                } else {
-                    if ($t + $dur > $turnoFim) break;
-                    $slots[] = ['min' => $t, 'fim' => $t + $dur, 'type' => 'aula'];
-                    $t += $dur;
-                }
-            }
-
-            $numSlots = count($slots);
-            if ($numSlots === 0) continue;
-
-            // slotMap: hora_inicio (minutos) → índice (apenas slots de aula)
-            $slotMap = [];
-            foreach ($slots as $idx => $slot) {
-                if ($slot['type'] === 'aula') $slotMap[$slot['min']] = $idx;
-            }
-
-            // Inicializar grid e skip
-            $grid = $skip = [];
-            for ($dia = 1; $dia <= 5; $dia++) {
-                $grid[$dia] = array_fill(0, $numSlots, null);
-                $skip[$dia] = array_fill(0, $numSlots, false);
-            }
-
-            // Colocar disciplinas, dividindo em grupos quando cruzam intervalo
-            // Usa qtd_aulas para contar slots — hora_fim no BD pode ignorar intervalo
-            foreach ($tData['por_dia'] as $dia => $diaList) {
-                foreach ($diaList as $h) {
-                    $hIni     = \App\Services\TimeHelper::toMinutes($h['hora_inicio']);
-                    $qtdAulas = max(1, (int)$h['qtd_aulas']);
-                    $firstIdx = $slotMap[$hIni] ?? null;
-                    if ($firstIdx === null) continue;
-
-                    // Consumir exatamente qtd_aulas slots de aula, agrupando por contiguidade
-                    $groups   = [];
-                    $cur      = null;
-                    $consumed = 0;
-                    for ($i = $firstIdx; $i < $numSlots && $consumed < $qtdAulas; $i++) {
-                        $s = $slots[$i];
-                        if ($s['type'] === 'intervalo') {
-                            if ($cur !== null) { $groups[] = $cur; $cur = null; }
-                            continue;
-                        }
-                        if ($cur === null) $cur = ['start' => $i, 'end' => $i, 'count' => 1];
-                        else { $cur['end'] = $i; $cur['count']++; }
-                        $consumed++;
-                    }
-                    if ($cur !== null) $groups[] = $cur;
-
-                    foreach ($groups as $g) {
-                        $slotIni = $slots[$g['start']]['min'];
-                        $slotFim = $slots[$g['end']]['fim'];
-                        $grid[$dia][$g['start']] = array_merge($h, [
-                            'rowspan'  => $g['count'],
-                            'slot_ini' => $slotIni,
-                            'slot_fim' => $slotFim,
-                        ]);
-                        for ($i = $g['start'] + 1; $i <= $g['end']; $i++) {
-                            $skip[$dia][$i] = true;
-                        }
-                    }
-                }
-            }
-
-            $grade[$tid] = [
-                'curso_nome' => $tData['curso_nome'],
-                'turma_nome' => $tData['turma_nome'],
-                'duracao'    => $dur,
-                'slots'      => $slots,
-                'num_slots'  => $numSlots,
-                'grid'       => $grid,
-                'skip'       => $skip,
-                'limbo'      => $tData['limbo'],
-            ];
-        }
+        // Malha visual da grade (mesma estrutura usada pela exportação em PDF)
+        $grade = \App\Services\GradeLayout::montar($todosHorarios);
 
         $this->render('horarios/grade', compact(
             'grade', 'geracao', 'geracaoId', 'semestreId',
@@ -1058,13 +931,22 @@ class HorariosController extends BaseController
         (new Exporter())->exportarExcel($horarios, "Horario_Geracao_{$geracaoId}");
     }
 
+    /**
+     * Baixa a grade em PDF (uma turma por página), com as mesmas opções da
+     * impressão: ?turmas=1,2,3 (vazio = todas) e ?orientacao=landscape|portrait.
+     */
     public function exportarPDF(string $geracaoId): void
     {
-        $horarios = $this->semLimbo(Horario::porGeracao((int)$geracaoId));
-        $html     = (new Exporter())->gerarHTML($horarios, "Horário Acadêmico – Geração #{$geracaoId}", 'turma');
-        header('Content-Type: text/html; charset=UTF-8');
-        $html = str_replace('</body>', '<script>window.onload=function(){window.print();}</script></body>', $html);
-        echo $html;
+        $geracaoId = (int)$geracaoId;
+        $grade     = GradeLayout::montar(Horario::porGeracao($geracaoId));
+
+        $turmas = array_filter(array_map('intval', explode(',', (string)$this->get('turmas', ''))));
+        if ($turmas) {
+            $grade = array_intersect_key($grade, array_flip($turmas));
+        }
+
+        $orientacao = $this->get('orientacao') === 'portrait' ? 'portrait' : 'landscape';
+        (new PdfExporter($orientacao))->gerar($grade, 'grade_horarios_' . date('Y-m-d'));
     }
 
     public function deletarGeracao(): void

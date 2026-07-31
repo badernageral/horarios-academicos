@@ -23,7 +23,9 @@ desktop Windows (Electron + PHP embutido + SQLite; ver `desktop/`).
 - `app/Core/` — Router (regex), Database (PDO singleton, prepared statements sempre), View
 - `app/Controllers/` — BaseController (`get/post/flash/render`) + controllers; rotas em `routes.php`
 - `app/Models/` — BaseModel + Curso, Turma, Disciplina, Professor, Sala, Semestre, Horario
-- `app/Services/` — ScheduleGenerator, TimeHelper (min↔TIME), Exporter, FeasibilityChecker
+- `app/Services/` — ScheduleGenerator, TimeHelper (min↔TIME), Exporter, FeasibilityChecker,
+  GradeLayout (malha de slots — fonte única compartilhada pela view e pelo PDF), PdfExporter
+- `lib/fpdf/` — FPDF 1.86 vendorizado (PHP puro, licença permissiva), único uso: PdfExporter
 - `config/database.php` — credenciais (env vars com fallback)
 - Servidor dev: `php -S 127.0.0.1:8080 -t public`
 
@@ -80,10 +82,12 @@ Filosofia definida pelo usuário (jun/2026):
   a tabela com `!important` e aplica `zoom: 0.85` (afeta o layout no Firefox 126+/Chrome;
   `0.75` em retrato, via classe `print-retrato` no `<html>`) — o modal tem seletor de
   orientação, que reescreve o `<style id="regra-pagina">` (`@page` não aceita seletor); o
-  botão **Exportar PDF** abre o MESMO modal (`data-modo="pdf"` → troca título/rótulo e mostra
-  a dica de destino) e também usa `window.print()` — não há biblioteca de PDF no servidor
-  (sem Composer, sem pdf/gd/imagick); a exportação CSV foi retirada só da grade, segue em
-  `gerar.php`/`detalhe.php` —
+  botão **Exportar PDF** abre o MESMO modal (`data-modo="pdf"`) mas baixa o arquivo gerado no
+  servidor: `GET /horarios/geracao/{id}/exportar/pdf?turmas=1,2&orientacao=landscape|portrait`
+  → `PdfExporter` (FPDF vendorizado em `lib/fpdf`, PHP puro, sem Composer; `lib/` bloqueada
+  por `.htaccess` e pelo `router.php`). A conversão UTF-8→CP1252 é feita à mão no
+  `PdfExporter::txt()` (mbstring é proibido e o PHP do desktop não habilita iconv). A
+  exportação CSV foi retirada só da grade, segue em `gerar.php`/`detalhe.php` —
   sem folga, a turma mais alta passa da área útil (impressora real impõe margens > 8mm do
   `@page`) e o cabeçalho repetido cai numa 2ª página que parece vazia) e "todos por professor"
   (`/horarios/geracao/{id}/imprimir/professores`), verificador de conflitos para aluno
