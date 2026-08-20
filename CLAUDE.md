@@ -100,8 +100,21 @@ Filosofia definida pelo usuário (jun/2026):
 - `FeasibilityChecker::verificar(semestreId)` roda em `/horarios` e na tela de atribuição:
   encontro maior que os slots do dia, demanda semanal > capacidade da turma, professor sem
   disponibilidade.
-- Cores: blocos com fundo = cor primária do professor + sufixo alpha `59` (~35%), texto preto,
-  faixa inferior na cor secundária com o nome do professor em branco.
+- Cores: blocos com fundo = cor primária do professor + sufixo alpha `59` (~35%), faixa inferior
+  na cor secundária com o nome do professor. A cor do texto NÃO é fixa: sai de
+  `ColorHelper::textoSobre()` (luminância relativa WCAG), que devolve `#000` ou `#fff` — o que
+  contrastar mais. O corpo do bloco é medido com a MESMA opacidade do fundo (`alpha 0.35`,
+  composto sobre branco), senão a medição não corresponde ao que se vê; a faixa é medida na
+  secundária cheia. Branco fixo na faixa sumia em secundárias claras (âmbar, lima, índigo
+  claro). Mesma regra no PDF (`PdfExporter`) e na listagem de professores, onde o fundo é a
+  primária CHEIA (sem alpha) — por isso lá o texto alterna preto/branco com frequência.
+- **Unicidade de cor é POR NDA, não global** (a paleta tem 50 pares; com ~100 professores não
+  fecha globalmente, e o que se compara na grade são professores do mesmo NDA). O CRUD de
+  professores lista **agrupado por NDA**, cada grupo com um botão *Corrigir cores*
+  (`POST /professores/corrigir-cores` com `nda_id`; `nda_id=0` = sem NDA). Ele só reatribui os
+  DUPLICADOS — a 1ª ocorrência (menor id) mantém a cor, para não perder a referência visual de
+  quem já conhece o professor pela cor — e prefere pares cuja cor PRIMÁRIA ainda esteja livre,
+  já que é ela que pinta o bloco. Cor fora da paleta é preservada se for única no grupo.
 - Backup: item de menu `/backup` (`BackupController`). Exportar = `GET /backup/exportar`
   (`VACUUM INTO` → `.sqlite` em `backups/` + download). Importar = `POST /backup/importar`
   (upload `.sqlite`, valida `integrity_check`, salva `pre_import_*` e substitui o arquivo do

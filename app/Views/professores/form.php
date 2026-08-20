@@ -60,11 +60,12 @@ $gradeDisp   = $gradeDisp ?? [];
               </select>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Usuário Moodle</label>
+              <?php // Campo `usuario_moodle`: a matrícula do professor É o login do Moodle. ?>
+              <label class="form-label">Matrícula</label>
               <input type="text" name="usuario_moodle" class="form-control"
                      value="<?= htmlspecialchars($professor['usuario_moodle'] ?? '') ?>"
                      placeholder="ex: jose.alves">
-              <div class="form-text">Username p/ exportação de inscrições no Moodle</div>
+              <div class="form-text">Usada como login na exportação de inscrições do Moodle</div>
             </div>
           </div>
         </div>

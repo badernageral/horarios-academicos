@@ -163,8 +163,10 @@ class PdfExporter
 
         $faixa = $bloco['professor_nome'] ? 3.2 : 1.2;
 
-        // Nome da disciplina (quebra em linhas dentro do bloco)
-        $pdf->SetTextColor(0, 0, 0);
+        // Nome da disciplina (quebra em linhas dentro do bloco).
+        // Texto por contraste sobre o MESMO fundo composto a 35%, como na tela.
+        [$tr, $tg, $tb] = ColorHelper::textoSobreRgb($bloco['professor_cor'] ?? '#94a3b8', 0.35);
+        $pdf->SetTextColor($tr, $tg, $tb);
         $pdf->SetFont('Helvetica', 'B', 6.5);
         $pdf->SetXY($x + 0.8, $y + 0.8);
         $pdf->MultiCell($w - 1.6, 2.6,
@@ -183,9 +185,12 @@ class PdfExporter
 
         // Faixa inferior com o professor, na cor secundária
         if ($bloco['professor_nome']) {
-            [$r2, $g2, $b2] = $this->hexRgb($bloco['professor_cor_secundaria'] ?? ($bloco['professor_cor'] ?? '#64748b'));
+            $corFaixa = $bloco['professor_cor_secundaria'] ?? ($bloco['professor_cor'] ?? '#64748b');
+            [$r2, $g2, $b2] = $this->hexRgb($corFaixa);
             $pdf->SetFillColor($r2, $g2, $b2);
-            $pdf->SetTextColor(255, 255, 255);
+            // Branco fixo sumia em secundárias claras (âmbar, lima, índigo claro).
+            [$fr, $fg, $fb] = ColorHelper::textoSobreRgb($corFaixa);
+            $pdf->SetTextColor($fr, $fg, $fb);
             $pdf->SetFont('Helvetica', 'B', 5.5);
             $pdf->SetXY($x + 0.35, $y + $h - $faixa - 0.35);
             $pdf->Cell($w - 0.7, $faixa, $this->txt($bloco['professor_nome']), 0, 0, 'C', true);

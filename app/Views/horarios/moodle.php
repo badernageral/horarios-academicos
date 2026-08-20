@@ -40,9 +40,9 @@ $rows      = $diag['rows'] ?? [];
 
 <?php if (!empty($semUser)): ?>
 <div class="alert alert-warning">
-  <div class="fw-semibold mb-1"><i class="bi bi-person-exclamation me-1"></i>Professores sem usuário Moodle (não entram no CSV de professores)</div>
+  <div class="fw-semibold mb-1"><i class="bi bi-person-exclamation me-1"></i>Professores sem matrícula (não entram no CSV de professores)</div>
   <div class="small"><?= htmlspecialchars(implode(', ', $semUser)) ?></div>
-  <div class="small mt-1">Preencha o campo <em>Usuário Moodle</em> no cadastro de cada um para incluí-los.</div>
+  <div class="small mt-1">Preencha o campo <em>Matrícula</em> no cadastro de cada um para incluí-los — é ele que vira o login no Moodle.</div>
 </div>
 <?php endif; ?>
 

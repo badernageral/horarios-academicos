@@ -9,26 +9,45 @@ class ProfessoresController extends BaseController
 {
     public function index(): void
     {
-        [$sort, $dir] = $this->sortParams(['nome', 'nda_nome', 'usuario_moodle', 'ativo'], 'nome');
+        [$sort, $dir] = $this->sortParams(['nome', 'usuario_moodle', 'ativo'], 'nome');
         $professores = Professor::allComNda($sort, $dir);
         $flash       = $this->getFlash();
 
-        // Conflito = par (cor primária + secundária) idêntico entre dois professores
-        $porPar = [];
+        // Professores agrupados por NDA. A unicidade de cores é verificada
+        // DENTRO de cada NDA: a paleta tem 50 pares e o que se compara na grade
+        // são professores do mesmo NDA — exigir unicidade global travaria a
+        // partir de 50 cadastros.
+        $grupos = [];
         foreach ($professores as $p) {
-            $porPar[$p['cor'] . '|' . $p['cor_secundaria']][$p['id']] = $p['nome'];
+            $ndaId = $p['nda_id'] !== null ? (int)$p['nda_id'] : 0;
+            if (!isset($grupos[$ndaId])) {
+                $grupos[$ndaId] = [
+                    'id'           => $ndaId,
+                    'nome'         => $p['nda_nome'] ?? 'Sem NDA',
+                    'professores'  => [],
+                    'conflitantes' => [],
+                ];
+            }
+            $grupos[$ndaId]['professores'][] = $p;
         }
+        uasort($grupos, fn($a, $b) => strcasecmp($a['nome'], $b['nome']));
 
-        $conflitantes = [];
-        foreach ($professores as $p) {
-            $grupo = $porPar[$p['cor'] . '|' . $p['cor_secundaria']] ?? [];
-            unset($grupo[$p['id']]);
-            if ($grupo) {
-                $conflitantes[$p['id']] = array_values($grupo);
+        foreach ($grupos as &$g) {
+            $porPar = [];
+            foreach ($g['professores'] as $p) {
+                $porPar[$p['cor'] . '|' . $p['cor_secundaria']][$p['id']] = $p['nome'];
+            }
+            foreach ($g['professores'] as $p) {
+                $iguais = $porPar[$p['cor'] . '|' . $p['cor_secundaria']] ?? [];
+                unset($iguais[$p['id']]);
+                if ($iguais) {
+                    $g['conflitantes'][$p['id']] = array_values($iguais);
+                }
             }
         }
+        unset($g);
 
-        $this->render('professores/index', compact('professores', 'flash', 'conflitantes', 'sort', 'dir'));
+        $this->render('professores/index', compact('grupos', 'flash', 'sort', 'dir'));
     }
 
     public function novo(): void
@@ -145,6 +164,117 @@ class ProfessoresController extends BaseController
         if ($id) {
             Professor::delete($id);
             $this->flash('success', 'Professor removido.');
+        }
+        $this->redirect('/professores');
+    }
+
+    /**
+     * Reatribui cores para eliminar pares duplicados DENTRO de um NDA.
+     *
+     * O escopo é o NDA porque a paleta tem 50 pares: com 100 professores não há
+     * como dar cores únicas a todos, e o que se compara visualmente na grade são
+     * professores do mesmo NDA.
+     *
+     * Só mexe em quem está duplicado: a PRIMEIRA ocorrência de cada par (menor
+     * id) fica como está, as demais recebem um par ainda livre. Assim quem já
+     * identifica um professor pela cor não perde a referência. Cores fora da
+     * paleta são preservadas se forem únicas no grupo.
+     */
+    public function corrigirCores(): void
+    {
+        $ndaId = $this->post('nda_id');
+        if ($ndaId === null || $ndaId === '') {
+            $this->flash('danger', 'NDA não informado.');
+            $this->redirect('/professores');
+            return;
+        }
+        $ndaId = (int)$ndaId;
+
+        $norm = fn(array $p): string =>
+            strtolower(trim((string)$p['cor']) . '|' . trim((string)$p['cor_secundaria']));
+
+        // Pares da paleta indexados pela mesma chave normalizada.
+        $livres = [];
+        foreach (self::paletaDupla() as $par) {
+            $livres[strtolower($par[0] . '|' . $par[1])] = $par;
+        }
+
+        // Só o NDA pedido. nda_id = 0 representa os professores sem NDA.
+        $profs = $ndaId === 0
+            ? Database::fetchAll("SELECT id, nome, cor, cor_secundaria FROM professores WHERE nda_id IS NULL ORDER BY id")
+            : Database::fetchAll("SELECT id, nome, cor, cor_secundaria FROM professores WHERE nda_id = ? ORDER BY id", [$ndaId]);
+
+        $ndaNome = $ndaId === 0
+            ? 'Sem NDA'
+            : (string)(Database::fetchValue("SELECT nome FROM ndas WHERE id = ?", [$ndaId]) ?: 'NDA');
+
+        // Quem chegou primeiro fica com o par; os seguintes entram na fila.
+        $dono       = [];
+        $reatribuir = [];
+        $primarias  = [];                        // cor principal já em uso
+        foreach ($profs as $p) {
+            $chave = $norm($p);
+            if (!isset($dono[$chave])) {
+                $dono[$chave] = (int)$p['id'];
+                $primarias[strtolower(trim((string)$p['cor']))] = true;
+                unset($livres[$chave]);          // par ocupado deixa de estar livre
+            } else {
+                $reatribuir[] = $p;
+            }
+        }
+
+        if (empty($reatribuir)) {
+            $this->flash('info', "Nenhuma cor repetida em {$ndaNome} — nada a corrigir.");
+            $this->redirect('/professores');
+            return;
+        }
+
+        $corrigidos = 0;
+        $semPar     = [];
+
+        Database::beginTransaction();
+        try {
+            foreach ($reatribuir as $p) {
+                // Preferir um par cuja cor PRINCIPAL ainda não esteja em uso: é
+                // ela que pinta o bloco na grade, então duas primárias iguais
+                // continuariam parecendo o mesmo professor mesmo com o par
+                // distinto. Se não houver, aceita qualquer par livre.
+                $escolhida = null;
+                foreach ($livres as $k => $par) {
+                    if (!isset($primarias[strtolower($par[0])])) { $escolhida = $k; break; }
+                }
+                $escolhida ??= array_key_first($livres);
+
+                if ($escolhida === null) {      // paleta esgotada (mais de 50 professores)
+                    $semPar[] = $p['nome'];
+                    continue;
+                }
+
+                $par = $livres[$escolhida];
+                unset($livres[$escolhida]);
+
+                Professor::update((int)$p['id'], ['cor' => $par[0], 'cor_secundaria' => $par[1]]);
+                $dono[strtolower($par[0] . '|' . $par[1])] = (int)$p['id'];
+                $primarias[strtolower($par[0])] = true;
+                $corrigidos++;
+            }
+            Database::commit();
+        } catch (\Throwable $e) {
+            Database::rollback();
+            $this->flash('danger', 'Falha ao corrigir as cores: ' . $e->getMessage());
+            $this->redirect('/professores');
+            return;
+        }
+
+        if ($semPar) {
+            $this->flash('warning', sprintf(
+                '%s: %d professor(es) receberam cores novas, mas a paleta de 50 pares acabou — %s seguem duplicados.',
+                $ndaNome, $corrigidos, implode(', ', $semPar)
+            ));
+        } else {
+            $this->flash('success', $corrigidos === 1
+                ? "{$ndaNome}: 1 professor recebeu cores novas. Sem duplicidade no grupo."
+                : "{$ndaNome}: {$corrigidos} professores receberam cores novas. Sem duplicidade no grupo.");
         }
         $this->redirect('/professores');
     }

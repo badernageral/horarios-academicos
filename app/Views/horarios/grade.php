@@ -107,7 +107,8 @@ $corSemProf = '#94a3b8';
 .disc-faixa {
   position: absolute;
   bottom: 0; left: 0; right: 0;
-  color: #fff;
+  /* A cor do texto vem inline, por contraste com a secundária do professor
+     (ColorHelper::textoSobre). Branco fixo aqui sumia em tons claros. */
   font-size: 10px;
   font-weight: 600;
   padding: 3px 6px;
@@ -507,6 +508,11 @@ $corSemProf = '#94a3b8';
               $cor    = !empty($h['professor_cor']) ? $h['professor_cor'] : $corSemProf;
               $corSec = !empty($h['professor_cor_secundaria']) ? $h['professor_cor_secundaria'] : $cor;
               $bg     = $cor . '59'; // cor primária com ~35% de opacidade
+              // Texto por contraste: o corpo do bloco é medido com a MESMA
+              // opacidade do fundo (35% sobre branco); a faixa usa a secundária
+              // cheia, onde branco fixo ficava ilegível em tons claros.
+              $txt    = \App\Services\ColorHelper::textoSobre($cor, 0.35);
+              $txtSec = \App\Services\ColorHelper::textoSobre($corSec);
               $span   = $h['rowspan'];
             ?>
             <td class="grade-cell p-1"
@@ -523,14 +529,14 @@ $corSemProf = '#94a3b8';
                    data-slot="<?= $slotIdx ?>"
                    data-rowspan="<?= $span ?>"
                    data-turma-id="<?= $turmaId ?>">
-                <div style="color:#000;font-weight:700;font-size:12px">
+                <div style="color:<?= $txt ?>;font-weight:700;font-size:12px">
                   <?= htmlspecialchars($h['disciplina_sigla'] ?: substr($h['disciplina_nome'], 0, 14)) ?>
                 </div>
-                <div style="color:#000;font-weight:700;font-size:12px">
+                <div style="color:<?= $txt ?>;font-weight:700;font-size:12px">
                   <?= \App\Services\TimeHelper::fromMinutes($h['slot_ini']) ?>–<?= \App\Services\TimeHelper::fromMinutes($h['slot_fim']) ?>
                 </div>
                 <?php if ($h['professor_nome']): ?>
-                <div class="disc-faixa" style="background:<?= $corSec ?>">
+                <div class="disc-faixa" style="background:<?= $corSec ?>;color:<?= $txtSec ?>">
                   <?= htmlspecialchars(substr($h['professor_nome'], 0, 26)) ?>
                 </div>
                 <?php else: ?>
@@ -562,17 +568,19 @@ $corSemProf = '#94a3b8';
               <?php foreach ($row['limbo'] as $h):
                 $cor    = !empty($h['professor_cor']) ? $h['professor_cor'] : $corSemProf;
                 $corSec = !empty($h['professor_cor_secundaria']) ? $h['professor_cor_secundaria'] : $cor;
+                $txt    = \App\Services\ColorHelper::textoSobre($cor, 0.35);
+                $txtSec = \App\Services\ColorHelper::textoSobre($corSec);
               ?>
               <div class="disc-block"
                    draggable="<?= $filtroAtivo ? 'false' : 'true' ?>"
                    data-horario-id="<?= $h['id'] ?>"
                    data-turma-id="<?= $turmaId ?>"
                    style="background:<?= $cor ?>59">
-                <div style="color:#000;font-weight:700;font-size:12px">
+                <div style="color:<?= $txt ?>;font-weight:700;font-size:12px">
                   <?= htmlspecialchars($h['disciplina_sigla'] ?: substr($h['disciplina_nome'], 0, 14)) ?>
                 </div>
                 <?php if ($h['professor_nome']): ?>
-                <div class="disc-faixa" style="background:<?= $corSec ?>">
+                <div class="disc-faixa" style="background:<?= $corSec ?>;color:<?= $txtSec ?>">
                   <?= htmlspecialchars(substr($h['professor_nome'], 0, 26)) ?>
                 </div>
                 <?php else: ?>

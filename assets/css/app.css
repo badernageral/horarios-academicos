@@ -289,3 +289,15 @@ code {
     border-radius: .35rem;
     vertical-align: middle;
 }
+
+/* Nome do professor no CRUD, no mesmo padrão da faixa dos blocos da grade:
+   retângulo na cor secundária do professor. A cor do texto vem inline, por
+   contraste (ColorHelper::textoSobre). */
+.prof-faixa {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: .875rem;
+    line-height: 1.3;
+}

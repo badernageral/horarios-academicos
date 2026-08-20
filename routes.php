@@ -44,6 +44,7 @@ $router->post('/professores/importar',    'ProfessoresController@importar');
 $router->post('/professores/salvar',      'ProfessoresController@salvar');
 $router->get('/professores/{id}/editar',  'ProfessoresController@editar');
 $router->post('/professores/deletar',       'ProfessoresController@deletar');
+$router->post('/professores/corrigir-cores','ProfessoresController@corrigirCores');
 
 // ── Cursos ────────────────────────────────────────────────────────
 $router->get('/cursos',              'CursosController@index');
