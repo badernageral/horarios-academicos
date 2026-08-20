@@ -16,6 +16,10 @@ $router->post('/usuarios/salvar',     'UsuariosController@salvar');
 $router->get('/usuarios/{id}/editar', 'UsuariosController@editar');
 $router->post('/usuarios/deletar',    'UsuariosController@deletar');
 
+// ── Configurações (turnos) ────────────────────────────────────────
+$router->get('/configuracoes',         'ConfiguracoesController@index');
+$router->post('/configuracoes/salvar', 'ConfiguracoesController@salvar');
+
 // ── Backup (exportar / importar o banco) ──────────────────────────
 $router->get('/backup',            'BackupController@index');
 $router->get('/backup/exportar',   'BackupController@exportar');

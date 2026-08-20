@@ -70,6 +70,11 @@
             </a>
         </li>
         <li class="nav-item">
+            <a href="<?= $base ?>/configuracoes" class="nav-link <?= str_starts_with(REQUEST_PATH,'/configuracoes')?'active':'' ?>">
+                <i class="bi bi-sliders me-2"></i> Configurações
+            </a>
+        </li>
+        <li class="nav-item">
             <a href="<?= $base ?>/backup" class="nav-link <?= str_starts_with(REQUEST_PATH,'/backup')?'active':'' ?>">
                 <i class="bi bi-shield-check me-2"></i> Backup
             </a>

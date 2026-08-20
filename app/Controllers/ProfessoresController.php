@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Models\{Professor, Nda};
+use App\Models\{Professor, Nda, Turno};
 use App\Core\Database;
 
 class ProfessoresController extends BaseController
@@ -35,7 +35,21 @@ class ProfessoresController extends BaseController
     {
         $config = require ROOT_PATH . '/config/app.php';
         $ndas   = Nda::allAtivos();
-        $this->render('professores/form', ['professor' => null, 'config' => $config, 'ndas' => $ndas, 'flash' => null]);
+
+        $turnos = Turno::todos();
+
+        // Professor novo nasce disponível em tudo, como era antes desta tela.
+        $gradeDisp = [];
+        foreach ([1, 2, 3, 4, 5] as $dia) {
+            foreach (array_keys($turnos) as $chave) {
+                $gradeDisp[$dia][$chave] = 1;
+            }
+        }
+
+        $this->render('professores/form', [
+            'professor' => null, 'config' => $config, 'ndas' => $ndas,
+            'flash' => null, 'gradeDisp' => $gradeDisp, 'turnos' => $turnos,
+        ]);
     }
 
     public function salvar(): void
@@ -87,17 +101,20 @@ class ProfessoresController extends BaseController
             $this->flash('success', 'Professor cadastrado com sucesso!');
         }
 
-        // Disponibilidade
+        // Disponibilidade: grade de 3 turnos x 5 dias, 3 estados por retângulo.
+        // Só os turnos marcados viram linha; "não pode" é a ausência de linha.
+        $grade = $this->post('disp', []);
+
         $disponibilidades = [];
-        $dias = $this->post('disp_dia', []);
-        $inic = $this->post('disp_inicio', []);
-        $fins = $this->post('disp_fim', []);
-        foreach ($dias as $k => $dia) {
-            if (!empty($dia) && !empty($inic[$k]) && !empty($fins[$k])) {
+        foreach ([1, 2, 3, 4, 5] as $dia) {
+            foreach (array_keys(Turno::todos()) as $chave) {
+                $estado = (int)($grade[$dia][$chave] ?? 0);
+                if ($estado !== 1 && $estado !== 2) continue;
+
                 $disponibilidades[] = [
-                    'dia_semana'  => (int)$dia,
-                    'hora_inicio' => $inic[$k],
-                    'hora_fim'    => $fins[$k],
+                    'dia_semana' => $dia,
+                    'turno'      => $chave,
+                    'estado'     => $estado,
                 ];
             }
         }
@@ -115,7 +132,11 @@ class ProfessoresController extends BaseController
         $professor['disponibilidade'] = Professor::disponibilidade((int)$id);
         $config = require ROOT_PATH . '/config/app.php';
         $ndas   = Nda::allAtivos();
-        $this->render('professores/form', ['professor' => $professor, 'config' => $config, 'ndas' => $ndas, 'flash' => null]);
+        $turnos = Turno::todos();
+        $this->render('professores/form', [
+            'professor' => $professor, 'config' => $config, 'ndas' => $ndas, 'flash' => null,
+            'gradeDisp' => Professor::gradeDisponibilidade((int)$id, $turnos), 'turnos' => $turnos,
+        ]);
     }
 
     public function deletar(): void
@@ -165,6 +186,9 @@ class ProfessoresController extends BaseController
 
         $pares = self::paletaDupla();
 
+        // Turnos da grade de disponibilidade (professor importado nasce com tudo verde)
+        $turnosImport = Turno::todos();
+
         // Cache de NDAs por nome (case-insensitive)
         $ndaMap = [];
         foreach (Database::fetchAll("SELECT id, nome FROM ndas WHERE ativo = 1") as $n) {
@@ -203,8 +227,10 @@ class ProfessoresController extends BaseController
                 'cor_secundaria'=> $corSec,
             ]);
 
-            for ($dia = 1; $dia <= 5; $dia++) {
-                $disp[] = ['dia_semana' => $dia, 'hora_inicio' => '07:00', 'hora_fim' => '23:00'];
+            foreach ([1, 2, 3, 4, 5] as $dia) {
+                foreach (array_keys($turnosImport) as $chave) {
+                    $disp[] = ['dia_semana' => $dia, 'turno' => $chave, 'estado' => 1];
+                }
             }
             Professor::salvarDisponibilidade($profId, $disp ?? []);
             $disp = [];

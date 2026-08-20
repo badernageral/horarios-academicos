@@ -34,6 +34,27 @@ return [
         'qualquer'    => 'Qualquer',
     ],
 
+    // FALLBACK dos turnos. A fonte real é a tabela `turnos` (editável em
+    // /configuracoes); estes valores só valem enquanto a migration 002 não
+    // rodou, e servem de semente para bancos novos.
+    // Turnos usados na grade de disponibilidade do professor (3 linhas × 5 dias).
+    // As faixas são CONTÍGUAS de propósito: um vão entre turnos (ex.: 12:00–13:00)
+    // criaria uma zona morta onde nenhuma aula seria permitida, mesmo o professor
+    // tendo marcado verde nos dois turnos vizinhos.
+    'turnos' => [
+        'matutino'   => ['nome' => 'Matutino',   'inicio' => '07:00', 'fim' => '12:00'],
+        'vespertino' => ['nome' => 'Vespertino', 'inicio' => '12:00', 'fim' => '18:00'],
+        'noturno'    => ['nome' => 'Noturno',    'inicio' => '18:00', 'fim' => '23:00'],
+    ],
+
+    // Estados de cada retângulo da grade de disponibilidade.
+    // 0 = não pode; 1 = pode (preferencial); 2 = pode se não houver verde livre.
+    'disp_estados' => [
+        0 => ['rotulo' => 'Não pode',      'icone' => 'bi-x-lg',        'classe' => 'disp-nao'],
+        1 => ['rotulo' => 'Pode',          'icone' => 'bi-check-lg',    'classe' => 'disp-sim'],
+        2 => ['rotulo' => 'Só se precisar','icone' => 'bi-question-lg', 'classe' => 'disp-talvez'],
+    ],
+
     // Geração: número máximo de tentativas
     'max_tentativas_geracao' => 5,
 

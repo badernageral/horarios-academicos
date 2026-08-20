@@ -33,7 +33,7 @@ desktop Windows (Electron + PHP embutido + SQLite; ver `desktop/`).
 
 Curso (turno, intervalos, duração de aula) → Turmas → Disciplinas (`qtd_encontros_semanais`,
 `qtd_aulas` por encontro, `qtd_professores`, `semestre_oferta` bitmask) → Professores
-(disponibilidade, 2 cores únicas da paleta de 50) → Semestre → Atribuição
+(disponibilidade por turno, 2 cores únicas da paleta de 50) → Semestre → Atribuição
 (`semestre_atribuicoes` com `slot` para múltiplos professores) → Gerar → Grade.
 
 ## ScheduleGenerator (app/Services/ScheduleGenerator.php)
@@ -112,11 +112,40 @@ Filosofia definida pelo usuário (jun/2026):
   substituída (mesmo se a origem não tiver grade), para não sobrar horário apontando para
   atribuição trocada. Redireciona para a grade copiada.
 
+## Disponibilidade do professor por turno (ago/2026)
+
+O cadastro do professor NÃO tem mais faixas de hora: é uma grade de **3 turnos × 5 dias**
+(15 retângulos) e cada um cicla em 3 estados ao clique — decisão do usuário.
+
+- `disponibilidade_professor` guarda `(professor_id, dia_semana, turno, estado)` — só o NOME
+  do turno, nenhuma hora. As faixas ficam na tabela `turnos`, editáveis em **`/configuracoes`**
+  (`ConfiguracoesController` + `Turno::todos()/salvar()`); `config/app.php` (`turnos`) virou só
+  fallback/semente para banco sem a migration 002. As faixas devem ser CONTÍGUAS (07:00–12:00 /
+  12:00–18:00 / 18:00–23:00): um vão vira zona morta onde nada pode ser agendado — a tela avisa
+  sobre vãos e sobreposições, mas não bloqueia o salvamento.
+- Na tela de configuração **só as horas** são editáveis. Chave e nome do turno são fixos: a
+  chave é referenciada por `disponibilidade_professor.turno`, e renomear/remover deixaria
+  linhas órfãs.
+- `estado = 1` verde (pode) · `estado = 2` interrogação (só se não houver verde viável) ·
+  **vermelho = ausência de linha** (é assim que "não pode" sempre foi representado).
+- No gerador, `preferenciaProfessor()` devolve `null|1|2` num lookup `[prof][dia][turno]`.
+  Uma aula pode ATRAVESSAR turnos (ex.: 6 aulas seguidas): todos os turnos tocados precisam
+  estar liberados, e basta um amarelo para a aula inteira contar como amarela.
+- O amarelo é implementado como peso soft `turno_reserva` (50000), deliberadamente maior que a
+  soma dos demais softs no pior caso (~25k), para que um verde SEMPRE vença um amarelo na
+  escolha de uma mesma aula. Continua soft: sem verde viável, o amarelo é usado. Como o
+  agendamento é guloso, isso é preferência forte, **não garantia global** — outra atividade
+  pode ter tomado o verde antes.
+- Migrations: `001_disponibilidade_por_turno.sql` recria a tabela e deixa todos os professores
+  existentes com os 15 retângulos VERDES (estado de fato do sistema antes da mudança);
+  `002_turnos_configuraveis.sql` cria a tabela `turnos` semeada com as três faixas padrão.
+- Mudar as faixas NÃO altera grades já geradas (os `horarios` têm hora própria), mas muda o
+  significado do que cada professor marcou — vale regerar depois.
+
 ## Decisões do usuário (não sugerir de novo)
 
 - Sem capacidade de sala. Sábado não é letivo (grade renderiza só
-  seg–sex). NDAs mantidos (ajudam a visualizar professores). Disponibilidade 07:00–23:00 de
-  todos os professores é intencional. Sem histórico de gerações.
+  seg–sex). NDAs mantidos (ajudam a visualizar professores). Sem histórico de gerações.
 
 ## Autenticação (jun/2026)
 

@@ -36,23 +36,51 @@ class Professor extends BaseModel
         return Database::fetchAll(
             "SELECT * FROM disponibilidade_professor
              WHERE professor_id = ?
-             ORDER BY dia_semana, hora_inicio",
+             ORDER BY dia_semana, turno",
             [$professorId]
         );
     }
 
+    /**
+     * Disponibilidade no formato da grade do formulário: [dia][turno] = estado.
+     * 0 = não pode (sem linha no banco), 1 = pode, 2 = só se não houver verde.
+     */
+    public static function gradeDisponibilidade(int $professorId, array $turnos): array
+    {
+        $salvo = [];
+        foreach (self::disponibilidade($professorId) as $l) {
+            $salvo[(int)$l['dia_semana']][$l['turno']] = (int)$l['estado'] === 2 ? 2 : 1;
+        }
+
+        $grade = [];
+        foreach ([1, 2, 3, 4, 5] as $dia) {
+            foreach (array_keys($turnos) as $chave) {
+                $grade[$dia][$chave] = $salvo[$dia][$chave] ?? 0;
+            }
+        }
+        return $grade;
+    }
+
+    /**
+     * Substitui a disponibilidade do professor.
+     * Cada item: ['dia_semana' => int, 'turno' => string, 'estado' => 1|2].
+     * Turnos "não pode" simplesmente não são enviados.
+     */
     public static function salvarDisponibilidade(int $professorId, array $disponibilidades): void
     {
         Database::query("DELETE FROM disponibilidade_professor WHERE professor_id = ?", [$professorId]);
 
         foreach ($disponibilidades as $d) {
-            if (!empty($d['hora_inicio']) && !empty($d['hora_fim'])) {
-                Database::query(
-                    "INSERT INTO disponibilidade_professor (professor_id, dia_semana, hora_inicio, hora_fim)
-                     VALUES (?, ?, ?, ?)",
-                    [$professorId, $d['dia_semana'], $d['hora_inicio'], $d['hora_fim']]
-                );
-            }
+            $turno = trim((string)($d['turno'] ?? ''));
+            if ($turno === '') continue;
+
+            $estado = (int)($d['estado'] ?? 1) === 2 ? 2 : 1;
+            Database::query(
+                "INSERT OR IGNORE INTO disponibilidade_professor
+                 (professor_id, dia_semana, turno, estado)
+                 VALUES (?, ?, ?, ?)",
+                [$professorId, (int)$d['dia_semana'], $turno, $estado]
+            );
         }
     }
 

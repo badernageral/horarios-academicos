@@ -90,12 +90,16 @@ CREATE TABLE professores (
 CREATE INDEX idx_prof_nda ON professores(nda_id);
 
 -- ── DISPONIBILIDADE DO PROFESSOR ──────────────────────────────────
+-- Disponibilidade por TURNO (as faixas de hora ficam em config/app.php).
+--   estado 1 = pode (verde) | 2 = só se não houver verde livre (interrogação).
+--   "Não pode" (vermelho) é representado pela AUSÊNCIA de linha.
 CREATE TABLE disponibilidade_professor (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     professor_id INTEGER NOT NULL,
-    dia_semana   INTEGER NOT NULL,
-    hora_inicio  TEXT NOT NULL,
-    hora_fim     TEXT NOT NULL,
+    dia_semana   INTEGER NOT NULL,          -- 1=Segunda ... 5=Sexta
+    turno        TEXT    NOT NULL,          -- 'matutino' | 'vespertino' | 'noturno'
+    estado       INTEGER NOT NULL DEFAULT 1,
+    UNIQUE (professor_id, dia_semana, turno),
     FOREIGN KEY (professor_id) REFERENCES professores(id) ON DELETE CASCADE
 );
 CREATE INDEX idx_disp_prof_dia ON disponibilidade_professor(professor_id, dia_semana);
@@ -223,6 +227,21 @@ CREATE INDEX idx_hor_prof_dia  ON horarios(professor_id, dia_semana);
 CREATE INDEX idx_hor_sala_dia  ON horarios(sala_id, dia_semana);
 
 -- ── PESOS DAS RESTRIÇÕES SOFT ─────────────────────────────────────
+-- Turnos da grade de disponibilidade, editáveis em /configuracoes.
+-- As chaves são fixas (disponibilidade_professor.turno aponta para elas).
+CREATE TABLE turnos (
+    chave       TEXT PRIMARY KEY,
+    nome        TEXT NOT NULL,
+    hora_inicio TEXT NOT NULL,
+    hora_fim    TEXT NOT NULL,
+    ordem       INTEGER NOT NULL DEFAULT 0
+);
+
+INSERT INTO turnos (chave, nome, hora_inicio, hora_fim, ordem) VALUES
+    ('matutino',   'Matutino',   '07:00:00', '12:00:00', 1),
+    ('vespertino', 'Vespertino', '12:00:00', '18:00:00', 2),
+    ('noturno',    'Noturno',    '18:00:00', '23:00:00', 3);
+
 CREATE TABLE configuracoes_soft (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     chave     TEXT NOT NULL UNIQUE,

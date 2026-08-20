@@ -39,10 +39,11 @@ INSERT INTO professores (nome, matricula, email, carga_horaria_diaria_max, carga
 ('Maria Clara',        'PROF007', 'maria@escola.edu.br',    360, 1200, '#14b8a6');
 
 -- Disponibilidade: Segunda a Sexta, horário integral
-INSERT INTO disponibilidade_professor (professor_id, dia_semana, hora_inicio, hora_fim)
-SELECT p.id, d.dia, '07:00:00', '18:00:00'
+INSERT INTO disponibilidade_professor (professor_id, dia_semana, turno, estado)
+SELECT p.id, d.dia, t.turno, 1
 FROM professores p
-CROSS JOIN (SELECT 1 AS dia UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5) d;
+CROSS JOIN (SELECT 1 AS dia UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5) d
+CROSS JOIN (SELECT 'matutino' AS turno UNION SELECT 'vespertino' UNION SELECT 'noturno') t;
 
 -- Turmas
 INSERT INTO turmas (curso_id, nome, serie_periodo, qtd_alunos, ano_letivo) VALUES

@@ -1,7 +1,10 @@
 <?php
 $pageTitle = $professor ? 'Editar Professor' : 'Novo Professor';
-$diasSemana = $config['dias_semana'] ?? [];
-$dispExist  = $professor['disponibilidade'] ?? [];
+$diasSemana  = $config['dias_semana'] ?? [];
+$turnos      = $turnos ?? [];   // vem do controller (tabela `turnos`)
+$dispEstados = $config['disp_estados'] ?? [];
+// [dia][turno] => 0 não pode | 1 pode | 2 só se precisar
+$gradeDisp   = $gradeDisp ?? [];
 
 ?>
 
@@ -68,67 +71,59 @@ $dispExist  = $professor['disponibilidade'] ?? [];
       </div>
     </div>
 
-    <!-- Disponibilidade semanal -->
+    <!-- Disponibilidade semanal: 3 turnos x 5 dias -->
     <div class="col-12">
       <div class="card border-0 shadow-sm">
-        <div class="card-header bg-transparent fw-semibold d-flex justify-content-between align-items-center">
+        <div class="card-header bg-transparent fw-semibold">
           Disponibilidade Semanal
-          <button type="button" class="btn btn-sm btn-outline-success" id="btnAddDisp">
-            <i class="bi bi-plus-lg"></i> Adicionar
-          </button>
         </div>
         <div class="card-body">
-          <div class="mb-2 small text-muted">
-            Defina os dias e horários em que o professor está disponível.
+          <div class="mb-3 small text-muted">
+            Clique em cada turno para alternar entre os três estados:
+            <span class="disp-legenda disp-sim"><i class="bi bi-check-lg"></i></span> pode dar aula &nbsp;
+            <span class="disp-legenda disp-nao"><i class="bi bi-x-lg"></i></span> não pode &nbsp;
+            <span class="disp-legenda disp-talvez"><i class="bi bi-question-lg"></i></span>
+            só se não houver turno verde disponível.
           </div>
-          <div id="disponibilidades">
-            <?php if (empty($dispExist)): ?>
-            <?php for ($d = 1; $d <= 5; $d++): ?>
-            <div class="disponibilidade-row row g-2 align-items-center mb-2">
-              <div class="col-md-3">
-                <select name="disp_dia[]" class="form-select form-select-sm">
-                  <?php foreach ($diasSemana as $num => $nome): ?>
-                  <option value="<?= $num ?>" <?= $num == $d ? 'selected':'' ?>><?= $nome ?></option>
-                  <?php endforeach; ?>
-                </select>
-              </div>
-              <div class="col-md-3">
-                <input type="time" name="disp_inicio[]" class="form-control form-control-sm" value="07:00">
-              </div>
-              <div class="col-auto"><span class="text-muted">até</span></div>
-              <div class="col-md-3">
-                <input type="time" name="disp_fim[]" class="form-control form-control-sm" value="23:00">
-              </div>
-              <div class="col-auto">
-                <button type="button" class="btn btn-sm btn-outline-danger remove-disp"><i class="bi bi-trash"></i></button>
-              </div>
-            </div>
-            <?php endfor; ?>
-            <?php else: ?>
-            <?php foreach ($dispExist as $d): ?>
-            <div class="disponibilidade-row row g-2 align-items-center mb-2">
-              <div class="col-md-3">
-                <select name="disp_dia[]" class="form-select form-select-sm">
-                  <?php foreach ($diasSemana as $num => $nome): ?>
-                  <option value="<?= $num ?>" <?= $num == $d['dia_semana'] ? 'selected':'' ?>><?= $nome ?></option>
-                  <?php endforeach; ?>
-                </select>
-              </div>
-              <div class="col-md-3">
-                <input type="time" name="disp_inicio[]" class="form-control form-control-sm"
-                       value="<?= substr($d['hora_inicio'], 0, 5) ?>">
-              </div>
-              <div class="col-auto"><span class="text-muted">até</span></div>
-              <div class="col-md-3">
-                <input type="time" name="disp_fim[]" class="form-control form-control-sm"
-                       value="<?= substr($d['hora_fim'], 0, 5) ?>">
-              </div>
-              <div class="col-auto">
-                <button type="button" class="btn btn-sm btn-outline-danger remove-disp"><i class="bi bi-trash"></i></button>
-              </div>
-            </div>
-            <?php endforeach; ?>
-            <?php endif; ?>
+
+          <div class="table-responsive">
+            <table class="table table-bordered disp-grade align-middle text-center mb-0">
+              <thead>
+                <tr>
+                  <th style="width:15%"></th>
+<?php foreach ($diasSemana as $numDia => $nomeDia): ?>
+                  <th class="fw-semibold"><?= htmlspecialchars($nomeDia) ?></th>
+<?php endforeach; ?>
+                </tr>
+              </thead>
+              <tbody>
+<?php foreach ($turnos as $chaveTurno => $turno): ?>
+                <tr>
+                  <th class="text-start fw-semibold">
+                    <?= htmlspecialchars($turno['nome']) ?>
+                    <div class="small text-muted fw-normal">
+                      <?= htmlspecialchars($turno['inicio']) ?>–<?= htmlspecialchars($turno['fim']) ?>
+                    </div>
+                  </th>
+<?php foreach ($diasSemana as $numDia => $nomeDia): ?>
+<?php   $estado = (int)($gradeDisp[$numDia][$chaveTurno] ?? 0); ?>
+<?php   $info   = $dispEstados[$estado]; ?>
+                  <td class="p-1">
+                    <button type="button"
+                            class="disp-cel <?= $info['classe'] ?>"
+                            data-estado="<?= $estado ?>"
+                            title="<?= htmlspecialchars($nomeDia) ?> / <?= htmlspecialchars($turno['nome']) ?>: <?= htmlspecialchars($info['rotulo']) ?>"
+                            aria-label="<?= htmlspecialchars($nomeDia) ?> <?= htmlspecialchars($turno['nome']) ?>">
+                      <i class="bi <?= $info['icone'] ?>"></i>
+                    </button>
+                    <input type="hidden" name="disp[<?= $numDia ?>][<?= htmlspecialchars($chaveTurno) ?>]"
+                           value="<?= $estado ?>">
+                  </td>
+<?php endforeach; ?>
+                </tr>
+<?php endforeach; ?>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -159,29 +154,27 @@ $dispExist  = $professor['disponibilidade'] ?? [];
   });
 })();
 
-const diasOptions = <?= json_encode($diasSemana) ?>;
+// Grade de disponibilidade: cada retângulo cicla verde -> vermelho -> interrogação.
+(function() {
+  const ESTADOS = <?= json_encode($dispEstados) ?>;
+  const CICLO   = [1, 0, 2];   // pode -> não pode -> só se precisar
 
-document.getElementById('btnAddDisp').addEventListener('click', function() {
-  const container = document.getElementById('disponibilidades');
-  const div = document.createElement('div');
-  div.className = 'disponibilidade-row row g-2 align-items-center mb-2';
-  let opts = '';
-  for (const [num, nome] of Object.entries(diasOptions)) {
-    opts += `<option value="${num}">${nome}</option>`;
-  }
-  div.innerHTML = `
-    <div class="col-md-3"><select name="disp_dia[]" class="form-select form-select-sm">${opts}</select></div>
-    <div class="col-md-3"><input type="time" name="disp_inicio[]" class="form-control form-control-sm" value="07:00"></div>
-    <div class="col-auto"><span class="text-muted">até</span></div>
-    <div class="col-md-3"><input type="time" name="disp_fim[]" class="form-control form-control-sm" value="23:00"></div>
-    <div class="col-auto"><button type="button" class="btn btn-sm btn-outline-danger remove-disp"><i class="bi bi-trash"></i></button></div>
-  `;
-  container.appendChild(div);
-});
+  document.querySelectorAll('.disp-cel').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const atual = parseInt(btn.dataset.estado, 10);
+      const proximo = CICLO[(CICLO.indexOf(atual) + 1) % CICLO.length];
+      const info = ESTADOS[proximo];
 
-document.getElementById('disponibilidades').addEventListener('click', function(e) {
-  if (e.target.closest('.remove-disp')) {
-    e.target.closest('.disponibilidade-row').remove();
-  }
-});
+      btn.dataset.estado = proximo;
+      btn.className = 'disp-cel ' + info.classe;
+      btn.querySelector('i').className = 'bi ' + info.icone;
+
+      // O título carrega "Dia / Turno: rótulo" — troca só o rótulo final.
+      btn.title = btn.title.replace(/: .*$/, ': ' + info.rotulo);
+
+      const campo = btn.parentElement.querySelector('input[type=hidden]');
+      if (campo) campo.value = proximo;
+    });
+  });
+})();
 </script>

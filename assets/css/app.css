@@ -253,3 +253,39 @@ code {
   }
   #page-content { overflow: visible !important; }
 }
+
+/* ── Grade de disponibilidade do professor (3 turnos × 5 dias) ──────
+   Cada célula é um botão que cicla entre os 3 estados. As cores são
+   as do Bootstrap (success/danger/warning) em versão suave, para o
+   ícone continuar legível sobre o fundo. */
+.disp-grade td { vertical-align: middle; }
+
+.disp-cel {
+    width: 100%;
+    min-height: 46px;
+    border: 2px solid transparent;
+    border-radius: .5rem;
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: filter .12s ease, transform .12s ease;
+}
+.disp-cel:hover      { filter: brightness(.94); }
+.disp-cel:active     { transform: scale(.96); }
+.disp-cel:focus-visible { outline: 3px solid rgba(13,110,253,.45); outline-offset: 2px; }
+
+.disp-sim    { background-color: #d1e7dd; border-color: #a3cfbb; color: #0a3622; }
+.disp-nao    { background-color: #f8d7da; border-color: #f1aeb5; color: #58151c; }
+.disp-talvez { background-color: #fff3cd; border-color: #ffe69c; color: #664d03; }
+
+/* Amostras usadas na legenda acima da grade */
+.disp-legenda {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border: 1px solid transparent;
+    border-radius: .35rem;
+    vertical-align: middle;
+}

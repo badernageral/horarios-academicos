@@ -56,6 +56,11 @@ class ScheduleGenerator
         'balancear_professor' => 0.0,
         'compactar_professor' => 2500.0,
         'preferencia_dia2'    => 2000.0,
+        // Turno marcado com "?" (só se precisar). O valor é deliberadamente
+        // maior que a soma dos outros softs no pior caso (~25k), para que um
+        // turno verde SEMPRE vença um amarelo na escolha de uma mesma aula.
+        // Continua sendo soft: se não houver verde possível, o amarelo é usado.
+        'turno_reserva'       => 50000.0,
     ];
 
     /** Quantidade de atividades por professor (para ordenação MCF) */
@@ -63,6 +68,9 @@ class ScheduleGenerator
 
     /** Cache de slots de aula: [curso_id][dia] = [['inicio','fim'],...] */
     private array $slotsCache = [];
+
+    /** Faixas dos turnos em minutos: [chave] = ['inicio'=>int,'fim'=>int] */
+    private array $turnos = [];
 
     private int $geracaoId;
     private int $semestreId;
@@ -151,12 +159,20 @@ class ScheduleGenerator
             $this->professores[$p['id']] = $p;
         }
 
-        // Disponibilidade dos professores
-        foreach (Database::fetchAll("SELECT * FROM disponibilidade_professor") as $d) {
-            $this->disponibilidade[$d['professor_id']][$d['dia_semana']][] = [
-                'inicio' => TimeHelper::toMinutes($d['hora_inicio']),
-                'fim'    => TimeHelper::toMinutes($d['hora_fim']),
+        // Faixas dos turnos (tabela `turnos`, editável em /configuracoes).
+        // disponibilidade_professor guarda só o NOME do turno.
+        foreach (\App\Models\Turno::todos() as $chave => $t) {
+            $this->turnos[$chave] = [
+                'inicio' => TimeHelper::toMinutes($t['inicio']),
+                'fim'    => TimeHelper::toMinutes($t['fim']),
             ];
+        }
+
+        // Disponibilidade: [professor][dia][turno] = 1 (pode) | 2 (só se precisar).
+        // Turno ausente = não pode. Lookup direto, sem varrer lista de intervalos.
+        foreach (Database::fetchAll("SELECT * FROM disponibilidade_professor") as $d) {
+            $this->disponibilidade[(int)$d['professor_id']][(int)$d['dia_semana']][$d['turno']] =
+                (int)$d['estado'] === 2 ? 2 : 1;
         }
 
         // Salas
@@ -291,11 +307,13 @@ class ScheduleGenerator
                     // 1. Não sobrepõe ocupações existentes
                     if (TimeHelper::overlapsAny($inicio, $fim, $ocupado)) continue;
 
-                    // 2. Dentro da disponibilidade do professor
-                    if (!$this->professorDisponivelHorario($atividade['professor_id'], $dia, $inicio, $fim)) continue;
+                    // 2. Dentro da disponibilidade do professor.
+                    //    null = turno bloqueado (ou fora de qualquer turno).
+                    $pref = $this->preferenciaProfessor($atividade['professor_id'], $dia, $inicio, $fim);
+                    if ($pref === null) continue;
 
                     // 3. Calcular score (soft constraints)
-                    $score = $this->calcularScore($atividade, $dia, $inicio, $fim, $salaId);
+                    $score = $this->calcularScore($atividade, $dia, $inicio, $fim, $salaId, $pref);
 
                     $candidatos[] = [
                         'dia'     => $dia,
@@ -443,8 +461,11 @@ class ScheduleGenerator
                 $melhor = $candidatos[0];
 
                 // Score da posição atual recalculado no mesmo estado (sem ela)
+                $prefAtual  = $this->preferenciaProfessor(
+                    $ag['atividade']['professor_id'], $ag['dia'], $ag['inicio'], $ag['fim']
+                ) ?? 1;
                 $scoreAtual = $this->calcularScore(
-                    $ag['atividade'], $ag['dia'], $ag['inicio'], $ag['fim'], $ag['sala_id']
+                    $ag['atividade'], $ag['dia'], $ag['inicio'], $ag['fim'], $ag['sala_id'], $prefAtual
                 );
 
                 if ($melhor['score'] < $scoreAtual - 0.001) {
@@ -553,9 +574,12 @@ class ScheduleGenerator
     // ──────────────────────────────────────────────────────────────
     // PONTUAÇÃO SOFT
     // ──────────────────────────────────────────────────────────────
-    private function calcularScore(array $atividade, int $dia, int $inicio, int $fim, ?int $salaId): float
+    private function calcularScore(array $atividade, int $dia, int $inicio, int $fim, ?int $salaId, int $pref = 1): float
     {
         $score = 0.0;
+
+        // S0: turno marcado com "?" — usar só quando não houver verde viável.
+        if ($pref === 2) $score += $this->pesos['turno_reserva'];
 
         // S1: Minimizar janelas do professor
         $intervsProfDia = $this->ocupacaoProfessor[$atividade['professor_id']][$dia] ?? [];
@@ -651,15 +675,33 @@ class ScheduleGenerator
             && !empty($this->disponibilidade[$profId][$dia]);
     }
 
-    private function professorDisponivelHorario(int $profId, int $dia, int $inicio, int $fim): bool
+    /**
+     * Preferência do professor para uma aula [inicio,fim) num dia:
+     *   null = indisponível  |  1 = turno verde  |  2 = turno "só se precisar".
+     *
+     * A aula pode atravessar turnos (ex.: 6 aulas seguidas). Nesse caso TODOS os
+     * turnos tocados precisam estar liberados, e basta um deles ser amarelo para
+     * a aula inteira contar como amarela.
+     */
+    private function preferenciaProfessor(int $profId, int $dia, int $inicio, int $fim): ?int
     {
-        $slots = $this->disponibilidade[$profId][$dia] ?? [];
-        if (empty($slots)) return false;
+        $doDia = $this->disponibilidade[$profId][$dia] ?? [];
+        if (empty($doDia)) return null;
 
-        foreach ($slots as $s) {
-            if ($inicio >= $s['inicio'] && $fim <= $s['fim']) return true;
+        $pref  = 1;
+        $tocou = false;
+
+        foreach ($this->turnos as $chave => $t) {
+            if ($inicio >= $t['fim'] || $fim <= $t['inicio']) continue;  // não toca este turno
+
+            $estado = $doDia[$chave] ?? 0;
+            if ($estado === 0) return null;      // invade turno bloqueado
+            if ($estado === 2) $pref = 2;
+            $tocou = true;
         }
-        return false;
+
+        // Fora de qualquer turno configurado = fora do expediente.
+        return $tocou ? $pref : null;
     }
 
     private function cargaDiariaProfessor(int $profId, int $dia): int
