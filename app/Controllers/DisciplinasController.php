@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\{Disciplina, Turma};
+use App\Services\FeasibilityChecker;
 
 class DisciplinasController extends BaseController
 {
@@ -49,8 +50,24 @@ class DisciplinasController extends BaseController
         ];
 
         if ($id) {
+            // Turma anterior, para saber se a troca invalida grades já geradas.
+            $turmaAnterior = (int)(Disciplina::find((int)$id)['turma_id'] ?? 0);
+
             Disciplina::update((int)$id, $data);
-            $this->flash('success', 'Disciplina atualizada!');
+
+            if ($turmaAnterior !== 0 && $turmaAnterior !== $turmaId) {
+                // Diagnóstico apenas: a grade NÃO é alterada nem regerada aqui.
+                // Regerar é decisão do usuário (o botão fica em /horarios).
+                $impacto = FeasibilityChecker::impactoTrocaDeTurma((int)$id);
+                if ($impacto) {
+                    $this->flash('warning',
+                        'Disciplina atualizada. ' . implode(' ', $impacto));
+                } else {
+                    $this->flash('success', 'Disciplina atualizada!');
+                }
+            } else {
+                $this->flash('success', 'Disciplina atualizada!');
+            }
         } else {
             Disciplina::create($data);
             $this->flash('success', 'Disciplina cadastrada!');

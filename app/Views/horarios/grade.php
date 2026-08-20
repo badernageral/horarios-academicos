@@ -221,6 +221,7 @@ $corSemProf = '#94a3b8';
       </li>
     </ul>
   </div>
+
   <button type="button" class="btn btn-sm btn-outline-success"
           data-bs-toggle="modal" data-bs-target="#modalImprimir" data-modo="pdf">
     <i class="bi bi-filetype-pdf me-1"></i>Exportar PDF
@@ -237,6 +238,46 @@ $corSemProf = '#94a3b8';
   </form>
   <?php endif; ?>
 </div>
+<?php if (!empty($desatualizadas)): ?>
+<?php // A grade é um retrato do momento da geração: horarios.turma_id é gravado
+      // junto. Trocar a turma da disciplina depois NÃO mexe aqui — daí o aviso. ?>
+<div class="alert alert-warning d-flex align-items-start gap-2">
+  <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+  <div class="flex-grow-1">
+    <div class="fw-semibold">Esta grade está desatualizada</div>
+    <div class="small">
+      <?= count($desatualizadas) ?> disciplina(s) mudaram de turma depois desta geração.
+      As aulas abaixo continuam na turma antiga:
+    </div>
+    <ul class="small mb-2 mt-1">
+      <?php foreach ($desatualizadas as $d): ?>
+      <li>
+        <strong><?= htmlspecialchars($d['disciplina']) ?></strong>:
+        <?= $d['aulas'] ?> aula(s) ainda em <em><?= htmlspecialchars($d['antiga']) ?></em>,
+        mas a disciplina agora é de <em><?= htmlspecialchars($d['nova']) ?></em>.
+      </li>
+      <?php endforeach; ?>
+    </ul>
+    <div class="small text-muted mb-2">
+      Nada foi alterado automaticamente. Regerar substitui a grade inteira desta
+      geração — inclusive os ajustes manuais feitos por arrastar e soltar.
+    </div>
+    <?php if (!empty($semestreId)): ?>
+    <?php // Regerar exige clique + confirmação: nada acontece sozinho. ?>
+    <form method="POST" action="<?= $base ?>/horarios/<?= $semestreId ?>/gerar" class="mb-0"
+          onsubmit="return confirm('Regerar descarta esta geração, incluindo ajustes manuais e itens no limbo. Continuar?');">
+      <button type="submit" class="btn btn-sm btn-warning">
+        <i class="bi bi-arrow-repeat me-1"></i>Regerar agora
+      </button>
+    </form>
+    <?php else: ?>
+    <a href="<?= $base ?>/horarios" class="btn btn-sm btn-warning">
+      <i class="bi bi-arrow-repeat me-1"></i>Ir para regerar
+    </a>
+    <?php endif; ?>
+  </div>
+</div>
+<?php endif; ?>
 
 <!-- Modal: escolher turmas para imprimir ou exportar em PDF (mesmas opções) -->
 <div class="modal fade" id="modalImprimir" tabindex="-1">

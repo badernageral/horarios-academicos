@@ -336,11 +336,15 @@ class HorariosController extends BaseController
         // Malha visual da grade (mesma estrutura usada pela exportação em PDF)
         $grade = \App\Services\GradeLayout::montar($todosHorarios);
 
+        // Disciplinas que mudaram de turma DEPOIS desta geração: a grade abaixo
+        // está desatualizada. Só avisamos — regerar é ação explícita do usuário.
+        $desatualizadas = FeasibilityChecker::gradesDesatualizadas($geracaoId);
+
         $this->render('horarios/grade', compact(
             'grade', 'geracao', 'geracaoId', 'semestreId',
             'cursoFiltro', 'turmaFiltro', 'profFiltro', 'salaFiltro', 'filtroAtivo',
             'cursosFiltro', 'turmasFiltro', 'professoresFiltro', 'salasFiltro',
-            'qualidade'
+            'qualidade', 'desatualizadas'
         ));
     }
 
