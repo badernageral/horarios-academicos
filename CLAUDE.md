@@ -252,10 +252,15 @@ conflito no drag & drop: `'10:20:00' > '10:20'` é true como string).
   requisição (não só no login — quem já tem sessão aberta passaria direto e rodaria código novo
   contra schema velho). Custo normal é um `filemtime()` no diretório de migrations, comparado
   com um carimbo na sessão; só quando a data muda é que consulta o banco.
+- `database/install.php` faz **baseline** ao criar o banco (igual ao `main.js` do desktop):
+  banco novo nasce no estado do `schema.sql`, então as migrations são marcadas sem executar.
+  Sem isso o banco ficava fora do controle e a atualização automática se recusava a agir.
 - **Trava de segurança:** só aplica se `schema_migrations` EXISTIR. Num banco criado do
   `schema.sql` sem baseline, aplicar às cegas é destrutivo — a 001 faz
   `DROP TABLE disponibilidade_professor`. Nesse caso a tela de login pede
-  `php database/migrate.php baseline`, e nada é alterado.
+  o comando correto para o caso, e nada é alterado: banco já no schema atual precisa de
+  `baseline` (marcar sem executar); banco antigo precisa de `up` (executar de fato). A
+  distinção sai de `Migrator::schemaAtual()` — sugerir o errado deixaria o schema desalinhado.
 - Migration que falha derruba a requisição com uma página 500 explicando o erro: schema
   desalinhado quebraria em SQL no meio de qualquer tela.
 - `Migrator::aplicar()` usa lock de arquivo — dois acessos simultâneos não aplicam a mesma

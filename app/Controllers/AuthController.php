@@ -54,9 +54,13 @@ class AuthController extends BaseController
         if (Usuario::count() > 0) {
             $this->redirect('/login');
         }
+        $avisoMigracao = $_SESSION['sga_migracao'] ?? null;
+        unset($_SESSION['sga_migracao']);
+
         View::renderPartial('auth/setup', [
-            'base'  => BASE_PATH,
-            'erro'  => $this->getFlash(),
+            'base'          => BASE_PATH,
+            'erro'          => $this->getFlash(),
+            'avisoMigracao' => $avisoMigracao,
         ]);
     }
 

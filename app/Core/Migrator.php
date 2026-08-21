@@ -19,6 +19,56 @@ class Migrator
     private const LOCK = 'migrate.lock';
 
     /**
+     * Marca todas as migrations atuais como aplicadas SEM executá-las.
+     *
+     * Para banco recém-criado a partir do schema.sql, que já nasce no estado
+     * final: rodar as migrations nele seria destrutivo (a 001 recria
+     * disponibilidade_professor).
+     *
+     * @return int quantas foram marcadas
+     */
+    public static function baseline(PDO $pdo): int
+    {
+        $pdo->exec(
+            "CREATE TABLE IF NOT EXISTS schema_migrations (
+                migration  VARCHAR(255) NOT NULL PRIMARY KEY,
+                applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+             )"
+        );
+
+        $st = $pdo->prepare("INSERT OR IGNORE INTO schema_migrations (migration) VALUES (?)");
+        $n  = 0;
+        foreach (self::pendentes($pdo) as $nome) {
+            $st->execute([$nome]);
+            $n++;
+        }
+        return $n;
+    }
+
+    /**
+     * O schema do banco já está no estado atual? Usado para dizer ao operador
+     * qual comando roda num banco sem `schema_migrations`: um banco no schema
+     * atual precisa de `baseline`; um banco antigo precisa de `up`.
+     */
+    public static function schemaAtual(PDO $pdo): bool
+    {
+        try {
+            // Marcadores da primeira e da última migration
+            $temTurno = false;
+            foreach ($pdo->query("PRAGMA table_info(disponibilidade_professor)") as $c) {
+                if ($c['name'] === 'turno') { $temTurno = true; break; }
+            }
+            $temNda = false;
+            foreach ($pdo->query("PRAGMA table_info(disciplinas)") as $c) {
+                if ($c['name'] === 'nda_id') { $temNda = true; break; }
+            }
+            return $temTurno && $temNda;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Verificação de bootstrap, chamada em TODA requisição (index.php).
      *
      * O gatilho não pode ser uma tela específica: quem já está com sessão
@@ -33,7 +83,7 @@ class Migrator
      */
     public static function verificarNoBoot(): array
     {
-        $nada = ['aplicadas' => [], 'erro' => null, 'precisaBaseline' => false];
+        $nada = ['aplicadas' => [], 'erro' => null, 'precisaBaseline' => false, 'schemaAtual' => false];
 
         $dir = ROOT_PATH . '/database/migrations';
         if (!is_dir($dir)) return $nada;
@@ -55,15 +105,18 @@ class Migrator
                 // O que importa aqui é se EXISTEM migrations a controlar.
                 $precisa = (bool) (glob(ROOT_PATH . '/database/migrations/*.sql') ?: []);
                 if (!$precisa) $_SESSION['sga_migr_ok'] = $carimbo;
-                return ['aplicadas' => [], 'erro' => null, 'precisaBaseline' => $precisa];
+                return ['aplicadas' => [], 'erro' => null, 'precisaBaseline' => $precisa,
+                        'schemaAtual' => self::schemaAtual($pdo)];
             }
 
             $r = self::aplicar($pdo);
             if (!$r['erro']) $_SESSION['sga_migr_ok'] = $carimbo;
 
-            return ['aplicadas' => $r['aplicadas'], 'erro' => $r['erro'], 'precisaBaseline' => false];
+            return ['aplicadas' => $r['aplicadas'], 'erro' => $r['erro'],
+                    'precisaBaseline' => false, 'schemaAtual' => true];
         } catch (\Throwable $e) {
-            return ['aplicadas' => [], 'erro' => $e->getMessage(), 'precisaBaseline' => false];
+            return ['aplicadas' => [], 'erro' => $e->getMessage(),
+                    'precisaBaseline' => false, 'schemaAtual' => false];
         }
     }
 

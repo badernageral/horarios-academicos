@@ -68,9 +68,12 @@ if ($migracao['aplicadas']) {
         $n === 1 ? 'Banco atualizado (1 migration aplicada).'
                  : "Banco atualizado ({$n} migrations aplicadas)."];
 } elseif ($migracao['precisaBaseline']) {
+    // O comando certo depende do estado do schema: banco já no formato atual
+    // precisa de `baseline` (marcar sem executar); banco antigo precisa de
+    // `up` (executar de fato). Sugerir o errado deixaria o schema desalinhado.
     $_SESSION['sga_migracao'] = ['tipo' => 'warning', 'texto' =>
-        'O banco ainda não está sob controle de migrations. '
-        . 'Rode uma vez: php database/migrate.php baseline'];
+        'O banco ainda não está sob controle de migrations. Rode uma vez: '
+        . 'php database/migrate.php' . ($migracao['schemaAtual'] ? ' baseline' : '')];
 }
 
 // ── Roteamento ────────────────────────────────────────────────────

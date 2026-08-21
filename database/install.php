@@ -7,6 +7,7 @@
  */
 
 define('ROOT_PATH', dirname(__DIR__));
+require ROOT_PATH . '/app/Core/Migrator.php';
 $cfg    = require ROOT_PATH . '/config/database.php';
 $driver = $cfg['driver'] ?? 'sqlite';
 $schema = file_get_contents(ROOT_PATH . '/database/schema.sql');
@@ -22,7 +23,15 @@ try {
         $pdo = new PDO('sqlite:' . $path);
         $pdo->exec('PRAGMA foreign_keys = ON');
         $pdo->exec($schema);                 // pdo_sqlite executa vários comandos
+
+        // Banco novo já nasce no estado final do schema.sql: marca as
+        // migrations como aplicadas SEM executá-las (o mesmo que o main.js faz
+        // no desktop). Sem isso o banco fica fora do controle de migrations e
+        // a atualização automática se recusa a agir nele.
+        $n = App\Core\Migrator::baseline($pdo);
+
         echo "✔ Banco SQLite criado em {$path}\n";
+        echo "✔ {$n} migration(s) marcadas como aplicadas (baseline)\n";
     } else {
         // MySQL (legado)
         $dsn = "mysql:host={$cfg['host']};port={$cfg['port']};charset={$cfg['charset']}";
@@ -32,7 +41,9 @@ try {
         foreach (array_filter(array_map('trim', explode(';', preg_replace('/--[^\n]*/', '', $schema)))) as $stmt) {
             $pdo->exec($stmt);
         }
+        $n = App\Core\Migrator::baseline($pdo);
         echo "✔ Banco MySQL '{$cfg['dbname']}' criado.\n";
+        echo "✔ {$n} migration(s) marcadas como aplicadas (baseline)\n";
     }
 
     echo "→ Para atualizações futuras de schema: php database/migrate.php\n";

@@ -74,6 +74,7 @@ foreach ($files as $file) {
         continue;
     }
 
+
     // mode = up → delega ao Migrator, o MESMO caminho usado pela tela de
     // login; assim CLI e aplicação nunca divergem no que consideram pendente.
     $r = Migrator::aplicar($pdo);
