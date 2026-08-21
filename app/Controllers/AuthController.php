@@ -26,6 +26,22 @@ class AuthController extends BaseController
         ]);
     }
 
+    public function login(): void
+    {
+        $usuario = trim($this->post('usuario', ''));
+        $senha   = (string) $this->post('senha', '');
+
+        $u = $usuario !== '' ? Usuario::porUsuario($usuario) : false;
+
+        if (!$u || !(int) $u['ativo'] || !password_verify($senha, $u['senha_hash'])) {
+            $this->flash('danger', 'Usuário ou senha inválidos.');
+            $this->redirect('/login');
+        }
+
+        Auth::login($u);
+        $this->redirect('/');
+    }
+
     public function logout(): void
     {
         Auth::logout();
