@@ -53,6 +53,129 @@ class PdfExporter
         $this->pdf->Output('D', $nomeArquivo . '.pdf');
     }
 
+    /**
+     * PDF em formato AGENDA (aulas listadas por dia), um grupo por página.
+     * Usado pelos escopos professor e sala, que não cabem na malha por turma:
+     * um professor atravessa cursos com turnos e durações de aula diferentes.
+     *
+     * @param array $grupos [nome => ['cor','cor_sec','dias'=>[dia=>[horario,...]]]]
+     * @param array $dias   [num => rótulo]
+     */
+    public function gerarAgenda(array $grupos, array $dias, string $titulo, string $nomeArquivo): void
+    {
+        if (empty($grupos)) {
+            $this->pdf->AddPage();
+            $this->pdf->SetFont('Helvetica', '', 12);
+            $this->pdf->Cell(0, 10, $this->txt('Nenhum horário nesta geração.'), 0, 1);
+            $this->pdf->Output('D', $nomeArquivo . '.pdf');
+            return;
+        }
+
+        $util   = $this->pdf->GetPageWidth() - 2 * $this->margem;
+        $colDia = $util / max(1, count($dias));
+
+        foreach ($grupos as $nome => $g) {
+            $this->pdf->AddPage();
+            $this->desenharAgenda((string)$nome, $g, $dias, $colDia, $titulo);
+        }
+
+        $this->pdf->Output('D', $nomeArquivo . '.pdf');
+    }
+
+    private function desenharAgenda(string $nome, array $g, array $dias, float $colDia, string $titulo): void
+    {
+        $pdf = $this->pdf;
+        $x0  = $this->margem;
+        $y   = $this->margem;
+
+        // Cabeçalho: faixa na cor do professor + nome
+        [$r, $vg, $b] = $this->hexRgb($g['cor'] ?? '#94a3b8');
+        $pdf->SetFillColor($r, $vg, $b);
+        $pdf->Rect($x0, $y, 4, 7, 'F');
+
+        $pdf->SetTextColor(30, 41, 59);
+        $pdf->SetFont('Helvetica', 'B', 13);
+        $pdf->SetXY($x0 + 6, $y);
+        $pdf->Cell(0, 7, $this->txt($nome), 0, 1);
+
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->SetTextColor(100, 116, 139);
+        $pdf->SetXY($x0, $y + 7.5);
+        $pdf->Cell(0, 4, $this->txt($titulo), 0, 1);
+
+        $y += 13.5;
+
+        // Cabeçalho dos dias
+        $pdf->SetFont('Helvetica', 'B', 9);
+        $pdf->SetFillColor(241, 245, 249);
+        $pdf->SetTextColor(30, 41, 59);
+        $x = $x0;
+        foreach ($dias as $rotulo) {
+            $pdf->SetXY($x, $y);
+            $pdf->Cell($colDia, 6, $this->txt($rotulo), 1, 0, 'C', true);
+            $x += $colDia;
+        }
+        $y += 6;
+
+        // Corpo: uma coluna por dia, aulas empilhadas
+        $alturaCorpo = $this->pdf->GetPageHeight() - $y - $this->margem;
+        $x = $x0;
+        foreach ($dias as $dNum => $rotulo) {
+            $pdf->Rect($x, $y, $colDia, $alturaCorpo);
+            $aulas = $g['dias'][$dNum] ?? [];
+            $yy    = $y + 1.5;
+
+            if (empty($aulas)) {
+                $pdf->SetFont('Helvetica', 'I', 8);
+                $pdf->SetTextColor(203, 213, 225);
+                $pdf->SetXY($x, $yy + 2);
+                $pdf->Cell($colDia, 4, $this->txt('—'), 0, 0, 'C');
+            }
+
+            foreach ($aulas as $h) {
+                $altura = 13.0;
+                if ($yy + $altura > $y + $alturaCorpo) break;   // não vaza da página
+
+                [$cr, $cg, $cb] = $this->hexRgb($g['cor'] ?? '#94a3b8');
+                $pdf->SetFillColor(
+                    (int)round(255 - (255 - $cr) * 0.15),
+                    (int)round(255 - (255 - $cg) * 0.15),
+                    (int)round(255 - (255 - $cb) * 0.15)
+                );
+                $pdf->Rect($x + 1, $yy, $colDia - 2, $altura - 1.5, 'F');
+                $pdf->SetFillColor($cr, $cg, $cb);
+                $pdf->Rect($x + 1, $yy, 1.2, $altura - 1.5, 'F');
+
+                $pdf->SetTextColor(30, 41, 59);
+                $pdf->SetFont('Helvetica', 'B', 7.5);
+                $pdf->SetXY($x + 3, $yy + 0.6);
+                $pdf->Cell($colDia - 4, 3,
+                    $this->txt(substr($h['hora_inicio'], 0, 5) . '-' . substr($h['hora_fim'], 0, 5)), 0, 1);
+
+                $pdf->SetFont('Helvetica', '', 7);
+                $pdf->SetXY($x + 3, $yy + 3.9);
+                $pdf->Cell($colDia - 4, 3, $this->txt((string)$h['disciplina_nome']), 0, 1);
+
+                $pdf->SetFont('Helvetica', '', 6);
+                $pdf->SetTextColor(100, 116, 139);
+                $detalhe = ($h['curso_nome'] ?? '') . ' - ' . ($h['turma_nome'] ?? '');
+                if (!empty($h['sala_nome'])) $detalhe .= ' - ' . $h['sala_nome'];
+                $pdf->SetXY($x + 3, $yy + 7.0);
+                $pdf->Cell($colDia - 4, 3, $this->txt($detalhe), 0, 1);
+
+                if (!empty($h['observacao'])) {
+                    $pdf->SetFont('Helvetica', 'I', 6);
+                    $pdf->SetTextColor(71, 85, 105);
+                    $pdf->SetXY($x + 3, $yy + 9.8);
+                    $pdf->Cell($colDia - 4, 3, $this->txt((string)$h['observacao']), 0, 1);
+                }
+
+                $yy += $altura;
+            }
+            $x += $colDia;
+        }
+    }
+
     private function desenharTurma(array $turma): void
     {
         $pdf = $this->pdf;
@@ -62,8 +185,9 @@ class PdfExporter
         $pdf->SetFillColor(30, 41, 59);
         $pdf->SetTextColor(241, 245, 249);
         $pdf->SetFont('Helvetica', 'B', 10);
-        $pdf->Cell($this->colHora + 5 * $this->colDia, 7,
-            $this->txt($turma['curso_nome'] . ' - ' . $turma['turma_nome']), 1, 1, 'L', true);
+        $rotuloTurma = $turma['curso_nome'] . ' - ' . $turma['turma_nome'];
+        if (!empty($turma['anotacao'])) $rotuloTurma .= '   -   ' . $turma['anotacao'];
+        $pdf->Cell($this->colHora + 5 * $this->colDia, 7, $this->txt($rotuloTurma), 1, 1, 'L', true);
 
         // Cabeçalho dos dias
         $pdf->SetFillColor(241, 245, 249);
@@ -172,15 +296,24 @@ class PdfExporter
         $pdf->MultiCell($w - 1.6, 2.6,
             $this->txt($bloco['disciplina_nome'] ?? ''), 0, 'L');
 
+
         // Horário real do bloco
         if ($h - $faixa > 7) {
             $pdf->SetFont('Helvetica', '', 5.5);
             $pdf->SetTextColor(51, 65, 85);
             $pdf->SetXY($x + 0.8, $y + $h - $faixa - 3.0);
-            $pdf->Cell($w - 1.6, 2.6, $this->txt(
-                TimeHelper::fromMinutes((int)$bloco['slot_ini']) . '-' .
-                TimeHelper::fromMinutes((int)$bloco['slot_fim'])
-            ), 0, 0, 'L');
+            $hora = TimeHelper::fromMinutes((int)$bloco['slot_ini']) . '-' .
+                    TimeHelper::fromMinutes((int)$bloco['slot_fim']);
+            $pdf->Cell($w - 1.6, 2.6, $this->txt($hora), 0, 0, 'L');
+
+            // Anotação na MESMA linha do horário (o bloco de 1 aula não comporta
+            // uma linha extra). Recuada pela largura do horário já impresso.
+            if (!empty($bloco['observacao'])) {
+                $recuo = $pdf->GetStringWidth($this->txt($hora)) + 1.2;
+                $pdf->SetFont('Helvetica', 'BI', 5.5);
+                $pdf->SetXY($x + 0.8 + $recuo, $y + $h - $faixa - 3.0);
+                $pdf->Cell($w - 1.6 - $recuo, 2.6, $this->txt((string)$bloco['observacao']), 0, 0, 'L');
+            }
         }
 
         // Faixa inferior com o professor, na cor secundária
@@ -192,8 +325,13 @@ class PdfExporter
             [$fr, $fg, $fb] = ColorHelper::textoSobreRgb($corFaixa);
             $pdf->SetTextColor($fr, $fg, $fb);
             $pdf->SetFont('Helvetica', 'B', 5.5);
+            // Fundo da faixa em toda a largura...
             $pdf->SetXY($x + 0.35, $y + $h - $faixa - 0.35);
-            $pdf->Cell($w - 0.7, $faixa, $this->txt($bloco['professor_nome']), 0, 0, 'C', true);
+            $pdf->Cell($w - 0.7, $faixa, '', 0, 0, 'L', true);
+            // ...e o nome alinhado à esquerda, como na tela (.disc-faixa não
+            // tem text-align, então o padrão é left).
+            $pdf->SetXY($x + 1.2, $y + $h - $faixa - 0.35);
+            $pdf->Cell($w - 2.4, $faixa, $this->txt($bloco['professor_nome']), 0, 0, 'L');
         }
 
         $pdf->SetXY($x, $y);

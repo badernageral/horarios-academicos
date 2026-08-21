@@ -16,6 +16,8 @@ class Disciplina extends BaseModel
             'curso_nome'             => 'c.nome',
             'turma_nome'             => 't.serie_periodo',
             'qtd_encontros_semanais' => 'd.qtd_encontros_semanais',
+            // NULL (= "Qualquer NDA") vai para o fim na ordenação crescente
+            'nda_nome'               => 'n.nome IS NULL, n.nome',
         ];
         $col = $map[$sort] ?? 'd.nome';
         $dir = $dir === 'desc' ? 'DESC' : 'ASC';
@@ -23,10 +25,12 @@ class Disciplina extends BaseModel
             "SELECT d.*,
                     c.nome AS curso_nome,
                     c.duracao_aula_minutos,
-                    t.serie_periodo AS turma_nome
+                    t.serie_periodo AS turma_nome,
+                    n.nome AS nda_nome
              FROM disciplinas d
              JOIN cursos c ON c.id = d.curso_id
              JOIN turmas t ON t.id = d.turma_id
+             LEFT JOIN ndas n ON n.id = d.nda_id
              WHERE d.ativo = 1
              ORDER BY {$col} {$dir}"
         );

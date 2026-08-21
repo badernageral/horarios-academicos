@@ -41,6 +41,7 @@ class FeasibilityChecker
 
         // Slots de aula por curso+dia (mesma malha do gerador e da grade)
         $slotsPorDia = [];
+        $faixasSlot  = [];   // [curso][dia] = [['inicio','fim'], ...]
         foreach ($cursos as $cid => $c) {
             $dur = max(1, (int)$c['duracao_aula_minutos']);
             $ini = TimeHelper::toMinutes($c['turno_inicio']);
@@ -56,6 +57,7 @@ class FeasibilityChecker
                     if ($b) { $t = $b['fim']; continue; }
                     if ($t + $dur > $fim) break;
                     $n++;
+                    $faixasSlot[$cid][$dia][] = ['inicio' => $t, 'fim' => $t + $dur];
                     $t += $dur;
                 }
                 $slotsPorDia[$cid][$dia] = $n;
@@ -91,14 +93,20 @@ class FeasibilityChecker
             $tid = (int)$d['turma_id'];
             $demandaTurma[$tid] = ($demandaTurma[$tid] ?? 0)
                 + (int)$d['qtd_aulas'] * (int)$d['qtd_encontros_semanais'];
-            $turmaInfo[$tid] = ['rotulo' => $rotulo, 'capacidade' => array_sum($slotsDias)];
+            $turmaInfo[$tid] = [
+                'rotulo'     => $rotulo,
+                'capacidade' => self::capacidadeTurma($tid, $faixasSlot[$cid] ?? []),
+                'curso_id'   => $cid,
+            ];
         }
 
-        // 2. Demanda semanal da turma × capacidade
+        // 2. Demanda semanal da turma × capacidade (já descontadas as lacunas)
         foreach ($demandaTurma as $tid => $demanda) {
             $cap = $turmaInfo[$tid]['capacidade'];
-            if ($demanda > $cap) {
-                $avisos[] = "Turma {$turmaInfo[$tid]['rotulo']}: demanda de {$demanda} aulas/semana excede a capacidade de {$cap} do turno — impossível agendar tudo.";
+            if ($cap === 0) {
+                $avisos[] = "Turma {$turmaInfo[$tid]['rotulo']}: nenhum turno liberado — nada dela será agendado (tudo vai para o limbo).";
+            } elseif ($demanda > $cap) {
+                $avisos[] = "Turma {$turmaInfo[$tid]['rotulo']}: demanda de {$demanda} aulas/semana excede a capacidade de {$cap} nos turnos liberados — impossível agendar tudo.";
             }
         }
 
@@ -116,7 +124,97 @@ class FeasibilityChecker
             $avisos[] = "Professor {$p['nome']} tem disciplinas atribuídas, mas nenhuma disponibilidade cadastrada — nada dele será agendado.";
         }
 
+        // 4. Salas: demanda semanal x oferta
+        //
+        // Cada aula presencial ocupa uma sala num slot. A capacidade é o número
+        // de salas ativas vezes os slots DISTINTOS da semana (união das malhas
+        // dos cursos — uma sala serve a qualquer curso).
+        $qtdSalas = (int) Database::fetchValue("SELECT COUNT(*) FROM salas WHERE ativo = 1");
+
+        if ($qtdSalas === 0) {
+            // Sem sala nenhuma o gerador agenda mesmo assim (sala é opcional),
+            // então isto é aviso, não impedimento.
+            if ($discs) {
+                $avisos[] = "Nenhuma sala ativa cadastrada — os horários serão gerados sem sala definida.";
+            }
+        } else {
+            $slotsDistintos = [];
+            foreach ($faixasSlot as $porDia) {
+                foreach ($porDia as $dia => $faixas) {
+                    foreach ($faixas as $f) {
+                        $slotsDistintos[$dia . ':' . $f['inicio'] . '-' . $f['fim']] = true;
+                    }
+                }
+            }
+            $capacidadeSalas = $qtdSalas * count($slotsDistintos);
+
+            $demandaSalas = 0;
+            foreach ($discs as $d) {
+                $demandaSalas += (int) $d['qtd_aulas'] * (int) $d['qtd_encontros_semanais'];
+            }
+
+            if ($capacidadeSalas > 0 && $demandaSalas > $capacidadeSalas) {
+                $avisos[] = "Salas: demanda de {$demandaSalas} aulas/semana para {$qtdSalas} sala(s) "
+                          . "(capacidade {$capacidadeSalas}) — não há sala para todas as aulas ao mesmo tempo.";
+            }
+        }
+
+        // 5. Disciplinas sem sala definida ficam FORA da checagem de conflito de
+        //    sala (no gerador e no arrastar), então vale dizer quantas são.
+        $semSala = (int) Database::fetchValue(
+            "SELECT COUNT(*)
+             FROM semestre_atribuicoes sa
+             JOIN disciplinas d ON d.id = sa.disciplina_id
+             JOIN semestres sem ON sem.id = ?
+             WHERE sa.semestre_id = ? AND sa.sala_id IS NULL
+               AND d.ativo = 1 AND (d.semestre_oferta & sem.semestre) > 0",
+            [$semestreId, $semestreId]
+        );
+        if ($semSala > 0 && $qtdSalas > 0) {
+            $avisos[] = "{$semSala} disciplina(s) sem sala definida — elas não entram na verificação de conflito de sala.";
+        }
+
         return $avisos;
+    }
+
+    /**
+     * Quantos slots do curso a turma pode de fato usar, descontadas as lacunas
+     * (turnos bloqueados em `disponibilidade_turma`). Um slot só conta se
+     * estiver inteiramente dentro de turnos liberados — a mesma regra que o
+     * gerador aplica ao montar candidatos.
+     */
+    private static function capacidadeTurma(int $turmaId, array $faixasPorDia): int
+    {
+        $liberado = [];
+        foreach (Database::fetchAll(
+            "SELECT dia_semana, turno FROM disponibilidade_turma WHERE turma_id = ?",
+            [$turmaId]
+        ) as $l) {
+            $liberado[(int)$l['dia_semana']][$l['turno']] = true;
+        }
+
+        $turnos = [];
+        foreach (\App\Models\Turno::todos() as $chave => $t) {
+            $turnos[$chave] = [
+                'inicio' => TimeHelper::toMinutes($t['inicio']),
+                'fim'    => TimeHelper::toMinutes($t['fim']),
+            ];
+        }
+
+        $cap = 0;
+        foreach ($faixasPorDia as $dia => $faixas) {
+            foreach ($faixas as $f) {
+                $tocou = false;
+                $ok    = true;
+                foreach ($turnos as $chave => $t) {
+                    if ($f['inicio'] >= $t['fim'] || $f['fim'] <= $t['inicio']) continue;
+                    $tocou = true;
+                    if (empty($liberado[$dia][$chave])) { $ok = false; break; }
+                }
+                if ($tocou && $ok) $cap++;
+            }
+        }
+        return $cap;
     }
 
     /**

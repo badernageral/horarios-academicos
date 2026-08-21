@@ -40,6 +40,63 @@
         </div>
       </div>
 
+      <?php
+        // Lacunas da turma: mesma grade 3 turnos x 5 dias do professor, mas só
+        // com dois estados. Verde = pode ter aula; vermelho = bloqueado.
+        $diasSemana  = $config['dias_semana'] ?? [1=>'Segunda',2=>'Terça',3=>'Quarta',4=>'Quinta',5=>'Sexta'];
+        $dispEstados = $config['disp_estados'] ?? [];
+        $turnos      = $turnos ?? [];
+        $gradeDisp   = $gradeDisp ?? [];
+      ?>
+      <hr class="my-4">
+      <div class="fw-semibold mb-2">Turnos com aula</div>
+      <div class="mb-3 small text-muted">
+        Clique para bloquear os turnos em que esta turma NÃO tem aula
+        (<span class="disp-legenda disp-sim"><i class="bi bi-check-lg"></i></span> pode &nbsp;
+        <span class="disp-legenda disp-nao"><i class="bi bi-x-lg"></i></span> não pode).
+        Disciplina que não couber nos turnos liberados vai para o limbo.
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered disp-grade align-middle text-center mb-0">
+          <thead>
+            <tr>
+              <th style="width:15%"></th>
+<?php foreach ($diasSemana as $numDia => $nomeDia): ?>
+              <th class="fw-semibold"><?= htmlspecialchars($nomeDia) ?></th>
+<?php endforeach; ?>
+            </tr>
+          </thead>
+          <tbody>
+<?php foreach ($turnos as $chaveTurno => $turno): ?>
+            <tr>
+              <th class="text-start fw-semibold">
+                <?= htmlspecialchars($turno['nome']) ?>
+                <div class="small text-muted fw-normal">
+                  <?= htmlspecialchars($turno['inicio']) ?>–<?= htmlspecialchars($turno['fim']) ?>
+                </div>
+              </th>
+<?php foreach ($diasSemana as $numDia => $nomeDia): ?>
+<?php   $estado = (int)($gradeDisp[$numDia][$chaveTurno] ?? 0); ?>
+<?php   $info   = $dispEstados[$estado] ?? $dispEstados[0]; ?>
+              <td class="p-1">
+                <button type="button"
+                        class="disp-cel <?= $info['classe'] ?>"
+                        data-estado="<?= $estado ?>"
+                        title="<?= htmlspecialchars($nomeDia) ?> / <?= htmlspecialchars($turno['nome']) ?>: <?= htmlspecialchars($info['rotulo']) ?>"
+                        aria-label="<?= htmlspecialchars($nomeDia) ?> <?= htmlspecialchars($turno['nome']) ?>">
+                  <i class="bi <?= $info['icone'] ?>"></i>
+                </button>
+                <input type="hidden" name="disp[<?= $numDia ?>][<?= htmlspecialchars($chaveTurno) ?>]"
+                       value="<?= $estado ?>">
+              </td>
+<?php endforeach; ?>
+            </tr>
+<?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+
       <div class="mt-4 d-flex gap-2">
         <button type="submit" class="btn btn-primary">
           <i class="bi bi-check-lg me-1"></i>Salvar
@@ -49,3 +106,28 @@
     </form>
   </div>
 </div>
+
+<script>
+// Lacunas da turma: só dois estados (pode / não pode), sem a interrogação
+// que existe na disponibilidade do professor.
+(function() {
+  const ESTADOS = <?= json_encode($dispEstados) ?>;
+  const CICLO   = [1, 0];
+
+  document.querySelectorAll('.disp-cel').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const atual   = parseInt(btn.dataset.estado, 10);
+      const proximo = CICLO[(CICLO.indexOf(atual) + 1) % CICLO.length];
+      const info    = ESTADOS[proximo];
+
+      btn.dataset.estado = proximo;
+      btn.className = 'disp-cel ' + info.classe;
+      btn.querySelector('i').className = 'bi ' + info.icone;
+      btn.title = btn.title.replace(/: .*$/, ': ' + info.rotulo);
+
+      const campo = btn.parentElement.querySelector('input[type=hidden]');
+      if (campo) campo.value = proximo;
+    });
+  });
+})();
+</script>

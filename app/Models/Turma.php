@@ -33,6 +33,49 @@ class Turma extends BaseModel
         );
     }
 
+    /**
+     * Turnos liberados da turma: [dia][turno] = 0 (bloqueado) | 1 (pode).
+     * A ausência de linha no banco é o "bloqueado" — mesma convenção da
+     * disponibilidade do professor.
+     */
+    public static function gradeDisponibilidade(int $turmaId, array $turnos): array
+    {
+        $liberado = [];
+        foreach (Database::fetchAll(
+            "SELECT dia_semana, turno FROM disponibilidade_turma WHERE turma_id = ?",
+            [$turmaId]
+        ) as $l) {
+            $liberado[(int)$l['dia_semana']][$l['turno']] = 1;
+        }
+
+        $grade = [];
+        foreach ([1, 2, 3, 4, 5] as $dia) {
+            foreach (array_keys($turnos) as $chave) {
+                $grade[$dia][$chave] = $liberado[$dia][$chave] ?? 0;
+            }
+        }
+        return $grade;
+    }
+
+    /**
+     * Substitui os turnos liberados da turma.
+     * @param array $liberados lista de ['dia_semana' => int, 'turno' => string]
+     */
+    public static function salvarDisponibilidade(int $turmaId, array $liberados): void
+    {
+        Database::query("DELETE FROM disponibilidade_turma WHERE turma_id = ?", [$turmaId]);
+
+        foreach ($liberados as $l) {
+            $turno = trim((string)($l['turno'] ?? ''));
+            if ($turno === '') continue;
+            Database::query(
+                "INSERT OR IGNORE INTO disponibilidade_turma (turma_id, dia_semana, turno)
+                 VALUES (?, ?, ?)",
+                [$turmaId, (int)$l['dia_semana'], $turno]
+            );
+        }
+    }
+
     public static function porcurso(int $cursoId): array
     {
         return Database::fetchAll(

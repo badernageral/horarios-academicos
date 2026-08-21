@@ -106,20 +106,20 @@
         <i class="bi bi-person-badge me-1"></i>Professores e Salas
       </a>
 
-      <!-- Gerar -->
+      <?php if ($gerado): ?>
+      <!-- Visualizar (antes de Regerar: consultar é a ação do dia a dia) -->
+      <a href="<?= $base ?>/horarios/geracao/<?= $ger['id'] ?>/grade" class="btn btn-sm btn-outline-dark">
+        <i class="bi bi-grid-3x3-gap me-1"></i>Grade
+      </a>
+      <?php endif; ?>
+
+      <!-- Gerar / Regerar -->
       <form method="POST" action="<?= $base ?>/horarios/<?= $s['id'] ?>/gerar" class="d-inline"
             onsubmit="return confirm('<?= $gerado ? 'Regerar horário? O atual será substituído.' : 'Gerar horário agora?' ?>')">
         <button class="btn btn-sm <?= $gerado ? 'btn-outline-primary' : 'btn-primary' ?>">
           <i class="bi bi-magic me-1"></i><?= $gerado ? 'Regerar' : 'Gerar Horário' ?>
         </button>
       </form>
-
-      <?php if ($gerado): ?>
-      <!-- Visualizar -->
-      <a href="<?= $base ?>/horarios/geracao/<?= $ger['id'] ?>/grade" class="btn btn-sm btn-outline-dark">
-        <i class="bi bi-grid-3x3-gap me-1"></i>Grade
-      </a>
-      <?php endif; ?>
 
       <?php if ($s['qtd_atribuicoes'] > 0): ?>
       <!-- Exportar Moodle -->

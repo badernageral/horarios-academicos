@@ -8,6 +8,41 @@ class Horario extends BaseModel
 {
     protected static string $table = 'horarios';
 
+    /**
+     * Situação REAL da geração, contada na tabela `horarios`.
+     *
+     * As colunas `atividades_agendadas`/`atividades_falhas`/`status` em
+     * `geracoes` são um retrato do instante em que o gerador rodou; arrastar um
+     * bloco para fora do limbo depois NÃO as atualiza. Para exibição usamos
+     * esta contagem, senão a tela continua dizendo "parcial" com o limbo vazio.
+     *
+     * Devolve null quando a geração ainda não tem horários (em processamento ou
+     * erro) — nesse caso o status gravado é o que vale.
+     *
+     * @return array{agendadas:int, nao_agendadas:int, status:string}|null
+     */
+    public static function situacao(int $geracaoId): ?array
+    {
+        $r = Database::fetchOne(
+            "SELECT SUM(CASE WHEN dia_semana <> 0 THEN 1 ELSE 0 END) AS agendadas,
+                    SUM(CASE WHEN dia_semana =  0 THEN 1 ELSE 0 END) AS limbo,
+                    COUNT(*) AS total
+             FROM horarios WHERE geracao_id = ?",
+            [$geracaoId]
+        );
+
+        if (!$r || (int)$r['total'] === 0) return null;
+
+        $agendadas = (int)$r['agendadas'];
+        $limbo     = (int)$r['limbo'];
+
+        return [
+            'agendadas'     => $agendadas,
+            'nao_agendadas' => $limbo,
+            'status'        => $agendadas === 0 ? 'erro' : ($limbo === 0 ? 'concluido' : 'parcial'),
+        ];
+    }
+
     public static function porGeracao(int $geracaoId): array
     {
         return Database::fetchAll(

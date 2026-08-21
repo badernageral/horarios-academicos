@@ -18,6 +18,82 @@ class GradeLayout
      * @return array  [turma_id => [curso_nome, turma_nome, duracao, slots,
      *                              num_slots, grid, skip, limbo]]
      */
+    /**
+     * Malha POR SALA, para conferir o ensalamento.
+     *
+     * Não dá para reusar montar(): lá o turno e a duração da aula vêm do CURSO
+     * da turma, e uma sala recebe turmas de cursos diferentes. Aqui o eixo de
+     * tempo é derivado dos próprios horários: todas as bordas (início e fim)
+     * viram uma régua compartilhada por TODAS as salas, para que os blocos
+     * fiquem comparáveis lado a lado.
+     *
+     * @param  array $horarios  Saída de Horario::porGeracao()
+     * @return array [sala_id => ['nome','linhas'=>[['ini','fim']],'grid'=>[dia][linha]]]
+     */
+    public static function montarPorSala(array $horarios): array
+    {
+        // 1. Só aulas com horário (limbo não ocupa sala)
+        $aulas = array_values(array_filter(
+            $horarios,
+            fn($h) => (int)$h['dia_semana'] >= 1 && (int)$h['dia_semana'] <= 5
+        ));
+        if (!$aulas) return [];
+
+        // 2. Régua de tempo: bordas distintas de todas as aulas
+        $bordas = [];
+        foreach ($aulas as $h) {
+            $bordas[TimeHelper::toMinutes($h['hora_inicio'])] = true;
+            $bordas[TimeHelper::toMinutes($h['hora_fim'])]    = true;
+        }
+        $bordas = array_keys($bordas);
+        sort($bordas);
+
+        $linhas = [];
+        for ($i = 0; $i + 1 < count($bordas); $i++) {
+            $linhas[] = ['ini' => $bordas[$i], 'fim' => $bordas[$i + 1]];
+        }
+        if (!$linhas) return [];
+
+        // 3. Distribui as aulas nas salas
+        $salas = [];
+        foreach ($aulas as $h) {
+            $sid  = $h['sala_id'] !== null ? (int)$h['sala_id'] : 0;
+            $nome = $sid === 0 ? 'Sem sala definida' : ($h['sala_nome'] ?: 'Sala ' . $sid);
+
+            if (!isset($salas[$sid])) {
+                $salas[$sid] = [
+                    'id'   => $sid,
+                    'nome' => $nome,
+                    'grid' => array_fill(1, 5, array_fill(0, count($linhas), null)),
+                ];
+            }
+
+            $dia = (int)$h['dia_semana'];
+            $ini = TimeHelper::toMinutes($h['hora_inicio']);
+            $fim = TimeHelper::toMinutes($h['hora_fim']);
+
+            // Uma aula ocupa todas as linhas que ela cobre — mesma decisão da
+            // grade por turma: um bloco por linha, sem rowspan.
+            foreach ($linhas as $idx => $l) {
+                if ($l['ini'] >= $ini && $l['fim'] <= $fim) {
+                    $salas[$sid]['grid'][$dia][$idx] = $h;
+                }
+            }
+        }
+
+        // "Sem sala" por último; as demais por nome
+        uasort($salas, function ($a, $b) {
+            if ($a['id'] === 0) return 1;
+            if ($b['id'] === 0) return -1;
+            return strcasecmp($a['nome'], $b['nome']);
+        });
+
+        foreach ($salas as &$s) { $s['linhas'] = $linhas; }
+        unset($s);
+
+        return $salas;
+    }
+
     public static function montar(array $todosHorarios): array
     {
         $intervalos = self::intervalosPorCurso();

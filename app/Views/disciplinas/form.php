@@ -45,6 +45,21 @@ $coresDisc = $config['cores_disciplinas'] ?? [];
                 <?php endforeach; ?>
               </select>
             </div>
+            <div class="col-md-6">
+              <label class="form-label">NDA</label>
+              <?php // Vazio (NULL no banco) = "Qualquer NDA", que é o padrão —
+                    // inclusive para as disciplinas que já existiam. ?>
+              <select name="nda_id" class="form-select">
+                <option value="">Qualquer NDA</option>
+                <?php foreach ($ndas as $n): ?>
+                <option value="<?= (int)$n['id'] ?>"
+                        <?= (string)($disciplina['nda_id'] ?? '') === (string)$n['id'] ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($n['nome']) ?>
+                </option>
+                <?php endforeach; ?>
+              </select>
+              <div class="form-text">Deixe em “Qualquer NDA” se a disciplina não for de um núcleo específico.</div>
+            </div>
             <div class="col-12">
               <label class="form-label">Oferta <span class="text-danger">*</span></label>
               <?php $oferta = (int)($disciplina['semestre_oferta'] ?? 3); ?>

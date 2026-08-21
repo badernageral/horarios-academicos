@@ -8,6 +8,183 @@ class Semestre extends BaseModel
 {
     protected static string $table = 'semestres';
 
+    /**
+     * Carga de cada professor no semestre, a partir das ATRIBUIÇÕES (não da
+     * grade gerada) — serve para conferir a distribuição antes de gerar.
+     *
+     * Agrupado pelo NDA do PROFESSOR. Quando uma disciplina tem mais de um
+     * professor, os encontros são divididos entre eles pela MESMA regra do
+     * gerador (teto para os primeiros slots), senão o relatório prometeria uma
+     * carga diferente da que será agendada.
+     *
+     * @return array [nda_id => ['nome' => string, 'professores' => [...], 'minutos' => int, 'aulas' => int]]
+     */
+    /**
+     * Ocupação de cada sala no semestre, a partir das ATRIBUIÇÕES.
+     *
+     * A sala fica em `semestre_atribuicoes`, uma linha por slot de professor —
+     * por isso o MAX(sala_id): disciplina com dois professores tem duas linhas,
+     * mas uma sala só. Salas ativas sem nenhuma disciplina também entram, e as
+     * disciplinas sem sala caem num grupo à parte.
+     *
+     * @return array lista de ['id','nome','disciplinas'=>[...],'aulas'=>int]
+     */
+    public static function ocupacaoPorSala(int $semestreId): array
+    {
+        $linhas = Database::fetchAll(
+            "SELECT MAX(sa.sala_id) AS sala_id,
+                    d.nome AS disciplina_nome,
+                    d.qtd_encontros_semanais, d.qtd_aulas,
+                    c.nome AS curso_nome, c.duracao_aula_minutos,
+                    t.serie_periodo AS turma_nome
+             FROM semestre_atribuicoes sa
+             JOIN disciplinas d  ON d.id = sa.disciplina_id
+             JOIN cursos c       ON c.id = d.curso_id
+             JOIN turmas t       ON t.id = d.turma_id
+             JOIN semestres sem  ON sem.id = ?
+             WHERE sa.semestre_id = ?
+               AND d.ativo = 1
+               AND (d.semestre_oferta & sem.semestre) > 0
+             GROUP BY d.id, d.nome, d.qtd_encontros_semanais, d.qtd_aulas,
+                      c.nome, c.duracao_aula_minutos, t.serie_periodo
+             ORDER BY c.nome, t.serie_periodo, d.nome",
+            [$semestreId, $semestreId]
+        );
+
+        // Todas as salas ativas entram, mesmo vazias — é assim que se enxerga
+        // a sala ociosa e a superlotada lado a lado.
+        $salas = [];
+        foreach (Database::fetchAll("SELECT id, nome FROM salas WHERE ativo = 1 ORDER BY nome") as $s) {
+            $salas[(int)$s['id']] = ['id' => (int)$s['id'], 'nome' => $s['nome'], 'disciplinas' => []];
+        }
+
+        $semSala = ['id' => 0, 'nome' => 'Sem sala definida', 'disciplinas' => []];
+
+        foreach ($linhas as $l) {
+            $aulas   = max(0, (int)$l['qtd_encontros_semanais']) * max(0, (int)$l['qtd_aulas']);
+            $item = [
+                'nome'    => $l['disciplina_nome'],
+                'turma'   => $l['curso_nome'] . ' – ' . $l['turma_nome'],
+                'aulas'   => $aulas,
+                'minutos' => $aulas * max(0, (int)$l['duracao_aula_minutos']),
+            ];
+            $sid = $l['sala_id'] !== null ? (int)$l['sala_id'] : 0;
+
+            if ($sid > 0 && isset($salas[$sid])) {
+                $salas[$sid]['disciplinas'][] = $item;
+            } else {
+                $semSala['disciplinas'][] = $item;   // sem sala, ou sala inativa
+            }
+        }
+
+        $saida = array_values($salas);
+        if ($semSala['disciplinas']) $saida[] = $semSala;
+
+        foreach ($saida as &$s) {
+            $s['aulas']   = array_sum(array_column($s['disciplinas'], 'aulas'));
+            $s['minutos'] = array_sum(array_column($s['disciplinas'], 'minutos'));
+        }
+        unset($s);
+
+        return $saida;
+    }
+
+    public static function cargaPorProfessor(int $semestreId): array
+    {
+        $linhas = Database::fetchAll(
+            "SELECT sa.slot, sa.professor_id,
+                    p.nome AS professor_nome, p.nda_id AS nda_id, n.nome AS nda_nome,
+                    d.id AS disciplina_id, d.nome AS disciplina_nome,
+                    d.qtd_encontros_semanais, d.qtd_aulas, d.qtd_professores, d.qtd_aulas_ead,
+                    c.nome AS curso_nome, c.duracao_aula_minutos,
+                    t.serie_periodo AS turma_nome
+             FROM semestre_atribuicoes sa
+             JOIN professores p  ON p.id = sa.professor_id
+             LEFT JOIN ndas n    ON n.id = p.nda_id
+             JOIN disciplinas d  ON d.id = sa.disciplina_id
+             JOIN cursos c       ON c.id = d.curso_id
+             JOIN turmas t       ON t.id = d.turma_id
+             JOIN semestres sem  ON sem.id = ?
+             WHERE sa.semestre_id = ?
+               AND d.ativo = 1
+               AND (d.semestre_oferta & sem.semestre) > 0
+             ORDER BY n.nome IS NULL, n.nome, p.nome, c.nome, t.serie_periodo, d.nome",
+            [$semestreId, $semestreId]
+        );
+
+        $grupos = [];
+        foreach ($linhas as $l) {
+            $ndaId = $l['nda_id'] !== null ? (int)$l['nda_id'] : 0;
+            $pid   = (int)$l['professor_id'];
+
+            // Mesma divisão de encontros que ScheduleGenerator::criarAtividades()
+            $totalEnc = max(0, (int)$l['qtd_encontros_semanais']);
+            $qtdProfs = max(1, (int)$l['qtd_professores']);
+            $slot     = max(1, (int)$l['slot']);
+            $encontros = intdiv($totalEnc, $qtdProfs) + ($slot <= $totalEnc % $qtdProfs ? 1 : 0);
+
+            $aulas   = $encontros * max(0, (int)$l['qtd_aulas']);
+            $minutos = $aulas * max(0, (int)$l['duracao_aula_minutos']);
+            $ead     = max(0, (int)$l['qtd_aulas_ead']);
+
+            $grupos[$ndaId]['nome'] ??= $l['nda_nome'] ?? 'Sem NDA';
+            $grupos[$ndaId]['professores'][$pid]['nome'] ??= $l['professor_nome'];
+            $grupos[$ndaId]['professores'][$pid]['disciplinas'][] = [
+                'nome'      => $l['disciplina_nome'],
+                'turma'     => $l['curso_nome'] . ' – ' . $l['turma_nome'],
+                'encontros' => $encontros,
+                'aulas'     => $aulas,
+                'minutos'   => $minutos,
+                'ead'       => $ead,
+                'dividida'  => $qtdProfs > 1,
+            ];
+        }
+
+        // Professores ATIVOS sem nenhuma atribuição também entram, com zero —
+        // é justamente quem se quer enxergar ao conferir a distribuição.
+        foreach (Database::fetchAll(
+            "SELECT p.id, p.nome, p.nda_id, n.nome AS nda_nome
+             FROM professores p
+             LEFT JOIN ndas n ON n.id = p.nda_id
+             WHERE p.ativo = 1"
+        ) as $p) {
+            $ndaId = $p['nda_id'] !== null ? (int)$p['nda_id'] : 0;
+            $pid   = (int)$p['id'];
+            $grupos[$ndaId]['nome'] ??= $p['nda_nome'] ?? 'Sem NDA';
+            if (!isset($grupos[$ndaId]['professores'][$pid])) {
+                $grupos[$ndaId]['professores'][$pid] = ['nome' => $p['nome'], 'disciplinas' => []];
+            }
+        }
+
+        // Ordena: NDAs por nome ("Sem NDA" no fim) e professores por nome.
+        uksort($grupos, function ($a, $b) use ($grupos) {
+            if ($a === 0) return 1;
+            if ($b === 0) return -1;
+            return strcasecmp($grupos[$a]['nome'], $grupos[$b]['nome']);
+        });
+        foreach ($grupos as &$g) {
+            uasort($g['professores'], fn($x, $y) => strcasecmp($x['nome'], $y['nome']));
+        }
+        unset($g);
+
+        // Totais por professor e por NDA
+        foreach ($grupos as &$g) {
+            $g['minutos'] = 0; $g['aulas'] = 0; $g['ead'] = 0;
+            foreach ($g['professores'] as &$p) {
+                $p['minutos'] = array_sum(array_column($p['disciplinas'], 'minutos'));
+                $p['aulas']   = array_sum(array_column($p['disciplinas'], 'aulas'));
+                $p['ead']     = array_sum(array_column($p['disciplinas'], 'ead'));
+                $g['minutos'] += $p['minutos'];
+                $g['aulas']   += $p['aulas'];
+                $g['ead']     += $p['ead'];
+            }
+            unset($p);
+        }
+        unset($g);
+
+        return $grupos;
+    }
+
     public static function disciplinasComAtribuicao(int $semestreId): array
     {
         $rows = Database::fetchAll(
@@ -15,6 +192,7 @@ class Semestre extends BaseModel
                     d.qtd_encontros_semanais, d.qtd_aulas, d.semestre_oferta, d.qtd_professores,
                     c.nome AS curso_nome, c.duracao_aula_minutos,
                     t.serie_periodo AS turma_nome,
+                    d.nda_id, n.nome AS nda_nome,
                     (SELECT GROUP_CONCAT(x.professor_id, ',')
                        FROM (SELECT professor_id FROM semestre_atribuicoes
                               WHERE disciplina_id = d.id AND semestre_id = ?
@@ -23,6 +201,7 @@ class Semestre extends BaseModel
              FROM disciplinas d
              JOIN cursos c       ON c.id = d.curso_id
              JOIN turmas t       ON t.id = d.turma_id
+             LEFT JOIN ndas n    ON n.id = d.nda_id
              JOIN semestres sem  ON sem.id = ?
              LEFT JOIN semestre_atribuicoes sa
                     ON sa.disciplina_id = d.id AND sa.semestre_id = ?
@@ -30,7 +209,8 @@ class Semestre extends BaseModel
                AND (d.semestre_oferta & sem.semestre) > 0
              GROUP BY d.id, d.nome, d.sigla,
                       d.qtd_encontros_semanais, d.qtd_aulas, d.semestre_oferta, d.qtd_professores,
-                      c.nome, c.duracao_aula_minutos, t.serie_periodo
+                      c.nome, c.duracao_aula_minutos, t.serie_periodo,
+                      d.nda_id, n.nome
              ORDER BY c.nome, t.serie_periodo, d.nome",
             [$semestreId, $semestreId, $semestreId]
         );

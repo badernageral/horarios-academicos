@@ -2,14 +2,14 @@
 
 namespace App\Controllers;
 
-use App\Models\{Disciplina, Turma};
+use App\Models\{Disciplina, Turma, Nda};
 use App\Services\FeasibilityChecker;
 
 class DisciplinasController extends BaseController
 {
     public function index(): void
     {
-        [$sort, $dir] = $this->sortParams(['nome','sigla','curso_nome','turma_nome','qtd_encontros_semanais'], 'nome');
+        [$sort, $dir] = $this->sortParams(['nome','sigla','curso_nome','turma_nome','nda_nome','qtd_encontros_semanais'], 'nome');
         $disciplinas = Disciplina::allComRelacoes($sort, $dir);
         $flash       = $this->getFlash();
         $this->render('disciplinas/index', compact('disciplinas', 'flash', 'sort', 'dir'));
@@ -22,6 +22,7 @@ class DisciplinasController extends BaseController
         $this->render('disciplinas/form', [
             'disciplina' => null,
             'turmas'     => $turmas,
+            'ndas'       => Nda::allAtivos(),
             'config'     => $config,
             'flash'      => null,
         ]);
@@ -46,6 +47,9 @@ class DisciplinasController extends BaseController
             'qtd_aulas_ead'          => max(0, (int)$this->post('qtd_aulas_ead', 0)),
             'qtd_professores'        => max(1, (int)$this->post('qtd_professores', 1)),
             'semestre_oferta'        => ($s1 | $s2) ?: 3,
+            // Vazio = "Qualquer NDA": a disciplina não é de um núcleo específico.
+            'nda_id'                 => ($nda = $this->post('nda_id')) !== '' && $nda !== null
+                                          ? (int)$nda : null,
             'ativo'                  => (int)$this->post('ativo', 1),
         ];
 
@@ -81,8 +85,9 @@ class DisciplinasController extends BaseController
         $turmas     = Turma::allComCurso();
         $config     = require ROOT_PATH . '/config/app.php';
         if (!$disciplina) $this->redirect('/disciplinas');
+        $ndas = Nda::allAtivos();
         $this->render('disciplinas/form', compact(
-            'disciplina', 'turmas', 'config'
+            'disciplina', 'turmas', 'ndas', 'config'
         ) + ['flash' => null]);
     }
 

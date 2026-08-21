@@ -49,14 +49,28 @@ $uri    = $_SERVER['REQUEST_URI'];
 
 // ── Guarda de autenticação ────────────────────────────────────────
 // Sem usuário logado: se o sistema ainda não tem nenhum usuário, manda para
-// o cadastro do primeiro (/setup); caso contrário, para o login (/login).
+// o cadastro do primeiro (/setup). Fora isso, só a ÁREA PÚBLICA (/publico) e
+// o /login respondem — é por ali que aluno e professor consultam o horário
+// sem credencial. Qualquer outra rota exige sessão.
 if (!\App\Core\Auth::check()) {
     try {
         $semUsuarios = (int) \App\Core\Database::fetchValue("SELECT COUNT(*) FROM usuarios") === 0;
     } catch (\Throwable $e) {
         $semUsuarios = true; // banco recém-criado / sem tabela → tratar como 1º acesso
     }
-    $alvo = $semUsuarios ? '/setup' : '/login';
+
+    $ehPublica = REQUEST_PATH === '/publico' || str_starts_with(REQUEST_PATH, '/publico/');
+
+    if ($semUsuarios) {
+        $alvo = '/setup';
+    } elseif ($ehPublica || REQUEST_PATH === '/login') {
+        $alvo = REQUEST_PATH;               // deixa passar (inclusive o POST do login)
+    } elseif (REQUEST_PATH === '/' || REQUEST_PATH === '/dashboard') {
+        $alvo = '/publico';                 // abrir o sistema cai na consulta pública
+    } else {
+        $alvo = '/login';                   // rota interna: exige sessão
+    }
+
     if (REQUEST_PATH !== $alvo) {
         header('Location: ' . BASE_PATH . $alvo);
         exit;

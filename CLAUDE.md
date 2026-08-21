@@ -155,6 +155,54 @@ O cadastro do professor NÃO tem mais faixas de hora: é uma grade de **3 turnos
 - Mudar as faixas NÃO altera grades já geradas (os `horarios` têm hora própria), mas muda o
   significado do que cada professor marcou — vale regerar depois.
 
+## Lacunas da turma (ago/2026)
+
+Turmas também têm turnos bloqueados — ex.: "1A não tem aula na quarta à tarde". Mesma grade
+3 turnos × 5 dias do professor, mas com **dois estados** (pode / não pode).
+
+- `disponibilidade_turma` guarda `(turma_id, dia_semana, turno)`. **Presença = pode ter aula;
+  AUSÊNCIA = bloqueado** — mesma convenção de `disponibilidade_professor`, para não haver duas
+  regras diferentes. Sem coluna de estado: só há dois casos.
+- No gerador, `turmaLiberada()` é restrição DURA, checada antes da do professor (corta candidatos
+  mais cedo). Uma aula que atravessa turnos exige todos eles liberados. `getDiasDisponiveis()`
+  também intersecta os dias da turma, para a ordenação MCF refletir a restrição real.
+- Sem espaço nos turnos liberados, a disciplina vai para o **limbo** — decisão do usuário.
+- `FeasibilityChecker` desconta as lacunas ao calcular a capacidade da turma
+  (`capacidadeTurma()`) e avisa quando a turma não tem nenhum turno liberado.
+- Migration `003_disponibilidade_turma.sql` libera os 15 turnos de toda turma existente
+  (comportamento anterior). Turma nova ou importada também nasce liberada em tudo.
+
+## Anotações na grade (ago/2026)
+
+Anotações livres para horários pontuais (ex.: "Reposição do dia 10/02"), presas à GERAÇÃO —
+somem quando ela é substituída, que é o desejado para uma semana específica.
+
+- **No bloco**: coluna `horarios.observacao`. Fica na própria linha, então acompanha o bloco
+  quando ele é arrastado. Uma aula de N tempos vira N blocos com o MESMO `data-horario-id`:
+  o JS precisa pintar/limpar a anotação em TODOS eles.
+- **No nome da turma**: tabela `anotacoes_turma (geracao_id, turma_id, texto)`, com CASCADE em
+  `geracoes` — não há linha única de turma dentro da geração.
+- UI: duplo clique no bloco, lápis no cabeçalho da turma; ambos abrem `#modalAnotacao`.
+  **Salvar com texto vazio REMOVE** — é a forma de apagar. `POST /horarios/geracao/anotar`.
+- Aparecem na grade, na impressão, no PDF (por turma e nas agendas de professor/sala).
+  No PDF do bloco a posição vem do `GetY()` pós-MultiCell, porque o nome da disciplina pode
+  ocupar mais de uma linha; um deslocamento fixo não cabia na altura de um slot.
+- Truncadas em 200 caracteres com PCRE `/us` (mbstring é proibido no projeto).
+
+## Exportação unificada da grade (ago/2026)
+
+Um botão **Exportar** → escopo (turma | professor | sala) → modal com orientação, seleção de
+turmas (só no escopo turma) e três botões: PDF, PNG, Imprimir.
+
+- **Turma** usa a malha do `GradeLayout`. **Professor e sala** usam layout de AGENDA
+  (`imprimir_agenda.php` + `PdfExporter::gerarAgenda()`), porque `GradeLayout` amarra turno e
+  duração de aula ao CURSO da turma e um professor atravessa cursos com turnos diferentes.
+- **PNG é gerado no navegador** (html2canvas vendorizado em `assets/vendor/`): rasterizar no
+  servidor exigiria imagick, que o PHP embutido do app desktop não tem.
+- Professor/sala abrem a página de agenda com `?acao=imprimir|png`, que se encarrega sozinha.
+- Bootstrap 5 não tem submenu aninhado: por isso o formato são botões no rodapé do modal, e
+  não um segundo nível de menu.
+
 ## Decisões do usuário (não sugerir de novo)
 
 - Sem capacidade de sala. Sábado não é letivo (grade renderiza só

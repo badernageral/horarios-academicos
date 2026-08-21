@@ -2,6 +2,9 @@
 
 /** @var \App\Core\Router $router */
 
+// ── Área pública (sem login): consulta do horário vigente ─────────
+$router->get('/publico', 'PublicoController@index');
+
 // ── Autenticação ──────────────────────────────────────────────────
 $router->get('/setup',   'AuthController@setupForm');   // cadastro do 1º usuário
 $router->post('/setup',  'AuthController@setup');
@@ -98,14 +101,18 @@ $router->get('/horarios/geracao/{id}/exportar/excel',  'HorariosController@expor
 $router->get('/horarios/geracao/{id}/exportar/pdf',    'HorariosController@exportarPDF');
 $router->post('/horarios/geracao/deletar',             'HorariosController@deletarGeracao');
 $router->get('/horarios/geracao/{id}/grade',           'HorariosController@verGrade');
+$router->get('/horarios/geracao/{id}/grade/salas',     'HorariosController@verGradeSalas');
 $router->post('/horarios/geracao/mover',               'HorariosController@moverHorario');
 $router->post('/horarios/geracao/trocar',              'HorariosController@trocarHorarios');
+$router->post('/horarios/geracao/anotar',              'HorariosController@anotar');
+$router->post('/horarios/geracao/publicar',            'HorariosController@publicar');
 $router->post('/horarios/{id}/clonar-atribuicoes',     'HorariosController@clonarAtribuicoes');
 $router->get('/horarios/{id}/moodle',                  'HorariosController@verMoodle');
 $router->post('/horarios/{id}/moodle/disciplinas',     'HorariosController@exportarMoodleDisciplinas');
 $router->get('/horarios/{id}/moodle/professores',      'HorariosController@exportarMoodleProfessores');
 $router->post('/horarios/geracao/{id}/conflitos',      'HorariosController@verificarConflitos');
 $router->get('/horarios/geracao/{id}/imprimir/professores', 'HorariosController@imprimirProfessores');
+$router->get('/horarios/geracao/{id}/imprimir/salas',       'HorariosController@imprimirSalas');
 
 // ── API REST ──────────────────────────────────────────────────────
 $router->get('/api/geracoes',                                'ApiController@listarGeracoes');

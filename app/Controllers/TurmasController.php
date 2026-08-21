@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Models\{Turma, Curso};
+use App\Models\{Turma, Curso, Turno};
 
 class TurmasController extends BaseController
 {
@@ -17,7 +17,20 @@ class TurmasController extends BaseController
     public function nova(): void
     {
         $cursos = Curso::allAtivos();
-        $this->render('turmas/form', ['turma' => null, 'cursos' => $cursos, 'flash' => null]);
+        $turnos = Turno::todos();
+
+        // Turma nova nasce liberada em tudo (comportamento anterior a esta tela).
+        $gradeDisp = [];
+        foreach ([1, 2, 3, 4, 5] as $dia) {
+            foreach (array_keys($turnos) as $chave) {
+                $gradeDisp[$dia][$chave] = 1;
+            }
+        }
+
+        $this->render('turmas/form', [
+            'turma' => null, 'cursos' => $cursos, 'flash' => null,
+            'turnos' => $turnos, 'gradeDisp' => $gradeDisp,
+        ]);
     }
 
     public function salvar(): void
@@ -33,11 +46,25 @@ class TurmasController extends BaseController
 
         if ($id) {
             Turma::update((int)$id, $data);
+            $turmaId = (int)$id;
             $this->flash('success', 'Turma atualizada com sucesso!');
         } else {
-            Turma::create($data);
+            $turmaId = Turma::create($data);
             $this->flash('success', 'Turma cadastrada com sucesso!');
         }
+
+        // Lacunas: só os turnos marcados viram linha; bloqueado é a ausência.
+        $grade = $this->post('disp', []);
+        $liberados = [];
+        foreach ([1, 2, 3, 4, 5] as $dia) {
+            foreach (array_keys(Turno::todos()) as $chave) {
+                if ((int)($grade[$dia][$chave] ?? 0) === 1) {
+                    $liberados[] = ['dia_semana' => $dia, 'turno' => $chave];
+                }
+            }
+        }
+        Turma::salvarDisponibilidade($turmaId, $liberados);
+
         $this->redirect('/turmas');
     }
 
@@ -46,7 +73,12 @@ class TurmasController extends BaseController
         $turma  = Turma::find((int)$id);
         $cursos = Curso::allAtivos();
         if (!$turma) $this->redirect('/turmas');
-        $this->render('turmas/form', ['turma' => $turma, 'cursos' => $cursos, 'flash' => null]);
+        $turnos = Turno::todos();
+        $this->render('turmas/form', [
+            'turma' => $turma, 'cursos' => $cursos, 'flash' => null,
+            'turnos' => $turnos,
+            'gradeDisp' => Turma::gradeDisponibilidade((int)$id, $turnos),
+        ]);
     }
 
     public function deletar(): void
@@ -78,17 +110,29 @@ class TurmasController extends BaseController
 
         $linhas  = array_filter(array_map('trim', explode("\n", $texto)));
         $criadas = 0;
+        $turnosImport = Turno::todos();
 
         foreach ($linhas as $serie) {
             $serie = trim($serie, " \t\r\n");
             if ($serie === '') continue;
 
-            Turma::create([
+            $novaId = Turma::create([
                 'curso_id'      => $cursoId,
                 'nome'          => $serie,
                 'serie_periodo' => $serie,
                 'ativo'         => 1,
             ]);
+
+            // Turma importada nasce liberada em todos os turnos; as lacunas são
+            // ajustadas depois, na edição.
+            $liberados = [];
+            foreach ([1, 2, 3, 4, 5] as $dia) {
+                foreach (array_keys($turnosImport) as $chave) {
+                    $liberados[] = ['dia_semana' => $dia, 'turno' => $chave];
+                }
+            }
+            Turma::salvarDisponibilidade($novaId, $liberados);
+
             $criadas++;
         }
 

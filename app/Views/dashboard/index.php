@@ -57,7 +57,7 @@
                 <th>Semestre</th>
                 <th class="text-center">Horário</th>
                 <th class="text-center">Agendadas</th>
-                <th class="text-center">Falhas</th>
+                <th class="text-center">Não agendadas</th>
                 <th class="text-end">Ações</th>
               </tr>
             </thead>

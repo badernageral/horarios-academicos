@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Horários por Professor – <?= htmlspecialchars($geracao['descricao'] ?? '') ?></title>
+  <title><?= htmlspecialchars($tituloPagina) ?> – <?= htmlspecialchars($geracao['descricao'] ?? '') ?></title>
   <style>
     * { box-sizing: border-box; print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
     body {
@@ -40,18 +40,22 @@
       border: 1px solid #94a3b8; background: #fff; color: #1e293b; cursor: pointer;
     }
     @media print { .no-print { display: none !important; } }
-    @page { size: landscape; margin: 8mm; }
+    @page { size: <?= $orientacao === 'portrait' ? 'portrait' : 'landscape' ?>; margin: 8mm; }
   </style>
 </head>
 <body>
 
 <div class="no-print">
   <button onclick="window.print()">🖨️ Imprimir</button>
+  <button id="btnPng" type="button">🖼️ Baixar PNG</button>
   <a href="<?= $base ?>/horarios/geracao/<?= $geracaoId ?>/grade">← Voltar à grade</a>
-  <span style="font-size:12px;color:#64748b"><?= count($porProfessor) ?> professor(es) — um por página</span>
+  <span style="font-size:12px;color:#64748b">
+    <?= count($grupos) ?> <?= htmlspecialchars($rotuloEntidade) ?> — um por página
+  </span>
 </div>
 
-<?php foreach ($porProfessor as $nome => $p): ?>
+<div id="areaExportacao">
+<?php foreach ($grupos as $nome => $p): ?>
 <div class="prof-bloco">
   <div class="prof-header">
     <span class="prof-swatch" style="background:linear-gradient(to right, <?= $p['cor'] ?> 50%, <?= $p['cor_sec'] ?> 50%)"></span>
@@ -79,6 +83,9 @@
             <?= htmlspecialchars($h['curso_nome'] . ' – ' . $h['turma_nome']) ?>
             <?= $h['sala_nome'] ? ' · ' . htmlspecialchars($h['sala_nome']) : '' ?>
           </small>
+          <?php if (!empty($h['observacao'])): ?>
+          <br><em style="font-size:9.5px;color:#475569"><?= htmlspecialchars($h['observacao']) ?></em>
+          <?php endif; ?>
         </div>
         <?php endforeach; endif; ?>
       </td>
@@ -88,9 +95,39 @@
 </div>
 <?php endforeach; ?>
 
-<?php if (empty($porProfessor)): ?>
+<?php if (empty($grupos)): ?>
 <p>Nenhum horário nesta geração.</p>
 <?php endif; ?>
+</div>
 
+<script src="<?= $base ?>/assets/vendor/html2canvas/html2canvas.min.js"></script>
+<script>
+// PNG pelo navegador (html2canvas vendorizado): o app desktop roda um PHP
+// embutido sem imagick, então rasterizar no servidor não funcionaria lá.
+function baixarPng() {
+  const alvo = document.getElementById('areaExportacao');
+  const btn  = document.getElementById('btnPng');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Gerando…'; }
+
+  return html2canvas(alvo, {backgroundColor: '#ffffff', scale: 2, useCORS: false})
+    .then(canvas => {
+      const a = document.createElement('a');
+      a.download = <?= json_encode(($escopo ?? 'agenda') . '_' . date('Y-m-d') . '.png') ?>;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    })
+    .catch(err => alert('Não foi possível gerar o PNG: ' + err))
+    .finally(() => { if (btn) { btn.disabled = false; btn.textContent = '🖼️ Baixar PNG'; } });
+}
+
+document.getElementById('btnPng')?.addEventListener('click', baixarPng);
+
+// Ação automática quando a página é aberta já pedindo um formato.
+<?php if ($autoAcao === 'imprimir'): ?>
+window.addEventListener('load', () => setTimeout(() => window.print(), 300));
+<?php elseif ($autoAcao === 'png'): ?>
+window.addEventListener('load', () => setTimeout(baixarPng, 300));
+<?php endif; ?>
+</script>
 </body>
 </html>

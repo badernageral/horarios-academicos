@@ -127,6 +127,19 @@ CREATE TABLE turmas (
 CREATE INDEX idx_turmas_curso ON turmas(curso_id);
 
 -- ── DISCIPLINAS ───────────────────────────────────────────────────
+-- Lacunas da turma: turnos em que ela NÃO tem aula.
+-- Presença da linha = pode ter aula; AUSÊNCIA = bloqueado (mesma convenção de
+-- disponibilidade_professor). Só dois estados, sem coluna de preferência.
+CREATE TABLE disponibilidade_turma (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    turma_id   INTEGER NOT NULL,
+    dia_semana INTEGER NOT NULL,
+    turno      TEXT    NOT NULL,
+    UNIQUE (turma_id, dia_semana, turno),
+    FOREIGN KEY (turma_id) REFERENCES turmas(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_disp_turma_dia ON disponibilidade_turma(turma_id, dia_semana);
+
 CREATE TABLE disciplinas (
     id                     INTEGER PRIMARY KEY AUTOINCREMENT,
     nome                   TEXT NOT NULL,
@@ -140,10 +153,13 @@ CREATE TABLE disciplinas (
     qtd_professores        INTEGER NOT NULL DEFAULT 1,
     semestre_oferta        INTEGER NOT NULL DEFAULT 3,
     cor                    TEXT NOT NULL DEFAULT '#6366f1',
+    -- Vínculo opcional com um NDA (classificação; não é obrigatório como no professor)
+    nda_id                 INTEGER,
     ativo                  INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (curso_id) REFERENCES cursos(id),
     FOREIGN KEY (turma_id) REFERENCES turmas(id),
-    FOREIGN KEY (professor_id) REFERENCES professores(id) ON DELETE SET NULL
+    FOREIGN KEY (professor_id) REFERENCES professores(id) ON DELETE SET NULL,
+    FOREIGN KEY (nda_id) REFERENCES ndas(id) ON DELETE SET NULL
 );
 CREATE INDEX idx_disc_turma ON disciplinas(turma_id);
 CREATE INDEX idx_disc_professor ON disciplinas(professor_id);
@@ -200,6 +216,9 @@ CREATE TABLE geracoes (
     log                  TEXT,
     created_at           TEXT DEFAULT CURRENT_TIMESTAMP,
     finished_at          TEXT,
+    -- 1 = visível na consulta pública (/publico). Padrão 0: horário em
+    -- elaboração não aparece até ser liberado.
+    publico              INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (semestre_id) REFERENCES semestres(id) ON DELETE CASCADE
 );
 CREATE INDEX idx_ger_semestre ON geracoes(semestre_id);
@@ -215,6 +234,9 @@ CREATE TABLE horarios (
     dia_semana    INTEGER NOT NULL,
     hora_inicio   TEXT NOT NULL,
     hora_fim      TEXT NOT NULL,
+    -- Anotação livre no bloco (ex.: "Reposição do dia 10/02"). Fica na linha
+    -- para acompanhar o bloco quando ele é arrastado.
+    observacao    TEXT,
     FOREIGN KEY (geracao_id)    REFERENCES geracoes(id) ON DELETE CASCADE,
     FOREIGN KEY (disciplina_id) REFERENCES disciplinas(id),
     FOREIGN KEY (turma_id)      REFERENCES turmas(id),
@@ -238,9 +260,20 @@ CREATE TABLE turnos (
 );
 
 INSERT INTO turnos (chave, nome, hora_inicio, hora_fim, ordem) VALUES
-    ('matutino',   'Matutino',   '07:00:00', '12:00:00', 1),
-    ('vespertino', 'Vespertino', '12:00:00', '18:00:00', 2),
-    ('noturno',    'Noturno',    '18:00:00', '23:00:00', 3);
+    ('matutino',   'Matutino',   '07:00:00', '12:30:00', 1),
+    ('vespertino', 'Vespertino', '12:30:00', '18:30:00', 2),
+    ('noturno',    'Noturno',    '18:30:00', '23:00:00', 3);
+
+-- Anotação no nome da turma, por geração (some quando a geração é substituída).
+CREATE TABLE anotacoes_turma (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    geracao_id INTEGER NOT NULL,
+    turma_id   INTEGER NOT NULL,
+    texto      TEXT    NOT NULL,
+    UNIQUE (geracao_id, turma_id),
+    FOREIGN KEY (geracao_id) REFERENCES geracoes(id) ON DELETE CASCADE,
+    FOREIGN KEY (turma_id)   REFERENCES turmas(id)   ON DELETE CASCADE
+);
 
 CREATE TABLE configuracoes_soft (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,

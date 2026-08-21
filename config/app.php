@@ -42,9 +42,9 @@ return [
     // criaria uma zona morta onde nenhuma aula seria permitida, mesmo o professor
     // tendo marcado verde nos dois turnos vizinhos.
     'turnos' => [
-        'matutino'   => ['nome' => 'Matutino',   'inicio' => '07:00', 'fim' => '12:00'],
-        'vespertino' => ['nome' => 'Vespertino', 'inicio' => '12:00', 'fim' => '18:00'],
-        'noturno'    => ['nome' => 'Noturno',    'inicio' => '18:00', 'fim' => '23:00'],
+        'matutino'   => ['nome' => 'Matutino',   'inicio' => '07:00', 'fim' => '12:30'],
+        'vespertino' => ['nome' => 'Vespertino', 'inicio' => '12:30', 'fim' => '18:30'],
+        'noturno'    => ['nome' => 'Noturno',    'inicio' => '18:30', 'fim' => '23:00'],
     ],
 
     // Estados de cada retângulo da grade de disponibilidade.

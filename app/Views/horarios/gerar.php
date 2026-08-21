@@ -95,7 +95,7 @@ $geracao      = $geracoes[0] ?? null;
         <div class="mt-1">
           <span class="text-success fw-semibold"><?= $geracao['atividades_agendadas'] ?> agendadas</span>
           <?php if ($geracao['atividades_falhas'] > 0): ?>
-          <span class="text-danger ms-2"><?= $geracao['atividades_falhas'] ?> falhas</span>
+          <span class="text-danger ms-2"><?= $geracao['atividades_falhas'] ?> não agendadas</span>
           <?php endif; ?>
         </div>
       </div>

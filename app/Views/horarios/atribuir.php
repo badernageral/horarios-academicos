@@ -59,7 +59,15 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
           </tr>
         </thead>
         <tbody>
-        <?php foreach ($disciplinas as $d):
+        <?php foreach ($grupos as $ndaId => $g): ?>
+        <?php // Cabeçalho do NDA: mesma tabela, uma seção por núcleo. ?>
+        <tr class="table-secondary">
+          <td colspan="6" class="fw-semibold py-1">
+            <i class="bi bi-diagram-3 me-2"></i><?= htmlspecialchars($g['nome']) ?>
+            <span class="badge text-bg-light border ms-1"><?= count($g['disciplinas']) ?></span>
+          </td>
+        </tr>
+        <?php foreach ($g['disciplinas'] as $d):
           $durEncontro  = (int)$d['qtd_aulas'] * (int)$d['duracao_aula_minutos'];
           $qtdProfs     = max(1, (int)($d['qtd_professores'] ?? 1));
           $atribuidos   = $d['professores_atribuidos'] ?? [];
@@ -112,6 +120,7 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
             </td>
           </tr>
         <?php endforeach; ?>
+        <?php endforeach; ?>
         </tbody>
       </table>
     </div>
@@ -122,4 +131,137 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
       <a href="<?= $base ?>/horarios" class="btn btn-outline-secondary">Cancelar</a>
     </div>
   </form>
+</div>
+
+<?php // Relatório de carga por NDA do PROFESSOR. Vem das atribuições acima, não
+      // da grade gerada — serve para conferir a distribuição ANTES de gerar. ?>
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-transparent fw-semibold">
+    <i class="bi bi-clock-history me-2"></i>Carga horária por professor
+  </div>
+  <div class="card-body">
+
+    <?php if (empty($cargaPorNda)): ?>
+      <p class="text-muted mb-0">Nenhum professor ativo cadastrado.</p>
+    <?php else: ?>
+
+    <?php foreach ($cargaPorNda as $g): ?>
+    <div class="mb-4">
+      <div class="d-flex align-items-center gap-2 border-bottom pb-1 mb-2">
+        <span class="fw-semibold"><i class="bi bi-diagram-3 me-1"></i><?= htmlspecialchars($g['nome']) ?></span>
+        <span class="badge text-bg-light border"><?= count($g['professores']) ?> professor(es)</span>
+        <?php $semCargaNda = count(array_filter($g['professores'], fn($x) => empty($x['disciplinas']))); ?>
+        <?php if ($semCargaNda > 0): ?>
+        <span class="badge text-bg-warning"><?= $semCargaNda ?> sem carga</span>
+        <?php endif; ?>
+        <span class="ms-auto small text-muted">
+          Total do NDA:
+          <strong><?= $g['aulas'] ?></strong> aulas ·
+          <strong><?= $g['minutos'] > 0 ? \App\Services\TimeHelper::formatDuration($g['minutos']) : '0h' ?></strong>
+          <?php if ($g['ead'] > 0): ?> · <?= $g['ead'] ?> EaD<?php endif; ?>
+        </span>
+      </div>
+
+      <?php // Uma linha por professor; as disciplinas ficam na própria linha. ?>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0" style="font-size:13px">
+          <thead class="table-light">
+            <tr>
+              <th style="width:18%">Professor</th>
+              <th>Disciplinas</th>
+              <th class="text-center" style="width:10%">Aulas</th>
+              <th class="text-center" style="width:14%">Carga relógio</th>
+            </tr>
+          </thead>
+          <tbody>
+          <?php foreach ($g['professores'] as $p): ?>
+            <?php $semCarga = empty($p['disciplinas']); ?>
+            <tr <?= $semCarga ? 'class="table-warning"' : '' ?>>
+              <td class="fw-semibold"><?= htmlspecialchars($p['nome']) ?></td>
+              <td>
+                <?php if ($semCarga): ?>
+                  <span class="text-muted fst-italic">sem disciplinas atribuídas</span>
+                <?php else: ?>
+                  <?php foreach ($p['disciplinas'] as $i => $d): ?><?= $i ? ' · ' : '' ?><span
+                    title="<?= htmlspecialchars($d['turma']) ?> — <?= $d['encontros'] ?> encontro(s) por semana"><?=
+                    htmlspecialchars($d['nome']) ?><span class="text-muted"> (<?= htmlspecialchars($d['turma']) ?>)</span><?php
+                    if ($d['dividida']): ?><span class="badge text-bg-light border ms-1"
+                      title="Disciplina com mais de um professor: os encontros são divididos">dividida</span><?php endif; ?></span><?php endforeach; ?>
+                  <?php if ($p['ead'] > 0): ?>
+                  <span class="badge text-bg-info ms-1"><?= $p['ead'] ?> EaD</span>
+                  <?php endif; ?>
+                <?php endif; ?>
+              </td>
+              <td class="text-center"><?= $p['aulas'] ?></td>
+              <td class="text-center">
+                <?php if ($semCarga): ?>
+                  <span class="text-muted">0h</span>
+                <?php else: ?>
+                  <span class="badge bg-primary"><?= \App\Services\TimeHelper::formatDuration($p['minutos']) ?></span>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <?php endforeach; ?>
+
+    <?php endif; ?>
+  </div>
+</div>
+
+<?php // Relatório de salas: blocos lado a lado, cada um com suas disciplinas. ?>
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-transparent fw-semibold">
+    <i class="bi bi-door-open me-2"></i>Ocupação das salas
+  </div>
+  <div class="card-body">
+    <?php if (empty($ocupacaoSalas)): ?>
+      <p class="text-muted mb-0">Nenhuma sala ativa cadastrada.</p>
+    <?php else: ?>
+    <div class="row g-3">
+      <?php foreach ($ocupacaoSalas as $sala): ?>
+      <?php $vazia = empty($sala['disciplinas']); ?>
+      <div class="col-12 col-md-6 col-xl-4">
+        <div class="border rounded h-100">
+          <div class="px-3 py-2 border-bottom d-flex align-items-center gap-2
+                      <?= $sala['id'] === 0 ? 'bg-warning-subtle' : 'bg-light' ?>">
+            <span class="fw-semibold">
+              <i class="bi bi-<?= $sala['id'] === 0 ? 'exclamation-triangle' : 'door-open' ?> me-1"></i>
+              <?= htmlspecialchars($sala['nome']) ?>
+            </span>
+            <span class="ms-auto small text-muted">
+              <?php if ($vazia): ?>
+                sem disciplinas
+              <?php else: ?>
+                <?= count($sala['disciplinas']) ?> disc. · <?= $sala['aulas'] ?> aulas ·
+                <?= \App\Services\TimeHelper::formatDuration($sala['minutos']) ?>
+              <?php endif; ?>
+            </span>
+          </div>
+          <div class="px-3 py-2">
+            <?php if ($vazia): ?>
+              <span class="small text-muted fst-italic">Nenhuma disciplina atribuída a esta sala.</span>
+            <?php else: ?>
+            <ul class="list-unstyled mb-0 small">
+              <?php foreach ($sala['disciplinas'] as $d): ?>
+              <li class="d-flex gap-2 py-1 border-bottom">
+                <span class="flex-grow-1">
+                  <?= htmlspecialchars($d['nome']) ?>
+                  <span class="text-muted d-block" style="font-size:12px"><?= htmlspecialchars($d['turma']) ?></span>
+                </span>
+                <span class="text-nowrap text-muted"><?= $d['aulas'] ?> aulas</span>
+              </li>
+              <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+  </div>
 </div>

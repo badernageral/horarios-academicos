@@ -27,6 +27,18 @@ class DashboardController extends BaseController
              LIMIT 6"
         );
 
+        // Mesmo motivo do /horarios: os contadores gravados na geração não
+        // acompanham ajustes manuais na grade.
+        foreach ($semestres as &$sem) {
+            if (empty($sem['geracao_id'])) continue;
+            $situacao = \App\Models\Horario::situacao((int)$sem['geracao_id']);
+            if (!$situacao) continue;
+            $sem['geracao_status']       = $situacao['status'];
+            $sem['atividades_agendadas'] = $situacao['agendadas'];
+            $sem['atividades_falhas']    = $situacao['nao_agendadas'];
+        }
+        unset($sem);
+
         $this->render('dashboard/index', compact('stats', 'semestres'));
     }
 }

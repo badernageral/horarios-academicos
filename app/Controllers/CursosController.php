@@ -28,7 +28,7 @@ class CursosController extends BaseController
             'nome'                => trim($this->post('nome')),
             'turno_inicio'        => $this->post('turno_inicio', '07:00'),
             'turno_fim'           => $this->post('turno_fim', '12:00'),
-            'duracao_aula_minutos'=> (int)$this->post('duracao_aula_minutos', 50),
+            'duracao_aula_minutos'=> (int)$this->post('duracao_aula_minutos', 45),
             'dias_semana'         => json_encode(array_values($diasSemana)),
             'cor'          => $this->post('cor', '#3b82f6'),
             'ativo'        => (int)$this->post('ativo', 1),

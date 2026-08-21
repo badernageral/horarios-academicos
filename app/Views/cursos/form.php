@@ -41,7 +41,7 @@ $intervalos = $curso['intervalos'] ?? [];
               <label class="form-label">Duração da Aula (min) <span class="text-danger">*</span></label>
               <input type="number" name="duracao_aula_minutos" class="form-control"
                      min="10" max="240" step="5"
-                     value="<?= (int)($curso['duracao_aula_minutos'] ?? 50) ?>" required>
+                     value="<?= (int)($curso['duracao_aula_minutos'] ?? 45) ?>" required>
             </div>
             <div class="col-md-2">
               <label class="form-label">Cor</label>

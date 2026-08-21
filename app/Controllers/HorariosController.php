@@ -18,6 +18,12 @@ class HorariosController extends BaseController
                 "SELECT id, status, created_at FROM geracoes WHERE semestre_id = ? ORDER BY created_at DESC LIMIT 1",
                 [$s['id']]
             );
+            // O status gravado é do momento da geração; ajustes manuais na grade
+            // (tirar algo do limbo, por exemplo) não o atualizam. Recalcula.
+            if ($s['ultima_geracao']) {
+                $situacao = Horario::situacao((int)$s['ultima_geracao']['id']);
+                if ($situacao) $s['ultima_geracao']['status'] = $situacao['status'];
+            }
             $s['avisos_viabilidade'] = FeasibilityChecker::verificar((int)$s['id']);
         }
         unset($s);
@@ -189,11 +195,35 @@ class HorariosController extends BaseController
             $semAtribuir += max(0, $necessarios - $atribuidos);
             if (empty($d['sala_atribuida'])) $semSala++;
         }
+        // Agrupa por NDA. Disciplinas sem vínculo caem em "Qualquer NDA", que vai
+        // por último: os núcleos nomeados é que orientam a distribuição.
+        $grupos = [];
+        foreach ($disciplinas as $d) {
+            $chave = $d['nda_id'] !== null ? (int)$d['nda_id'] : 0;
+            if (!isset($grupos[$chave])) {
+                $grupos[$chave] = [
+                    'nome'        => $d['nda_nome'] ?? 'Qualquer NDA',
+                    'disciplinas' => [],
+                ];
+            }
+            $grupos[$chave]['disciplinas'][] = $d;
+        }
+        uksort($grupos, function ($a, $b) use ($grupos) {
+            if ($a === 0) return 1;      // "Qualquer NDA" sempre no fim
+            if ($b === 0) return -1;
+            return strcasecmp($grupos[$a]['nome'], $grupos[$b]['nome']);
+        });
+
         $flash  = $this->getFlash();
         $avisos = FeasibilityChecker::verificar($semestreId);
 
+        // Relatório de carga: agrupado pelo NDA do PROFESSOR (não da disciplina)
+        $cargaPorNda = Semestre::cargaPorProfessor($semestreId);
+        $ocupacaoSalas = Semestre::ocupacaoPorSala($semestreId);
+
         $this->render('horarios/atribuir', compact(
-            'semestre', 'semestreId', 'disciplinas', 'professores', 'salas', 'semAtribuir', 'semSala', 'flash', 'avisos'
+            'semestre', 'semestreId', 'disciplinas', 'grupos', 'professores', 'salas',
+            'semAtribuir', 'semSala', 'flash', 'avisos', 'cargaPorNda', 'ocupacaoSalas'
         ));
     }
 
@@ -340,11 +370,188 @@ class HorariosController extends BaseController
         // está desatualizada. Só avisamos — regerar é ação explícita do usuário.
         $desatualizadas = FeasibilityChecker::gradesDesatualizadas($geracaoId);
 
+        // Lacunas das turmas: turnos SEM aula, para sombrear as células na grade.
+        // É só exibição — o gerador já trata isso como restrição dura.
+        $turnosMin = [];
+        foreach (\App\Models\Turno::todos() as $chave => $t) {
+            $turnosMin[$chave] = [
+                'inicio' => TimeHelper::toMinutes($t['inicio']),
+                'fim'    => TimeHelper::toMinutes($t['fim']),
+            ];
+        }
+        $turmaLiberado = [];
+        foreach (Database::fetchAll("SELECT turma_id, dia_semana, turno FROM disponibilidade_turma") as $l) {
+            $turmaLiberado[(int)$l['turma_id']][(int)$l['dia_semana']][$l['turno']] = true;
+        }
+
+        // Anotações de turma desta geração (as de bloco vêm em horarios.observacao)
+        $anotacoesTurma = [];
+        foreach (Database::fetchAll(
+            "SELECT turma_id, texto FROM anotacoes_turma WHERE geracao_id = ?", [$geracaoId]
+        ) as $a) {
+            $anotacoesTurma[(int)$a['turma_id']] = $a['texto'];
+        }
+
+        // Disponibilidade por turno de cada professor, para o arraste pintar
+        // verde (preferido) e amarelo (só se precisar).
+        $dispProfessor = [];
+        foreach (Database::fetchAll("SELECT professor_id, dia_semana, turno, estado FROM disponibilidade_professor") as $l) {
+            $dispProfessor[(int)$l['professor_id']][(int)$l['dia_semana']][$l['turno']] =
+                (int)$l['estado'] === 2 ? 2 : 1;
+        }
+
+        // Ocupação de cada professor, em minutos, para o destaque durante o
+        // arraste. Vai pronta do servidor porque aqui os horários são exatos —
+        // reconstruir isso no JS a partir do DOM seria frágil.
+        $ocupacaoProf = [];
+        foreach ($todosHorarios as $h) {
+            if ((int)$h['dia_semana'] === 0) continue;   // limbo não ocupa horário
+            $ocupacaoProf[] = [
+                'prof'  => (int)$h['professor_id'],
+                'turma' => (int)$h['turma_id'],
+                'dia'   => (int)$h['dia_semana'],
+                'ini'   => TimeHelper::toMinutes($h['hora_inicio']),
+                'fim'   => TimeHelper::toMinutes($h['hora_fim']),
+            ];
+        }
+
         $this->render('horarios/grade', compact(
             'grade', 'geracao', 'geracaoId', 'semestreId',
             'cursoFiltro', 'turmaFiltro', 'profFiltro', 'salaFiltro', 'filtroAtivo',
             'cursosFiltro', 'turmasFiltro', 'professoresFiltro', 'salasFiltro',
-            'qualidade', 'desatualizadas'
+            'qualidade', 'desatualizadas', 'ocupacaoProf', 'turnosMin', 'turmaLiberado', 'dispProfessor', 'anotacoesTurma'
+        ));
+    }
+
+    /**
+     * API: libera (ou retira) esta geração da consulta pública.
+     *
+     * Enquanto o horário está sendo elaborado ele não deve aparecer em
+     * /publico; a liberação é sempre um ato explícito.
+     */
+    public function publicar(): void
+    {
+        header('Content-Type: application/json');
+        $raw       = json_decode(file_get_contents('php://input'), true) ?? [];
+        $geracaoId = (int)($raw['geracao_id'] ?? 0);
+        $publico   = !empty($raw['publico']) ? 1 : 0;
+
+        if (!$geracaoId) {
+            echo json_encode(['ok' => false, 'erro' => 'Geração inválida']);
+            return;
+        }
+
+        Database::query("UPDATE geracoes SET publico = ? WHERE id = ?", [$publico, $geracaoId]);
+        echo json_encode(['ok' => true, 'publico' => $publico]);
+    }
+
+    /**
+     * API: grava ou remove uma anotação da grade.
+     *
+     * tipo=bloco → coluna `observacao` do horário (acompanha o bloco se ele for
+     * arrastado). tipo=turma → tabela `anotacoes_turma`, presa à geração.
+     * Texto vazio REMOVE a anotação — é assim que o usuário apaga.
+     */
+    public function anotar(): void
+    {
+        header('Content-Type: application/json');
+        $raw   = json_decode(file_get_contents('php://input'), true) ?? [];
+        $tipo  = $raw['tipo'] ?? '';
+        $id    = (int)($raw['id'] ?? 0);
+        $texto = trim((string)($raw['texto'] ?? ''));
+
+        // Corta sem quebrar acento: mbstring é proibido no projeto.
+        if (preg_match('/^.{0,200}/us', $texto, $m)) $texto = $m[0];
+
+        if (!$id) {
+            echo json_encode(['ok' => false, 'erro' => 'Alvo inválido']);
+            return;
+        }
+
+        if ($tipo === 'bloco') {
+            Database::query(
+                "UPDATE horarios SET observacao = ? WHERE id = ?",
+                [$texto !== '' ? $texto : null, $id]
+            );
+            echo json_encode(['ok' => true, 'texto' => $texto]);
+            return;
+        }
+
+        if ($tipo === 'turma') {
+            $geracaoId = (int)($raw['geracao_id'] ?? 0);
+            if (!$geracaoId) {
+                echo json_encode(['ok' => false, 'erro' => 'Geração não informada']);
+                return;
+            }
+            if ($texto === '') {
+                Database::query(
+                    "DELETE FROM anotacoes_turma WHERE geracao_id = ? AND turma_id = ?",
+                    [$geracaoId, $id]
+                );
+            } else {
+                Database::query(
+                    "INSERT INTO anotacoes_turma (geracao_id, turma_id, texto) VALUES (?, ?, ?)
+                     ON CONFLICT(geracao_id, turma_id) DO UPDATE SET texto = excluded.texto",
+                    [$geracaoId, $id, $texto]
+                );
+            }
+            echo json_encode(['ok' => true, 'texto' => $texto]);
+            return;
+        }
+
+        echo json_encode(['ok' => false, 'erro' => 'Tipo desconhecido']);
+    }
+
+    /**
+     * Visualização da grade POR SALA — para conferir o ensalamento.
+     *
+     * Página à parte da grade por turma: aqui é só leitura, sem arrastar,
+     * anotar ou exportar. O eixo de tempo é comum a todas as salas
+     * (GradeLayout::montarPorSala), para dar para comparar lado a lado.
+     */
+    public function verGradeSalas(string $geracaoId): void
+    {
+        $geracaoId = (int)$geracaoId;
+        $geracao   = Database::fetchOne("SELECT * FROM geracoes WHERE id = ?", [$geracaoId]);
+        if (!$geracao) $this->redirect('/horarios');
+
+        $horarios = Horario::porGeracao($geracaoId);
+
+        // Mesmos filtros da grade por turma
+        $cursoFiltro = (int)$this->get('curso_id', 0);
+        $turmaFiltro = (int)$this->get('turma_id', 0);
+        $profFiltro  = (int)$this->get('professor_id', 0);
+        $salaFiltro  = (int)$this->get('sala_id', 0);
+        $filtroAtivo = $cursoFiltro || $turmaFiltro || $profFiltro || $salaFiltro;
+
+        if ($filtroAtivo) {
+            $horarios = array_values(array_filter(
+                $horarios,
+                function ($h) use ($cursoFiltro, $turmaFiltro, $profFiltro, $salaFiltro) {
+                    if ($cursoFiltro && (int)$h['curso_id'] !== $cursoFiltro) return false;
+                    if ($turmaFiltro && (int)$h['turma_id'] !== $turmaFiltro) return false;
+                    if ($profFiltro && (int)$h['professor_id'] !== $profFiltro) return false;
+                    if ($salaFiltro && (int)($h['sala_id'] ?? 0) !== $salaFiltro) return false;
+                    return true;
+                }
+            ));
+        }
+
+        $salas = GradeLayout::montarPorSala($horarios);
+
+        // Listas dos selects (sempre completas, mesmo com filtro aplicado)
+        $cursosFiltro      = Curso::allAtivos();
+        $turmasFiltro      = Turma::allComCurso();
+        $professoresFiltro = Professor::allAtivos();
+        $salasFiltro       = Sala::allAtivas();
+
+        $config = require ROOT_PATH . '/config/app.php';
+        $dias   = $config['dias_semana'] ?? [1=>'Segunda',2=>'Terça',3=>'Quarta',4=>'Quinta',5=>'Sexta'];
+
+        $this->render('horarios/grade_salas', compact(
+            'geracao', 'geracaoId', 'salas', 'dias',
+            'cursoFiltro', 'turmaFiltro', 'profFiltro', 'salaFiltro', 'filtroAtivo',
+            'cursosFiltro', 'turmasFiltro', 'professoresFiltro', 'salasFiltro'
         ));
     }
 
@@ -800,41 +1007,81 @@ class HorariosController extends BaseController
     // ── Impressão: todos os horários agrupados por professor ─────
     public function imprimirProfessores(string $geracaoId): void
     {
-        $geracaoId = (int)$geracaoId;
-        $geracao   = Database::fetchOne("SELECT * FROM geracoes WHERE id=?", [$geracaoId]);
-        if (!$geracao) $this->redirect('/horarios');
+        $this->renderAgenda((int)$geracaoId, 'professor');
+    }
 
-        $horarios = $this->semLimbo(Horario::porGeracao($geracaoId));
+    public function imprimirSalas(string $geracaoId): void
+    {
+        $this->renderAgenda((int)$geracaoId, 'sala');
+    }
 
-        // Agrupar por professor → dia, ordenado por nome e hora
-        $porProfessor = [];
-        $temSabado    = false;
+    /**
+     * Agrupa os horários da geração por professor ou por sala, no formato que a
+     * página de agenda e o PDF consomem.
+     *
+     * @return array{0: array, 1: array}  [grupos, dias]
+     */
+    private function agruparPorEscopo(int $geracaoId, string $escopo): array
+    {
+        $horarios  = $this->semLimbo(Horario::porGeracao($geracaoId));
+        $grupos    = [];
+        $temSabado = false;
+
         foreach ($horarios as $h) {
-            $nome = $h['professor_nome'];
-            $porProfessor[$nome]['cor']     = $h['professor_cor'] ?: '#94a3b8';
-            $porProfessor[$nome]['cor_sec'] = $h['professor_cor_secundaria'] ?: $h['professor_cor'];
-            $porProfessor[$nome]['dias'][(int)$h['dia_semana']][] = $h;
+            $nome = $escopo === 'sala'
+                ? ($h['sala_nome'] ?: 'Sem sala definida')
+                : $h['professor_nome'];
+
+            $cor = $h['professor_cor'] ?: '#94a3b8';
+
+            $grupos[$nome]['cor']     = $cor;
+            $grupos[$nome]['cor_sec'] = $h['professor_cor_secundaria'] ?: $cor;
+            $grupos[$nome]['dias'][(int)$h['dia_semana']][] = $h;
             if ((int)$h['dia_semana'] === 6) $temSabado = true;
         }
-        ksort($porProfessor, SORT_NATURAL | SORT_FLAG_CASE);
-        foreach ($porProfessor as &$p) {
-            foreach ($p['dias'] as &$lista) {
+
+        ksort($grupos, SORT_NATURAL | SORT_FLAG_CASE);
+        foreach ($grupos as &$g) {
+            foreach ($g['dias'] as &$lista) {
                 usort($lista, fn($a, $b) => strcmp($a['hora_inicio'], $b['hora_inicio']));
             }
             unset($lista);
         }
-        unset($p);
+        unset($g);
 
         $dias = $temSabado
             ? [1=>'Segunda', 2=>'Terça', 3=>'Quarta', 4=>'Quinta', 5=>'Sexta', 6=>'Sábado']
             : [1=>'Segunda', 2=>'Terça', 3=>'Quarta', 4=>'Quinta', 5=>'Sexta'];
 
-        // Página standalone (sem layout da aplicação)
-        $base = BASE_PATH;
-        require ROOT_PATH . '/app/Views/horarios/imprimir_professores.php';
+        return [$grupos, $dias];
     }
 
-    // ── Verificar conflitos entre disciplinas (aluno multi-período) ──
+    /**
+     * Página de impressão em formato AGENDA (aulas por dia), um bloco por
+     * entidade e um por página. Serve professor e sala com o mesmo layout —
+     * o que muda é só por qual campo os horários são agrupados.
+     *
+     * Não usa GradeLayout de propósito: aquela estrutura amarra turno e duração
+     * de aula ao CURSO da turma, e um professor (ou sala) atravessa cursos com
+     * turnos diferentes, o que não caberia numa única malha.
+     */
+    private function renderAgenda(int $geracaoId, string $escopo): void
+    {
+        $geracao = Database::fetchOne("SELECT * FROM geracoes WHERE id=?", [$geracaoId]);
+        if (!$geracao) $this->redirect('/horarios');
+
+        [$grupos, $dias] = $this->agruparPorEscopo($geracaoId, $escopo);
+
+        $orientacao      = $this->get('orientacao') === 'portrait' ? 'portrait' : 'landscape';
+        $tituloPagina    = $escopo === 'sala' ? 'Horários por Sala' : 'Horários por Professor';
+        $rotuloEntidade  = $escopo === 'sala' ? 'sala(s)' : 'professor(es)';
+        $autoAcao        = $this->get('acao', '');   // 'imprimir' | 'png' | ''
+
+        // Página standalone (sem layout da aplicação)
+        $base = BASE_PATH;
+        require ROOT_PATH . '/app/Views/horarios/imprimir_agenda.php';
+    }
+
     public function verificarConflitos(string $geracaoId): void
     {
         header('Content-Type: application/json');
@@ -941,15 +1188,36 @@ class HorariosController extends BaseController
      */
     public function exportarPDF(string $geracaoId): void
     {
-        $geracaoId = (int)$geracaoId;
-        $grade     = GradeLayout::montar(Horario::porGeracao($geracaoId));
+        $geracaoId  = (int)$geracaoId;
+        $escopo     = $this->get('escopo', 'turma');
+        $orientacao = $this->get('orientacao') === 'portrait' ? 'portrait' : 'landscape';
 
+        // Professor e sala saem em formato agenda; só turma usa a malha da grade.
+        if ($escopo === 'professor' || $escopo === 'sala') {
+            [$grupos, $dias] = $this->agruparPorEscopo($geracaoId, $escopo);
+            $geracao = Database::fetchOne("SELECT descricao FROM geracoes WHERE id=?", [$geracaoId]);
+            (new PdfExporter($orientacao))->gerarAgenda(
+                $grupos, $dias,
+                (string)($geracao['descricao'] ?? ''),
+                'horarios_por_' . $escopo . '_' . date('Y-m-d')
+            );
+            return;
+        }
+
+        $grade  = GradeLayout::montar(Horario::porGeracao($geracaoId));
         $turmas = array_filter(array_map('intval', explode(',', (string)$this->get('turmas', ''))));
         if ($turmas) {
             $grade = array_intersect_key($grade, array_flip($turmas));
         }
 
-        $orientacao = $this->get('orientacao') === 'portrait' ? 'portrait' : 'landscape';
+        // Anotação da turma (fica fora do GradeLayout, que só conhece horários)
+        foreach (Database::fetchAll(
+            "SELECT turma_id, texto FROM anotacoes_turma WHERE geracao_id = ?", [$geracaoId]
+        ) as $a) {
+            $tid = (int)$a['turma_id'];
+            if (isset($grade[$tid])) $grade[$tid]['anotacao'] = $a['texto'];
+        }
+
         (new PdfExporter($orientacao))->gerar($grade, 'grade_horarios_' . date('Y-m-d'));
     }
 

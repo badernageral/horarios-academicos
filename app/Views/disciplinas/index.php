@@ -39,6 +39,7 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
             <?= $th('nome', 'Nome') ?>
             <?= $th('curso_nome', 'Curso') ?>
             <?= $th('turma_nome', 'Turma') ?>
+            <?= $th('nda_nome', 'NDA') ?>
             <th class="text-center">Semestre</th>
             <?= $th('qtd_encontros_semanais', 'Encontros/sem', ' class="text-center"') ?>
             <th class="text-center">Aulas/encontro</th>
@@ -49,7 +50,7 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
         </thead>
         <tbody>
         <?php if (empty($disciplinas)): ?>
-          <tr><td colspan="11" class="text-center text-muted py-4">Nenhuma disciplina cadastrada.</td></tr>
+          <tr><td colspan="12" class="text-center text-muted py-4">Nenhuma disciplina cadastrada.</td></tr>
         <?php else: ?>
         <?php foreach ($disciplinas as $d):
           $duracaoEncontro = (int)$d['qtd_aulas'] * (int)$d['duracao_aula_minutos'];
@@ -61,6 +62,13 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
             <td><?= htmlspecialchars($d['nome']) ?></td>
             <td class="small"><?= htmlspecialchars($d['curso_nome']) ?></td>
             <td class="small"><?= htmlspecialchars($d['turma_nome']) ?></td>
+            <td class="small">
+              <?php if (!empty($d['nda_nome'])): ?>
+                <?= htmlspecialchars($d['nda_nome']) ?>
+              <?php else: ?>
+                <span class="text-muted fst-italic">Qualquer NDA</span>
+              <?php endif; ?>
+            </td>
             <td class="text-center">
               <?php
                 $o = (int)$d['semestre_oferta'];

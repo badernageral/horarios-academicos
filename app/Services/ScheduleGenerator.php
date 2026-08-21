@@ -72,6 +72,9 @@ class ScheduleGenerator
     /** Faixas dos turnos em minutos: [chave] = ['inicio'=>int,'fim'=>int] */
     private array $turnos = [];
 
+    /** Turnos liberados por turma: [turma_id][dia][turno] = true */
+    private array $disponibilidadeTurma = [];
+
     private int $geracaoId;
     private int $semestreId;
 
@@ -175,6 +178,11 @@ class ScheduleGenerator
                 (int)$d['estado'] === 2 ? 2 : 1;
         }
 
+        // Lacunas da turma: turnos em que ela pode ter aula. Ausência = bloqueado.
+        foreach (Database::fetchAll("SELECT * FROM disponibilidade_turma") as $d) {
+            $this->disponibilidadeTurma[(int)$d['turma_id']][(int)$d['dia_semana']][$d['turno']] = true;
+        }
+
         // Salas
         foreach (Database::fetchAll("SELECT * FROM salas WHERE ativo = 1") as $s) {
             $this->salas[$s['id']] = $s;
@@ -262,7 +270,8 @@ class ScheduleGenerator
     {
         $diasCurso = $atividade['dias_semana'];
         $diasProf  = array_keys($this->disponibilidade[$atividade['professor_id']] ?? []);
-        return array_intersect($diasCurso, $diasProf);
+        $diasTurma = array_keys($this->disponibilidadeTurma[$atividade['turma_id']] ?? []);
+        return array_intersect($diasCurso, $diasProf, $diasTurma);
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -307,12 +316,15 @@ class ScheduleGenerator
                     // 1. Não sobrepõe ocupações existentes
                     if (TimeHelper::overlapsAny($inicio, $fim, $ocupado)) continue;
 
-                    // 2. Dentro da disponibilidade do professor.
+                    // 2. A turma tem aula nesse turno? (lacunas da turma)
+                    if (!$this->turmaLiberada($atividade['turma_id'], $dia, $inicio, $fim)) continue;
+
+                    // 3. Dentro da disponibilidade do professor.
                     //    null = turno bloqueado (ou fora de qualquer turno).
                     $pref = $this->preferenciaProfessor($atividade['professor_id'], $dia, $inicio, $fim);
                     if ($pref === null) continue;
 
-                    // 3. Calcular score (soft constraints)
+                    // 4. Calcular score (soft constraints)
                     $score = $this->calcularScore($atividade, $dia, $inicio, $fim, $salaId, $pref);
 
                     $candidatos[] = [
@@ -667,6 +679,26 @@ class ScheduleGenerator
             $ocp = array_merge($ocp, $this->ocupacaoSala[$salaId][$dia] ?? []);
         }
         return $ocp;
+    }
+
+    /**
+     * A turma tem aula em TODOS os turnos que a aula [inicio,fim) atravessa?
+     * Ausência de linha = turno bloqueado (lacuna da turma), mesma convenção da
+     * disponibilidade do professor.
+     */
+    private function turmaLiberada(int $turmaId, int $dia, int $inicio, int $fim): bool
+    {
+        $doDia = $this->disponibilidadeTurma[$turmaId][$dia] ?? [];
+        if (empty($doDia)) return false;
+
+        $tocou = false;
+        foreach ($this->turnos as $chave => $t) {
+            if ($inicio >= $t['fim'] || $fim <= $t['inicio']) continue;
+            if (empty($doDia[$chave])) return false;
+            $tocou = true;
+        }
+
+        return $tocou;   // fora de qualquer turno = fora do expediente
     }
 
     private function professorDisponivelDia(int $profId, int $dia): bool

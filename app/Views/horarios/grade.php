@@ -5,81 +5,8 @@ $dias = [1 => 'Segunda', 2 => 'Terça', 3 => 'Quarta', 4 => 'Quinta', 5 => 'Sext
 $corSemProf = '#94a3b8';
 ?>
 
+<?php require VIEW_PATH . '/horarios/_grade_estilo.php'; ?>
 <style>
-* {
-  print-color-adjust: exact !important;
-  -webkit-print-color-adjust: exact !important;
-  color-adjust: exact !important;
-}
-.grade-table {
-  border-collapse: collapse;
-  table-layout: fixed;
-  min-width: 700px;
-  font-size: 12px;
-}
-.grade-table th {
-  background: #f1f5f9;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-  padding: 7px 6px;
-  border: 1px solid #e2e8f0;
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  white-space: nowrap;
-}
-.grade-table th.col-hora {
-  text-align: left;
-  position: sticky;
-  left: 0;
-  z-index: 4;
-}
-.grade-table td.col-hora {
-  background: #f8fafc;
-  font-size: 11px;
-  color: #64748b;
-  white-space: nowrap;
-  padding: 3px 8px;
-  border: 1px solid #e2e8f0;
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  vertical-align: middle;
-}
-.grade-turma-header td {
-  background: #1e293b;
-  color: #f1f5f9;
-  font-weight: 600;
-  font-size: 12px;
-  padding: 5px 10px;
-  border: 1px solid #334155;
-  position: sticky;
-  left: 0;
-  z-index: 2;
-}
-/* Toda linha de horário tem a MESMA altura, então um bloco de N aulas fica
-   N vezes maior que um de 1 aula. Sem isso a linha se ajusta ao conteúdo e
-   uma disciplina de 2 aulas antes do intervalo acaba do mesmo tamanho de
-   uma de 1 aula (as duas linhas dividem a altura entre si). */
-.grade-table tbody tr.slot-row      { height: 70px; }
-.grade-table tbody tr.intervalo-row { height: 24px; }
-/* Blocos preenchem a célula inteira, para o tamanho refletir a duração.
-   Altura percentual não resolve dentro de <td>, então o bloco é posicionado
-   sobre a célula (a faixa do professor volta a ficar rente à base). */
-.grade-cell { position: relative; }
-.grade-cell > .disc-block {
-  position: absolute;
-  top: 4px; right: 4px; bottom: 4px; left: 4px;
-}
-.grade-cell {
-  vertical-align: top;
-  padding: 3px;
-  border: 1px solid #e2e8f0;
-  min-width: 130px;
-  background: #fff;
-  transition: background 0.12s;
-}
 .grade-cell.drag-over {
   background: #dbeafe !important;
   outline: 2px dashed #3b82f6;
@@ -90,32 +17,106 @@ $corSemProf = '#94a3b8';
   outline: 2px dashed #ef4444;
   outline-offset: -2px;
 }
-.disc-block {
-  cursor: grab;
-  user-select: none;
-  padding: 4px 7px 24px;
-  border-radius: 5px;
-  line-height: 1.35;
-  box-sizing: border-box;
-  transition: box-shadow 0.1s;
-  position: relative;
-  overflow: hidden;
-}
+<?php // O visual do bloco vem do parcial; aqui só o que é de arrastar. ?>
+.disc-block { cursor: grab; transition: box-shadow 0.1s; }
 .disc-block:hover { box-shadow: 0 2px 6px rgba(0,0,0,.15); }
 .disc-block.dragging { opacity: 0.3; cursor: grabbing; }
-.disc-block * { pointer-events: none; }
-.disc-faixa {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  /* A cor do texto vem inline, por contraste com a secundária do professor
-     (ColorHelper::textoSobre). Branco fixo aqui sumia em tons claros. */
-  font-size: 10px;
-  font-weight: 600;
-  padding: 3px 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Enquanto arrasta: onde ESTE professor já dá aula em outras turmas. Soltar
+   num horário que colida com um destes gera conflito. `outline` em vez de
+   `border` porque o bloco é posicionado em absoluto — borda deslocaria o
+   conteúdo; outline com offset negativo desenha por dentro, sem mexer no
+   layout. */
+.disc-block.prof-ocupado {
+  outline: 3px solid #dc2626;
+  outline-offset: -3px;
+  box-shadow: 0 0 0 2px rgba(220,38,38,.25);
 }
+/* Célula da PRÓPRIA turma onde soltar colidiria com uma aula que este professor
+   já tem em outra turma. É o destaque que importa: fica sob os olhos de quem
+   arrasta, enquanto os blocos da outra turma podem estar fora da tela.
+
+   Desenhado como ::after POR CIMA do bloco: como fundo do <td> ele ficava
+   escondido atrás das células já ocupadas, que são justamente as que mais
+   interessam. Sem z-index de propósito — o ::after é o último filho posicionado
+   do <td>, então já pinta depois do .disc-block; um z-index alto passaria por
+   cima dos cabeçalhos fixos (z-index 1..4) ao rolar.
+   pointer-events:none é obrigatório: sem isso a camada engoliria o drop. */
+/* O popover de ajuda tem várias linhas; o padrão do Bootstrap (276px) aperta. */
+.popover.popover-ajuda { max-width: 420px; }
+
+/* Anotações da grade (ex.: "Reposição do dia 10/02"). */
+/* Fica na MESMA linha do horário: o bloco de 1 aula é baixo demais para uma
+   linha extra, e embaixo a anotação ficava cortada. */
+.turma-nota {
+  font-style: italic;
+  font-weight: 400;
+  opacity: .85;
+}
+.turma-nota:not(:empty)::before { content: ' — '; }
+.btn-nota {
+  background: none;
+  border: 0;
+  color: inherit;
+  opacity: .55;
+  padding: 0 4px;
+  line-height: 1;
+  cursor: pointer;
+}
+.btn-nota:hover { opacity: 1; }
+
+/* Interruptores do topo: escondem a marcação sem mexer na lógica — as classes
+   continuam sendo aplicadas, só não são pintadas. */
+body.sem-disp-prof .grade-cell.cell-pref::after,
+body.sem-disp-prof .grade-cell.cell-reserva::after { display: none; }
+body.sem-lacunas .grade-cell.cell-lacuna {
+  background-color: #fff;
+  background-image: none;
+}
+
+/* Lacuna da turma: turno em que ela não tem aula. Sombreado discreto, para
+   distinguir de "vago" — e bem diferente do vermelho de conflito no arraste.
+   Fica no fundo da célula: como os blocos são translúcidos (~35%), a hachura
+   ainda aparece por baixo de uma aula que porventura esteja ali. */
+.grade-cell.cell-lacuna {
+  background-color: #f1f5f9;
+  background-image: repeating-linear-gradient(45deg,
+      rgba(100,116,139,.18), rgba(100,116,139,.18) 5px,
+      transparent 5px, transparent 10px);
+}
+
+/* Durante o arraste, nas células da turma: verde = turno preferido do
+   professor, amarelo = turno "só se precisar". Preenchimento suave, sem
+   hachura — a hachura fica reservada para problema (conflito e lacuna). */
+.grade-cell.cell-pref::after,
+.grade-cell.cell-reserva::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.grade-cell.cell-pref::after {
+  background: rgba(22,163,74,.20);
+  outline: 2px solid rgba(22,163,74,.65);
+  outline-offset: -2px;
+}
+.grade-cell.cell-reserva::after {
+  background: rgba(245,158,11,.22);
+  outline: 2px dashed rgba(217,119,6,.75);
+  outline-offset: -2px;
+}
+
+.grade-cell.cell-conflito::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  outline: 2px solid #dc2626;
+  outline-offset: -2px;
+  background: repeating-linear-gradient(45deg,
+      rgba(220,38,38,.32), rgba(220,38,38,.32) 6px,
+      transparent 6px, transparent 12px);
+}
+.disc-block * { pointer-events: none; }
 .limbo-zone {
   background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 12px, #f1f5f9 12px, #f1f5f9 24px);
   border: 1px dashed #94a3b8;
@@ -203,29 +204,42 @@ $corSemProf = '#94a3b8';
     <i class="bi bi-arrow-left"></i>
   </a>
   <h5 class="mb-0 fw-semibold"><i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Grade de Horários</h5>
-  <span class="badge bg-secondary ms-auto"><?= htmlspecialchars($geracao['descricao'] ?? '') ?></span>
-  <div class="dropdown">
+  <span class="badge bg-secondary"><?= htmlspecialchars($geracao['descricao'] ?? '') ?></span>
+
+  <?php // Alterna a MESMA geração entre a grade por turma e a grade por sala. ?>
+  <div class="form-check form-switch mb-0 ms-2"
+       title="Mostra a mesma geração organizada por sala, para conferir o ensalamento">
+    <input class="form-check-input" type="checkbox" id="chkEnsalamento">
+    <label class="form-check-label small" for="chkEnsalamento">
+      <i class="bi bi-door-open me-1"></i>Visualizar ensalamento
+    </label>
+  </div>
+
+  <?php // ms-auto passou para cá: o badge saiu da direita, os botões continuam nela. ?>
+  <div class="dropdown ms-auto">
     <button type="button" class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown">
-      <i class="bi bi-printer me-1"></i>Imprimir
+      <i class="bi bi-box-arrow-up me-1"></i>Exportar
     </button>
     <ul class="dropdown-menu">
+      <li><h6 class="dropdown-header">Escopo</h6></li>
       <li>
-        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalImprimir">
-          <i class="bi bi-grid-3x3-gap me-2"></i>Grade (por turma)…
+        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalImprimir" data-escopo="turma">
+          <i class="bi bi-grid-3x3-gap me-2"></i>Grade por turma
         </a>
       </li>
       <li>
-        <a class="dropdown-item" href="<?= $base ?>/horarios/geracao/<?= $geracaoId ?>/imprimir/professores" target="_blank">
-          <i class="bi bi-person-badge me-2"></i>Todos por professor
+        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalImprimir" data-escopo="professor">
+          <i class="bi bi-person-badge me-2"></i>Grade por professor
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalImprimir" data-escopo="sala">
+          <i class="bi bi-door-open me-2"></i>Grade por sala
         </a>
       </li>
     </ul>
   </div>
 
-  <button type="button" class="btn btn-sm btn-outline-success"
-          data-bs-toggle="modal" data-bs-target="#modalImprimir" data-modo="pdf">
-    <i class="bi bi-filetype-pdf me-1"></i>Exportar PDF
-  </button>
   <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalConflitos">
     <i class="bi bi-exclamation-triangle me-1"></i>Verificar Conflitos
   </button>
@@ -285,14 +299,11 @@ $corSemProf = '#94a3b8';
     <div class="modal-content">
       <div class="modal-header">
         <h6 class="modal-title">
-          <i class="bi bi-printer me-2" id="imprimir-icone"></i><span id="imprimir-titulo">Imprimir grade por turma</span>
+          <i class="bi bi-box-arrow-up me-2"></i><span id="exp-titulo">Exportar grade</span>
         </h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <?php if (empty($grade)): ?>
-        <p class="text-muted mb-0">Nenhuma turma nesta grade.</p>
-        <?php else: ?>
         <div class="mb-3">
           <label class="form-label small mb-1" for="imprimir-orientacao">Orientação do papel</label>
           <select id="imprimir-orientacao" class="form-select form-select-sm">
@@ -300,27 +311,74 @@ $corSemProf = '#94a3b8';
             <option value="portrait">Retrato (em pé)</option>
           </select>
         </div>
-        <p class="small text-muted">Cada turma marcada sai em uma página.</p>
-        <div class="form-check border-bottom pb-2 mb-2">
-          <input class="form-check-input" type="checkbox" id="imprimir-todas" checked>
-          <label class="form-check-label fw-semibold" for="imprimir-todas">Todas as turmas</label>
+
+        <?php // Seleção de turmas: só aparece no escopo turma. ?>
+        <div id="exp-turmas">
+          <?php if (empty($grade)): ?>
+          <p class="text-muted mb-0">Nenhuma turma nesta grade.</p>
+          <?php else: ?>
+          <p class="small text-muted">Cada turma marcada sai em uma página.</p>
+          <div class="form-check border-bottom pb-2 mb-2">
+            <input class="form-check-input" type="checkbox" id="imprimir-todas" checked>
+            <label class="form-check-label fw-semibold" for="imprimir-todas">Todas as turmas</label>
+          </div>
+          <?php foreach ($grade as $turmaId => $row): ?>
+          <div class="form-check">
+            <input class="form-check-input imprimir-turma" type="checkbox"
+                   id="imprimir-turma-<?= $turmaId ?>" value="<?= $turmaId ?>" checked>
+            <label class="form-check-label" for="imprimir-turma-<?= $turmaId ?>">
+              <?= htmlspecialchars($row['curso_nome']) ?> — <strong><?= htmlspecialchars($row['turma_nome']) ?></strong>
+            </label>
+          </div>
+          <?php endforeach; ?>
+          <?php endif; ?>
         </div>
-        <?php foreach ($grade as $turmaId => $row): ?>
-        <div class="form-check">
-          <input class="form-check-input imprimir-turma" type="checkbox"
-                 id="imprimir-turma-<?= $turmaId ?>" value="<?= $turmaId ?>" checked>
-          <label class="form-check-label" for="imprimir-turma-<?= $turmaId ?>">
-            <?= htmlspecialchars($row['curso_nome']) ?> — <strong><?= htmlspecialchars($row['turma_nome']) ?></strong>
-          </label>
-        </div>
-        <?php endforeach; ?>
-        <?php endif; ?>
+
+        <p class="small text-muted mb-0" id="exp-aviso-tudo" style="display:none">
+          Sai a agenda completa desta geração — um por página, com todas as aulas.
+        </p>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer d-flex justify-content-between">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-dark" id="imprimir-confirmar" <?= empty($grade) ? 'disabled' : '' ?>>
-          <i class="bi bi-printer me-1" id="imprimir-botao-icone"></i><span id="imprimir-botao-texto">Imprimir</span>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-danger exp-formato"  data-formato="pdf">
+            <i class="bi bi-filetype-pdf me-1"></i>PDF
+          </button>
+          <button type="button" class="btn btn-outline-primary exp-formato" data-formato="png">
+            <i class="bi bi-image me-1"></i>PNG
+          </button>
+          <button type="button" class="btn btn-dark exp-formato" data-formato="imprimir">
+            <i class="bi bi-printer me-1"></i>Imprimir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalAnotacao" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-pencil me-2"></i><span id="nota-titulo">Anotação</span></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label small" for="nota-texto">Texto da anotação</label>
+        <textarea id="nota-texto" class="form-control" rows="2" maxlength="200"
+                  placeholder="Ex.: Reposição do dia 10/02"></textarea>
+        <div class="form-text">Aparece na grade, na impressão e no PDF. Máx. 200 caracteres.</div>
+      </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-danger" id="nota-remover">
+          <i class="bi bi-trash me-1"></i>Remover
         </button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="nota-salvar">
+            <i class="bi bi-check-lg me-1"></i>Salvar
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -415,7 +473,7 @@ $corSemProf = '#94a3b8';
 
 <!-- Qualidade da geração -->
 <?php if (!empty($qualidade['professores'])): ?>
-<div class="mb-3 no-print">
+<div class="mb-3 no-print d-flex align-items-center gap-3 flex-wrap">
   <button class="btn btn-sm btn-outline-info" data-bs-toggle="collapse" data-bs-target="#painelQualidade">
     <i class="bi bi-speedometer2 me-1"></i>Relatório da grade atual
     <span class="badge bg-secondary ms-1"><?= $qualidade['total_aulas'] ?> aulas</span>
@@ -429,6 +487,66 @@ $corSemProf = '#94a3b8';
     <span class="badge bg-success ms-1">semanas compactas</span>
     <?php endif; ?>
   </button>
+
+  <?php // Sempre marcados ao abrir a página: não persistem entre recargas. ?>
+  <div class="form-check form-switch mb-0"
+       title="Durante o arraste, pinta os turnos do professor: verde = preferido, amarelo = só se precisar">
+    <input class="form-check-input" type="checkbox" id="chkDispProf" checked>
+    <label class="form-check-label small" for="chkDispProf">Disponibilidade semanal do professor</label>
+  </div>
+  <div class="form-check form-switch mb-0" title="Sombreia os turnos em que a turma não tem aula">
+    <input class="form-check-input" type="checkbox" id="chkLacunas" checked>
+    <label class="form-check-label small" for="chkLacunas">Turnos sem aula</label>
+  </div>
+
+  <?php // Liberação para /publico: só aparece com a geração aberta sem filtro. ?>
+  <div class="form-check form-switch mb-0"
+       title="Quando ligado, este horário fica visível em /publico para alunos e professores">
+    <input class="form-check-input" type="checkbox" id="chkPublico"
+           <?= !empty($geracao['publico']) ? 'checked' : '' ?>>
+    <label class="form-check-label small" for="chkPublico">
+      <i class="bi bi-globe me-1"></i>Liberado ao público
+    </label>
+  </div>
+
+  <button type="button" class="btn btn-sm btn-outline-secondary no-print" id="btnAjuda"
+          aria-label="Como usar a grade">
+    <i class="bi bi-question-circle"></i>
+  </button>
+
+  <?php // Conteúdo do popover de ajuda (escondido; o JS o injeta no popover). ?>
+  <div id="ajuda-conteudo" class="d-none">
+    <ul class="mb-0 ps-3 small">
+      <li><strong>Mover:</strong> arraste o bloco para outro dia ou horário. Soltar sobre um
+          bloco ocupado <em>troca</em> os dois de lugar.</li>
+      <li>Não é possível mover entre turmas diferentes.</li>
+      <li><strong>Anotar:</strong> dê <strong>duplo clique</strong> no bloco da disciplina.
+          Para anotar a turma, use o lápis ao lado do nome dela. Salvar com o texto vazio remove
+          a anotação.</li>
+      <li><strong>Enquanto arrasta</strong>, as células da turma indicam o professor:
+          <span class="text-success">verde</span> = turno preferido dele,
+          <span class="text-warning">amarelo</span> = só se precisar,
+          <span class="text-danger">vermelho</span> = ele já tem aula nesse horário em outra turma.</li>
+      <li><strong>Hachura cinza:</strong> turno em que a turma não tem aula. O gerador não usa,
+          mas você pode soltar algo ali — é onde cabem as reposições.</li>
+      <li><strong>Limbo:</strong> a faixa ao pé de cada turma guarda as disciplinas sem horário.
+          Arraste de lá para a grade, ou para lá para tirar da grade.</li>
+      <li><strong>Desfazer:</strong> logo após mover, aparece um aviso no canto com o botão
+          <em>Desfazer</em>.</li>
+      <li>Com um <strong>filtro ativo</strong>, a grade fica somente leitura.</li>
+      <li><strong>Visualizar ensalamento:</strong> troca para a mesma geração organizada
+          por sala, para conferir onde cada aula acontece. Essa visão é só de leitura.</li>
+      <li><strong>Liberado ao público:</strong> publica este horário em
+          <code>/publico</code>, onde alunos e professores consultam sem login.
+          Só aparece lá se for do semestre corrente. Vem desligado, e
+          <strong>regerar desliga de novo</strong> — a grade nova precisa ser
+          liberada outra vez.</li>
+    </ul>
+  </div>
+
+</div>
+
+<div class="no-print">
   <div class="collapse mt-2" id="painelQualidade">
     <div class="card border-0 shadow-sm">
       <div class="table-responsive">
@@ -490,7 +608,7 @@ $corSemProf = '#94a3b8';
 <?php else: ?>
 
 <div class="card border-0 shadow-sm">
-  <div class="card-body p-0 overflow-auto">
+  <div class="card-body p-0 overflow-auto" id="area-grade">
       <?php foreach ($grade as $turmaId => $row): ?>
 
     <!-- Uma tabela por turma (na impressão, uma turma por página) -->
@@ -505,6 +623,16 @@ $corSemProf = '#94a3b8';
         <tr class="grade-turma-header">
           <td colspan="6">
             <?= htmlspecialchars($row['curso_nome']) ?> — <?= htmlspecialchars($row['turma_nome']) ?>
+            <span class="turma-nota" data-turma-id="<?= $turmaId ?>"><?php
+              $notaTurma = $anotacoesTurma[$turmaId] ?? '';
+              echo $notaTurma !== '' ? htmlspecialchars($notaTurma) : '';
+            ?></span>
+            <?php if (!$filtroAtivo): ?>
+            <button type="button" class="btn-nota no-print" data-nota-tipo="turma"
+                    data-nota-id="<?= $turmaId ?>" title="Anotação da turma">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <?php endif; ?>
           </td>
         </tr>
         <tr>
@@ -517,6 +645,19 @@ $corSemProf = '#94a3b8';
       <tbody>
 
         <!-- Linhas de slots de tempo -->
+        <?php
+          // Lacuna = a turma não tem aula naquele turno. Só sombreamento: a
+          // restrição de verdade já foi aplicada na geração. Uma célula que
+          // atravessa turnos é lacuna se QUALQUER turno tocado estiver bloqueado.
+          $ehLacuna = function (int $turmaId, int $dia, int $ini, int $fim) use ($turnosMin, $turmaLiberado): bool {
+              if (empty($turmaLiberado[$turmaId])) return false;   // turma sem cadastro: não sombreia
+              foreach ($turnosMin as $chave => $t) {
+                  if ($ini >= $t['fim'] || $fim <= $t['inicio']) continue;
+                  if (empty($turmaLiberado[$turmaId][$dia][$chave])) return true;
+              }
+              return false;
+          };
+        ?>
         <?php foreach ($row['slots'] as $slotIdx => $slot): ?>
         <?php if ($slot['type'] === 'intervalo'): ?>
 
@@ -556,7 +697,7 @@ $corSemProf = '#94a3b8';
               $txtSec = \App\Services\ColorHelper::textoSobre($corSec);
               $span   = $h['rowspan'];
             ?>
-            <td class="grade-cell p-1"
+            <td class="grade-cell p-1<?= $ehLacuna($turmaId, $dNum, $slotMin, $slotFimMin) ? ' cell-lacuna' : '' ?>"
                 data-dia="<?= $dNum ?>"
                 data-turma-id="<?= $turmaId ?>"
                 data-slot="<?= $slotIdx ?>"
@@ -569,12 +710,15 @@ $corSemProf = '#94a3b8';
                    data-dia="<?= $dNum ?>"
                    data-slot="<?= $slotIdx ?>"
                    data-rowspan="<?= $span ?>"
-                   data-turma-id="<?= $turmaId ?>">
+                   data-turma-id="<?= $turmaId ?>"
+                   data-professor-id="<?= (int)($h['professor_id'] ?? 0) ?>"
+                   data-dur-min="<?= \App\Services\TimeHelper::toMinutes($h['hora_fim']) - \App\Services\TimeHelper::toMinutes($h['hora_inicio']) ?>">
                 <div style="color:<?= $txt ?>;font-weight:700;font-size:12px">
                   <?= htmlspecialchars($h['disciplina_sigla'] ?: substr($h['disciplina_nome'], 0, 14)) ?>
                 </div>
-                <div style="color:<?= $txt ?>;font-weight:700;font-size:12px">
-                  <?= \App\Services\TimeHelper::fromMinutes($h['slot_ini']) ?>–<?= \App\Services\TimeHelper::fromMinutes($h['slot_fim']) ?>
+                <div class="disc-hora" style="color:<?= $txt ?>;font-weight:700;font-size:12px">
+                  <?= \App\Services\TimeHelper::fromMinutes($h['slot_ini']) ?>–<?= \App\Services\TimeHelper::fromMinutes($h['slot_fim']) ?><span
+                    class="disc-nota"><?= !empty($h['observacao']) ? htmlspecialchars($h['observacao']) : '' ?></span>
                 </div>
                 <?php if ($h['professor_nome']): ?>
                 <div class="disc-faixa" style="background:<?= $corSec ?>;color:<?= $txtSec ?>">
@@ -586,7 +730,7 @@ $corSemProf = '#94a3b8';
               </div>
             </td>
           <?php else: ?>
-            <td class="grade-cell"
+            <td class="grade-cell<?= $ehLacuna($turmaId, $dNum, $slotMin, $slotFimMin) ? ' cell-lacuna' : '' ?>"
                 data-dia="<?= $dNum ?>"
                 data-turma-id="<?= $turmaId ?>"
                 data-slot="<?= $slotIdx ?>"
@@ -616,9 +760,12 @@ $corSemProf = '#94a3b8';
                    draggable="<?= $filtroAtivo ? 'false' : 'true' ?>"
                    data-horario-id="<?= $h['id'] ?>"
                    data-turma-id="<?= $turmaId ?>"
+                   data-professor-id="<?= (int)($h['professor_id'] ?? 0) ?>"
+                   data-dur-min="<?= \App\Services\TimeHelper::toMinutes($h['hora_fim']) - \App\Services\TimeHelper::toMinutes($h['hora_inicio']) ?>"
                    style="background:<?= $cor ?>59">
-                <div style="color:<?= $txt ?>;font-weight:700;font-size:12px">
-                  <?= htmlspecialchars($h['disciplina_sigla'] ?: substr($h['disciplina_nome'], 0, 14)) ?>
+                <div class="disc-hora" style="color:<?= $txt ?>;font-weight:700;font-size:12px">
+                  <?= htmlspecialchars($h['disciplina_sigla'] ?: substr($h['disciplina_nome'], 0, 14)) ?><span
+                    class="disc-nota"><?= !empty($h['observacao']) ? htmlspecialchars($h['observacao']) : '' ?></span>
                 </div>
                 <?php if ($h['professor_nome']): ?>
                 <div class="disc-faixa" style="background:<?= $corSec ?>;color:<?= $txtSec ?>">
@@ -648,23 +795,33 @@ $corSemProf = '#94a3b8';
 
 <div id="toast-container"></div>
 
-<?php if (!$filtroAtivo): /* drag & drop desabilitado quando há filtro */ ?>
+<?php // Utilitários compartilhados. Precisam ficar FORA do bloco de drag & drop:
+     // aquele só é renderizado sem filtro, e no escopo global — o showToast
+     // estava dentro do IIFE, invisível para o segundo <script> da página. ?>
 <script>
 const base = '<?= $base ?>';
+
+function showToast(msg, type) {
+  const c = document.getElementById('toast-container');
+  if (!c) return;
+  const d = document.createElement('div');
+  d.className = 'alert alert-' + type + ' py-2 px-3 mb-0 shadow-sm';
+  d.style.fontSize = '13px';
+  d.textContent = msg;
+  c.appendChild(d);
+  setTimeout(() => d.remove(), 3500);
+}
+</script>
+
+<?php if (!$filtroAtivo): /* drag & drop desabilitado quando há filtro */ ?>
+<?php // Usado pela exportação em PNG: rasterizar no servidor exigiria imagick,
+     // que o PHP embutido do app desktop não tem. ?>
+<script src="<?= $base ?>/assets/vendor/html2canvas/html2canvas.min.js"></script>
+<script>
 (function () {
   let draggingEl    = null;
   let draggingTurma = null;
   let draggingLimbo = false;
-
-  function showToast(msg, type) {
-    const c = document.getElementById('toast-container');
-    const d = document.createElement('div');
-    d.className = 'alert alert-' + type + ' py-2 px-3 mb-0 shadow-sm';
-    d.style.fontSize = '13px';
-    d.textContent = msg;
-    c.appendChild(d);
-    setTimeout(() => d.remove(), 3500);
-  }
 
   function guardarDesfazer(acao) {
     sessionStorage.setItem('sgaUndo', JSON.stringify({ ...acao, ts: Date.now() }));
@@ -678,6 +835,86 @@ const base = '<?= $base ?>';
     return !draggingLimbo && ocupante !== draggingEl;
   }
 
+  // Destaca onde o professor do bloco arrastado já tem aula em OUTRAS turmas:
+  // são esses os horários que gerariam conflito de professor ao soltar. Blocos
+  // no limbo ficam de fora — não têm horário, então não colidem com nada.
+  const OCUPACAO_PROF  = <?= json_encode($ocupacaoProf ?? [], JSON_UNESCAPED_UNICODE) ?>;
+  const DISP_PROF      = <?= json_encode($dispProfessor ?? [], JSON_UNESCAPED_UNICODE) ?>;
+  const TURNOS_MIN     = <?= json_encode($turnosMin ?? [], JSON_UNESCAPED_UNICODE) ?>;
+
+  function minutos(hhmm) {
+    const [h, m] = String(hhmm).split(':');
+    return (parseInt(h, 10) * 60) + parseInt(m, 10);
+  }
+
+  function marcarOcupacaoProfessor(el) {
+    const prof = parseInt(el.dataset.professorId, 10);
+    if (!prof) return;
+    const turma = el.dataset.turmaId;
+
+    // 1. Os blocos do professor em outras turmas.
+    document.querySelectorAll('.disc-block[data-professor-id="' + prof + '"]').forEach(outro => {
+      if (outro === el) return;
+      if (outro.dataset.turmaId === turma) return;   // mesma turma: já é visível na linha
+      if (outro.closest('.limbo-zone')) return;      // sem horário atribuído
+      outro.classList.add('prof-ocupado');
+    });
+
+    // 2. As células DESTA turma onde soltar colidiria. Só a própria turma
+    //    importa: mover entre turmas já é recusado no drop.
+    const dur = parseInt(el.dataset.durMin, 10) || 50;
+    const ocupado = OCUPACAO_PROF.filter(o =>
+      o.prof === prof && String(o.turma) !== String(turma)
+    );
+
+    document.querySelectorAll('.grade-cell[data-hora-inicio]').forEach(cell => {
+      if (cell.dataset.turmaId !== turma) return;
+      const dia = parseInt(cell.dataset.dia, 10);
+      const ini = minutos(cell.dataset.horaInicio);
+      const fim = ini + dur;
+
+      // Conflito manda em tudo: se o professor já tem aula nesse horário em
+      // outra turma, não importa que o turno seja preferido dele.
+      if (ocupado.some(o => o.dia === dia && ini < o.fim && fim > o.ini)) {
+        cell.classList.add('cell-conflito');
+        return;
+      }
+
+      // Lacuna da turma TAMBÉM é marcada: elas são usadas para reposição, e a
+      // grade pode ser ajustada à mão em caráter excepcional. O gerador segue
+      // sem agendar ali sozinho; aqui é só informar se o professor poderia.
+      const estado = estadoProfessor(prof, dia, ini, fim);
+      if (estado === 1) cell.classList.add('cell-pref');
+      else if (estado === 2) cell.classList.add('cell-reserva');
+    });
+  }
+
+  // Estado do professor para a faixa [ini,fim): null = indisponível,
+  // 1 = preferido, 2 = "só se precisar". Basta um turno amarelo entre os
+  // atravessados para a faixa inteira valer como amarela — mesma regra do
+  // gerador (ScheduleGenerator::preferenciaProfessor).
+  function estadoProfessor(prof, dia, ini, fim) {
+    const doDia = (DISP_PROF[prof] || {})[dia];
+    if (!doDia) return null;
+
+    let estado = 1, tocou = false;
+    for (const [chave, t] of Object.entries(TURNOS_MIN)) {
+      if (ini >= t.fim || fim <= t.inicio) continue;
+      const e = doDia[chave];
+      if (!e) return null;               // turno bloqueado para o professor
+      if (e === 2) estado = 2;
+      tocou = true;
+    }
+    return tocou ? estado : null;
+  }
+
+  function limparOcupacaoProfessor() {
+    document.querySelectorAll('.disc-block.prof-ocupado')
+            .forEach(b => b.classList.remove('prof-ocupado'));
+    document.querySelectorAll('.grade-cell.cell-conflito, .grade-cell.cell-pref, .grade-cell.cell-reserva')
+            .forEach(c => c.classList.remove('cell-conflito', 'cell-pref', 'cell-reserva'));
+  }
+
   document.querySelectorAll('.disc-block').forEach(el => {
     el.addEventListener('dragstart', e => {
       draggingEl    = el;
@@ -685,11 +922,13 @@ const base = '<?= $base ?>';
       draggingLimbo = !!el.closest('.limbo-zone');
       el.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
+      marcarOcupacaoProfessor(el);
     });
     el.addEventListener('dragend', () => {
       el.classList.remove('dragging');
       draggingEl = draggingTurma = null;
       draggingLimbo = false;
+      limparOcupacaoProfessor();
     });
   });
 
@@ -884,6 +1123,28 @@ const base = '<?= $base ?>';
 <?php endif; ?>
 
 <script>
+// Interruptores de exibição. Guardados em sessionStorage porque arrastar
+// RECARREGA a página: sem isso a escolha se perdia a cada movimento. Como é
+// sessão (e não localStorage), abrir o sistema de novo volta ao padrão marcado.
+(function() {
+  const liga = (id, classe, chave) => {
+    const chk = document.getElementById(id);
+    if (!chk) return;
+
+    // Ausente = marcado. Só o '0' explícito desliga.
+    chk.checked = sessionStorage.getItem(chave) !== '0';
+    const aplicar = () => document.body.classList.toggle(classe, !chk.checked);
+    aplicar();
+
+    chk.addEventListener('change', () => {
+      sessionStorage.setItem(chave, chk.checked ? '1' : '0');
+      aplicar();
+    });
+  };
+  liga('chkDispProf', 'sem-disp-prof', 'sgaDispProf');
+  liga('chkLacunas',  'sem-lacunas',   'sgaLacunas');
+})();
+
 // Relatório da grade: mantém o painel aberto entre recargas (drag & drop recarrega a página)
 (function () {
   const painel = document.getElementById('painelQualidade');
@@ -893,33 +1154,175 @@ const base = '<?= $base ?>';
   painel.addEventListener('hidden.bs.collapse', () => localStorage.setItem('sgaRelatorioAberto', '0'));
 })();
 
-// Impressão por turma: só as turmas marcadas vão para a impressora
+// Alterna entre a grade por turma e a grade por sala (páginas distintas).
+(function () {
+  const chk = document.getElementById('chkEnsalamento');
+  if (!chk) return;
+  chk.addEventListener('change', () => {
+    // Leva os filtros junto: trocar de visão não deveria perder a seleção.
+    if (chk.checked) window.location.href = base + '/horarios/geracao/<?= (int)$geracaoId ?>/grade/salas'
+                                          + window.location.search;
+  });
+})();
+
+// Liberação do horário para a consulta pública (/publico).
+(function () {
+  const chk = document.getElementById('chkPublico');
+  if (!chk) return;
+
+  chk.addEventListener('change', () => {
+    fetch(base + '/horarios/geracao/publicar', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({geracao_id: <?= (int)$geracaoId ?>, publico: chk.checked ? 1 : 0})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) { chk.checked = !chk.checked; showToast(data.erro || 'Falha ao alterar.', 'danger'); return; }
+      showToast(data.publico
+        ? 'Horário liberado para consulta pública.'
+        : 'Horário retirado da consulta pública.', 'success');
+    })
+    .catch(() => { chk.checked = !chk.checked; showToast('Erro de comunicação.', 'danger'); });
+  });
+})();
+
+// Ajuda da grade: popover no hover (e no foco, para quem navega por teclado).
+// O bundle do Bootstrap é carregado no rodapé do layout, DEPOIS deste script:
+// inicializar aqui direto encontraria `bootstrap` indefinido. Só o resto do JS
+// da página escapa disso por usar bootstrap.* dentro de handlers.
+document.addEventListener('DOMContentLoaded', function () {
+  const btn = document.getElementById('btnAjuda');
+  const conteudo = document.getElementById('ajuda-conteudo');
+  if (!btn || !conteudo || typeof bootstrap === 'undefined') return;
+
+  new bootstrap.Popover(btn, {
+    title: 'Como usar a grade',
+    content: conteudo.innerHTML,
+    html: true,
+    sanitize: false,          // o conteúdo é nosso, e o sanitizador remove <span class>
+    trigger: 'hover focus',
+    placement: 'bottom',
+    customClass: 'popover-ajuda'
+  });
+});
+
+// Anotações da grade: duplo clique num bloco, ou o lápis no nome da turma.
+// Salvar com o texto vazio remove — é a forma de apagar.
+(function () {
+  const modalEl = document.getElementById('modalAnotacao');
+  if (!modalEl) return;
+
+  const campo = document.getElementById('nota-texto');
+  const alvo  = {tipo: null, id: null};
+
+  function abrir(tipo, id, textoAtual, titulo) {
+    alvo.tipo = tipo; alvo.id = id;
+    document.getElementById('nota-titulo').textContent = titulo;
+    campo.value = textoAtual || '';
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    setTimeout(() => campo.focus(), 250);
+  }
+
+  // Uma aula de N tempos vira N blocos com o MESMO data-horario-id: a anotação
+  // precisa entrar (ou sair) de todos eles.
+  function pintarBloco(horarioId, texto) {
+    document.querySelectorAll('.disc-block[data-horario-id="' + horarioId + '"]').forEach(bloco => {
+      // O span já existe dentro da linha do horário (vazio quando não há
+      // anotação), então basta escrever nele — a cor vem por herança.
+      let nota = bloco.querySelector('.disc-nota');
+      if (!nota) {
+        const hora = bloco.querySelector('.disc-hora');
+        if (!hora) return;
+        nota = document.createElement('span');
+        nota.className = 'disc-nota';
+        hora.appendChild(nota);
+      }
+      nota.textContent = texto;
+    });
+  }
+
+  function gravar(texto) {
+    fetch(base + '/horarios/geracao/anotar', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({tipo: alvo.tipo, id: alvo.id, texto: texto,
+                            geracao_id: <?= (int)$geracaoId ?>})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) { showToast(data.erro || 'Não foi possível salvar a anotação.', 'danger'); return; }
+
+      if (alvo.tipo === 'turma') {
+        const span = document.querySelector('.turma-nota[data-turma-id="' + alvo.id + '"]');
+        if (span) span.textContent = data.texto;
+      } else {
+        pintarBloco(alvo.id, data.texto);
+      }
+      bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+      showToast(data.texto ? 'Anotação salva.' : 'Anotação removida.', 'success');
+    })
+    .catch(() => showToast('Erro de comunicação.', 'danger'));
+  }
+
+  document.getElementById('nota-salvar').addEventListener('click', () => gravar(campo.value.trim()));
+  document.getElementById('nota-remover').addEventListener('click', () => gravar(''));
+
+  // Lápis no cabeçalho da turma
+  document.querySelectorAll('.btn-nota[data-nota-tipo="turma"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id   = btn.dataset.notaId;
+      const span = document.querySelector('.turma-nota[data-turma-id="' + id + '"]');
+      abrir('turma', id, span ? span.textContent.trim() : '', 'Anotação da turma');
+    });
+  });
+
+  // Duplo clique no bloco (não atrapalha o arraste, que usa mousedown+drag)
+  document.querySelectorAll('.disc-block').forEach(bloco => {
+    bloco.addEventListener('dblclick', () => {
+      const nota = bloco.querySelector('.disc-nota');
+      abrir('bloco', bloco.dataset.horarioId, nota ? nota.textContent.trim() : '',
+            'Anotação da disciplina');
+    });
+  });
+})();
+
+// Exportação unificada: 3 escopos (turma, professor, sala) x 3 formatos
+// (PDF, PNG, impressão). O escopo vem do item do menu; o formato, do botão
+// clicado no rodapé do modal.
 (function () {
   const modalEl = document.getElementById('modalImprimir');
   if (!modalEl) return;
-  const todas  = document.getElementById('imprimir-todas');
-  const itens  = () => Array.from(document.querySelectorAll('.imprimir-turma'));
-  const botao  = document.getElementById('imprimir-confirmar');
+
+  const todas = document.getElementById('imprimir-todas');
+  const itens = () => Array.from(document.querySelectorAll('.imprimir-turma'));
+  const botoes = () => Array.from(document.querySelectorAll('.exp-formato'));
+  const orientacaoEl = document.getElementById('imprimir-orientacao');
+  const BASE = '<?= $base ?>/horarios/geracao/<?= $geracaoId ?>';
+
+  let escopo = 'turma';
 
   function sincronizarMestre() {
+    if (!todas) return;
     const marcados = itens().filter(c => c.checked).length;
-    todas.checked      = marcados === itens().length;
+    todas.checked       = marcados === itens().length;
     todas.indeterminate = marcados > 0 && marcados < itens().length;
-    botao.disabled      = marcados === 0;
+    // Sem turma marcada não há o que exportar — mas só no escopo turma.
+    botoes().forEach(b => { b.disabled = (escopo === 'turma' && marcados === 0); });
   }
 
   if (todas) {
     todas.addEventListener('change', () => {
       itens().forEach(c => { c.checked = todas.checked; });
       todas.indeterminate = false;
-      botao.disabled = !todas.checked;
+      sincronizarMestre();
     });
     itens().forEach(c => c.addEventListener('change', sincronizarMestre));
   }
 
-  // Tira do DOM as turmas não selecionadas, deixando um comentário no lugar para
-  // devolvê-las depois. Esconder por CSS não serve: dependendo do navegador, o
-  // bloco oculto ainda conta para a quebra de página e sai uma folha em branco.
+  // ── Escopo turma: tira do DOM as turmas não marcadas ─────────────
+  // Esconder por CSS não serve: dependendo do navegador o bloco oculto ainda
+  // conta para a quebra de página e sai uma folha em branco.
   let retirados = [];
 
   function retirarNaoSelecionados() {
@@ -940,43 +1343,71 @@ const base = '<?= $base ?>';
     retirados = [];
   }
 
-  // A orientação do papel vive numa regra @page própria, que não pode ser
-  // selecionada por classe — daí reescrever o conteúdo do <style>.
+  // A orientação vive numa regra @page própria, que não pode ser selecionada
+  // por classe — daí reescrever o conteúdo do <style>.
   const regra = document.getElementById('regra-pagina');
-  const orientacao = document.getElementById('imprimir-orientacao');
-  const PADRAO = 'landscape';
   const aplicarOrientacao = (valor) => {
     regra.textContent = '@page { size: ' + valor + '; margin: 8mm; }';
-    // Em retrato a grade precisa encolher mais para caber na largura
     document.documentElement.classList.toggle('print-retrato', valor === 'portrait');
   };
 
-  // O mesmo modal serve para imprimir e para exportar em PDF — só muda o
-  // texto. Em ambos os casos quem gera a saída é o motor de impressão do
-  // navegador (não há biblioteca de PDF no servidor).
-  let modoPdf = false;
+  // ── Abertura do modal: ajusta o que é exibido conforme o escopo ──
   modalEl.addEventListener('show.bs.modal', (ev) => {
-    const pdf = !!(ev.relatedTarget && ev.relatedTarget.dataset.modo === 'pdf');
-    modoPdf = pdf;
-    const t = (id, txt) => { const e = document.getElementById(id); if (e) e.textContent = txt; };
-    t('imprimir-titulo', pdf ? 'Exportar grade em PDF' : 'Imprimir grade por turma');
-    t('imprimir-botao-texto', pdf ? 'Exportar PDF' : 'Imprimir');
-    const ico = pdf ? 'bi-filetype-pdf' : 'bi-printer';
-    ['imprimir-icone', 'imprimir-botao-icone'].forEach(id => {
-      const e = document.getElementById(id);
-      if (e) e.className = 'bi ' + ico + (id === 'imprimir-icone' ? ' me-2' : ' me-1');
-    });
+    escopo = (ev.relatedTarget && ev.relatedTarget.dataset.escopo) || 'turma';
+
+    const rotulos = {turma: 'Grade por turma', professor: 'Grade por professor', sala: 'Grade por sala'};
+    const titulo = document.getElementById('exp-titulo');
+    if (titulo) titulo.textContent = 'Exportar — ' + (rotulos[escopo] || rotulos.turma);
+
+    const blocoTurmas = document.getElementById('exp-turmas');
+    const avisoTudo   = document.getElementById('exp-aviso-tudo');
+    const porTurma    = escopo === 'turma';
+    if (blocoTurmas) blocoTurmas.style.display = porTurma ? '' : 'none';
+    if (avisoTudo)   avisoTudo.style.display   = porTurma ? 'none' : '';
+
+    sincronizarMestre();
   });
 
-  botao.addEventListener('click', () => {
-    const orient = orientacao ? orientacao.value : PADRAO;
+  // ── Ação: formato escolhido no rodapé ────────────────────────────
+  botoes().forEach(btn => btn.addEventListener('click', () => {
+    const formato = btn.dataset.formato;
+    const orient  = orientacaoEl ? orientacaoEl.value : 'landscape';
+    const ids     = itens().filter(c => c.checked).map(c => c.value).join(',');
+    const fechar  = () => bootstrap.Modal.getOrCreateInstance(modalEl).hide();
 
-    // PDF: baixa o arquivo gerado no servidor (FPDF), sem janela de impressão
-    if (modoPdf) {
-      const ids = itens().filter(c => c.checked).map(c => c.value).join(',');
-      bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-      window.location.href = '<?= $base ?>/horarios/geracao/<?= $geracaoId ?>/exportar/pdf'
-        + '?turmas=' + encodeURIComponent(ids) + '&orientacao=' + encodeURIComponent(orient);
+    // PDF sai pronto do servidor (FPDF) nos três escopos.
+    if (formato === 'pdf') {
+      fechar();
+      window.location.href = BASE + '/exportar/pdf?escopo=' + encodeURIComponent(escopo)
+        + '&turmas=' + encodeURIComponent(ids) + '&orientacao=' + encodeURIComponent(orient);
+      return;
+    }
+
+    // Professor e sala têm página própria (formato agenda); ela mesma imprime
+    // ou gera o PNG conforme o parâmetro `acao`.
+    if (escopo !== 'turma') {
+      const alvo = escopo === 'professor' ? 'professores' : 'salas';
+      fechar();
+      window.open(BASE + '/imprimir/' + alvo + '?orientacao=' + encodeURIComponent(orient)
+        + '&acao=' + encodeURIComponent(formato === 'png' ? 'png' : 'imprimir'), '_blank');
+      return;
+    }
+
+    // Escopo turma, na própria página.
+    if (formato === 'png') {
+      fechar();
+      modalEl.addEventListener('hidden.bs.modal', () => {
+        retirarNaoSelecionados();
+        html2canvas(document.getElementById('area-grade'), {backgroundColor: '#ffffff', scale: 2})
+          .then(canvas => {
+            const a = document.createElement('a');
+            a.download = 'grade_por_turma_<?= date('Y-m-d') ?>.png';
+            a.href = canvas.toDataURL('image/png');
+            a.click();
+          })
+          .catch(err => showToast('Não foi possível gerar o PNG: ' + err, 'danger'))
+          .finally(devolverRetirados);
+      }, {once: true});
       return;
     }
 
@@ -985,17 +1416,15 @@ const base = '<?= $base ?>';
       aplicarOrientacao(orient);
       retirarNaoSelecionados();
       window.print();
-    }, { once: true });
-    bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-  });
+    }, {once: true});
+    fechar();
+  }));
 
   // Só devolve depois que a impressão termina — devolver logo após print()
   // quebraria em navegador onde a chamada não bloqueia.
   let imprimindo = false;
   window.addEventListener('beforeprint', () => { imprimindo = true; });
   window.addEventListener('afterprint', () => { imprimindo = false; devolverRetirados(); });
-  // Rede de segurança para quem não dispara 'afterprint': devolve ao voltar o
-  // foco, mas nunca durante a pré-visualização.
   window.addEventListener('focus', () => { if (!imprimindo) devolverRetirados(); });
 })();
 
