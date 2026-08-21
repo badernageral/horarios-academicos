@@ -26,8 +26,10 @@ declare(strict_types=1);
 
 define('ROOT_PATH', dirname(__DIR__));
 require ROOT_PATH . '/app/Core/Database.php';
+require ROOT_PATH . '/app/Core/Migrator.php';
 
 use App\Core\Database;
+use App\Core\Migrator;
 
 $mode = $argv[1] ?? 'up';
 $pdo  = Database::getInstance();
@@ -72,20 +74,17 @@ foreach ($files as $file) {
         continue;
     }
 
-    // mode = up → executa o arquivo e registra.
-    $sql = file_get_contents($file);
-    if ($sql === false) {
-        fwrite(STDERR, "ERRO: não consegui ler {$nome}\n");
+    // mode = up → delega ao Migrator, o MESMO caminho usado pela tela de
+    // login; assim CLI e aplicação nunca divergem no que consideram pendente.
+    $r = Migrator::aplicar($pdo);
+    foreach ($r['aplicadas'] as $aplicada) {
+        echo "aplicada: {$aplicada}\n";
+    }
+    if ($r['erro']) {
+        fwrite(STDERR, "ERRO ao aplicar: " . $r['erro'] . "\n");
         exit(1);
     }
-    try {
-        $pdo->exec($sql);
-        $registrar->execute([$nome]);
-        echo "aplicada: {$nome}\n";
-    } catch (\Throwable $e) {
-        fwrite(STDERR, "ERRO ao aplicar {$nome}: " . $e->getMessage() . "\n");
-        exit(1);
-    }
+    break;   // o Migrator já percorreu todas as pendentes
 }
 
 echo $pendentes === 0

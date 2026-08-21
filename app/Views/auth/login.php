@@ -27,6 +27,12 @@
                     <?= htmlspecialchars($erro['message']) ?>
                 </div>
                 <?php endif; ?>
+                <?php if (!empty($avisoMigracao)): ?>
+                <div class="alert alert-<?= htmlspecialchars($avisoMigracao['tipo']) ?> py-2 small">
+                    <?= htmlspecialchars($avisoMigracao['texto']) ?>
+                </div>
+                <?php endif; ?>
+
 
                 <form method="POST" action="<?= $base ?>/login">
                     <div class="mb-3">

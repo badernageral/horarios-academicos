@@ -40,6 +40,39 @@ if ($appConfig['debug']) {
     ini_set('display_errors', '1');
 }
 
+// ── Atualização do schema ─────────────────────────────────────────
+// Em TODA requisição, como o app desktop faz a cada abertura. Prender isso à
+// tela de login deixaria quem já está com sessão aberta rodando código novo
+// contra schema velho depois de um deploy. O custo normal é um filemtime().
+$migracao = \App\Core\Migrator::verificarNoBoot();
+
+if ($migracao['erro']) {
+    // Schema desalinhado quebraria em SQL no meio de qualquer tela; melhor
+    // parar aqui com uma mensagem que diz o que fazer.
+    http_response_code(500);
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!doctype html><meta charset="utf-8">'
+       . '<div style="font-family:system-ui;max-width:640px;margin:3rem auto;line-height:1.5">'
+       . '<h2>Falha ao atualizar o banco</h2>'
+       . '<p>' . htmlspecialchars($migracao['erro']) . '</p>'
+       . '<p style="color:#64748b">Corrija e recarregue a página. Nenhuma tela é servida '
+       . 'enquanto o schema estiver desatualizado, para não gerar erro de SQL no meio do uso.</p>'
+       . '</div>';
+    exit;
+}
+
+// Mensagens para a tela de login (única que as exibe).
+if ($migracao['aplicadas']) {
+    $n = count($migracao['aplicadas']);
+    $_SESSION['sga_migracao'] = ['tipo' => 'success', 'texto' =>
+        $n === 1 ? 'Banco atualizado (1 migration aplicada).'
+                 : "Banco atualizado ({$n} migrations aplicadas)."];
+} elseif ($migracao['precisaBaseline']) {
+    $_SESSION['sga_migracao'] = ['tipo' => 'warning', 'texto' =>
+        'O banco ainda não está sob controle de migrations. '
+        . 'Rode uma vez: php database/migrate.php baseline'];
+}
+
 // ── Roteamento ────────────────────────────────────────────────────
 $router = new \App\Core\Router();
 require ROOT_PATH . '/routes.php';

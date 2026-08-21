@@ -13,27 +13,17 @@ class AuthController extends BaseController
         if (Auth::check()) {
             $this->redirect('/');
         }
+
+        // O bootstrap (index.php) já aplicou o que havia; aqui só exibimos.
+        $avisoMigracao = $_SESSION['sga_migracao'] ?? null;
+        unset($_SESSION['sga_migracao']);
+
         // Página standalone (sem o layout/sidebar)
         View::renderPartial('auth/login', [
-            'base'  => BASE_PATH,
-            'erro'  => $this->getFlash(),
+            'base'          => BASE_PATH,
+            'erro'          => $this->getFlash(),
+            'avisoMigracao' => $avisoMigracao,
         ]);
-    }
-
-    public function login(): void
-    {
-        $usuario = trim($this->post('usuario', ''));
-        $senha   = (string) $this->post('senha', '');
-
-        $u = $usuario !== '' ? Usuario::porUsuario($usuario) : false;
-
-        if (!$u || !(int) $u['ativo'] || !password_verify($senha, $u['senha_hash'])) {
-            $this->flash('danger', 'Usuário ou senha inválidos.');
-            $this->redirect('/login');
-        }
-
-        Auth::login($u);
-        $this->redirect('/');
     }
 
     public function logout(): void
