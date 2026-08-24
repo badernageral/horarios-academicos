@@ -161,13 +161,23 @@ class FeasibilityChecker
 
         // 5. Disciplinas sem sala definida ficam FORA da checagem de conflito de
         //    sala (no gerador e no arrastar), então vale dizer quantas são.
+        //    A sala é gravada só na linha do SLOT 1 (ver Semestre::salvarAtribuicoes):
+        //    disciplina com 2 professores tem uma 2ª linha com sala_id NULL por
+        //    construção. Contar linhas acusaria falsamente essas disciplinas —
+        //    conta-se DISCIPLINA que não tem nenhuma linha com sala.
         $semSala = (int) Database::fetchValue(
-            "SELECT COUNT(*)
+            "SELECT COUNT(DISTINCT sa.disciplina_id)
              FROM semestre_atribuicoes sa
              JOIN disciplinas d ON d.id = sa.disciplina_id
              JOIN semestres sem ON sem.id = ?
-             WHERE sa.semestre_id = ? AND sa.sala_id IS NULL
-               AND d.ativo = 1 AND (d.semestre_oferta & sem.semestre) > 0",
+             WHERE sa.semestre_id = ?
+               AND d.ativo = 1 AND (d.semestre_oferta & sem.semestre) > 0
+               AND NOT EXISTS (
+                   SELECT 1 FROM semestre_atribuicoes s2
+                    WHERE s2.semestre_id = sa.semestre_id
+                      AND s2.disciplina_id = sa.disciplina_id
+                      AND s2.sala_id IS NOT NULL
+               )",
             [$semestreId, $semestreId]
         );
         if ($semSala > 0 && $qtdSalas > 0) {

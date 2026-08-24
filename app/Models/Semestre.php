@@ -125,7 +125,13 @@ class Semestre extends BaseModel
 
             $aulas   = $encontros * max(0, (int)$l['qtd_aulas']);
             $minutos = $aulas * max(0, (int)$l['duracao_aula_minutos']);
-            $ead     = max(0, (int)$l['qtd_aulas_ead']);
+
+            // As aulas EaD contam na carga SEMANAL do professor (não na carga
+            // relógio: não ocupam slot na grade). Numa disciplina dividida elas
+            // seguem a MESMA regra dos encontros — teto nos primeiros slots —
+            // senão cada professor levaria o total e o somatório do NDA dobraria.
+            $totalEad = max(0, (int)$l['qtd_aulas_ead']);
+            $ead      = intdiv($totalEad, $qtdProfs) + ($slot <= $totalEad % $qtdProfs ? 1 : 0);
 
             $grupos[$ndaId]['nome'] ??= $l['nda_nome'] ?? 'Sem NDA';
             $grupos[$ndaId]['professores'][$pid]['nome'] ??= $l['professor_nome'];
@@ -167,18 +173,22 @@ class Semestre extends BaseModel
         }
         unset($g);
 
-        // Totais por professor e por NDA
+        // Totais por professor e por NDA. `aulas` = presencial, `ead` = a
+        // distância e `aulas_total` = carga semanal de aulas (soma das duas);
+        // `minutos` fica só com o presencial, que é o que ocupa a grade.
         foreach ($grupos as &$g) {
             $g['minutos'] = 0; $g['aulas'] = 0; $g['ead'] = 0;
             foreach ($g['professores'] as &$p) {
-                $p['minutos'] = array_sum(array_column($p['disciplinas'], 'minutos'));
-                $p['aulas']   = array_sum(array_column($p['disciplinas'], 'aulas'));
-                $p['ead']     = array_sum(array_column($p['disciplinas'], 'ead'));
+                $p['minutos']     = array_sum(array_column($p['disciplinas'], 'minutos'));
+                $p['aulas']       = array_sum(array_column($p['disciplinas'], 'aulas'));
+                $p['ead']         = array_sum(array_column($p['disciplinas'], 'ead'));
+                $p['aulas_total'] = $p['aulas'] + $p['ead'];
                 $g['minutos'] += $p['minutos'];
                 $g['aulas']   += $p['aulas'];
                 $g['ead']     += $p['ead'];
             }
             unset($p);
+            $g['aulas_total'] = $g['aulas'] + $g['ead'];
         }
         unset($g);
 

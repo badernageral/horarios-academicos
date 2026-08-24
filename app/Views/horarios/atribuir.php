@@ -156,9 +156,9 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
         <?php endif; ?>
         <span class="ms-auto small text-muted">
           Total do NDA:
-          <strong><?= $g['aulas'] ?></strong> aulas ·
+          <strong><?= $g['aulas_total'] ?></strong> aulas<?php
+            if ($g['ead'] > 0): ?> (<?= $g['aulas'] ?> + <?= $g['ead'] ?> EaD)<?php endif; ?> ·
           <strong><?= $g['minutos'] > 0 ? \App\Services\TimeHelper::formatDuration($g['minutos']) : '0h' ?></strong>
-          <?php if ($g['ead'] > 0): ?> · <?= $g['ead'] ?> EaD<?php endif; ?>
         </span>
       </div>
 
@@ -169,8 +169,10 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
             <tr>
               <th style="width:18%">Professor</th>
               <th>Disciplinas</th>
-              <th class="text-center" style="width:10%">Aulas</th>
-              <th class="text-center" style="width:14%">Carga relógio</th>
+              <th class="text-center" style="width:10%"
+                  title="Aulas por semana: presenciais + EaD">Aulas</th>
+              <th class="text-center" style="width:14%"
+                  title="Tempo ocupado na grade — só as aulas presenciais">Carga relógio</th>
             </tr>
           </thead>
           <tbody>
@@ -192,7 +194,13 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
                   <?php endif; ?>
                 <?php endif; ?>
               </td>
-              <td class="text-center"><?= $p['aulas'] ?></td>
+              <?php // Total semanal de aulas (presencial + EaD), com a quebra embaixo. ?>
+              <td class="text-center">
+                <?= $p['aulas_total'] ?>
+                <?php if ($p['ead'] > 0): ?>
+                <div class="text-muted" style="font-size:11px"><?= $p['aulas'] ?> + <?= $p['ead'] ?> EaD</div>
+                <?php endif; ?>
+              </td>
               <td class="text-center">
                 <?php if ($semCarga): ?>
                   <span class="text-muted">0h</span>
