@@ -9,10 +9,44 @@ class DisciplinasController extends BaseController
 {
     public function index(): void
     {
-        [$sort, $dir] = $this->sortParams(['nome','sigla','curso_nome','turma_nome','nda_nome','qtd_encontros_semanais'], 'nome');
+        // Curso e turma saíram das colunas ordenáveis: viraram os próprios grupos.
+        [$sort, $dir] = $this->sortParams(['nome','sigla','nda_nome','qtd_encontros_semanais'], 'nome');
         $disciplinas = Disciplina::allComRelacoes($sort, $dir);
         $flash       = $this->getFlash();
-        $this->render('disciplinas/index', compact('disciplinas', 'flash', 'sort', 'dir'));
+
+        // Agrupa curso → turma. A ordenação escolhida no cabeçalho vale DENTRO
+        // da turma (o SQL já entregou as linhas nessa ordem); os grupos ficam
+        // sempre em ordem natural de nome, para a lista não dançar a cada clique.
+        $grupos = [];
+        foreach ($disciplinas as $d) {
+            $cursoId = (int)$d['curso_id'];
+            $turmaId = (int)$d['turma_id'];
+
+            $grupos[$cursoId]['nome'] ??= $d['curso_nome'];
+            $grupos[$cursoId]['turmas'][$turmaId]['id']   ??= $turmaId;
+            $grupos[$cursoId]['turmas'][$turmaId]['nome'] ??= $d['turma_nome'];
+            $grupos[$cursoId]['turmas'][$turmaId]['disciplinas'][] = $d;
+        }
+        uasort($grupos, fn($a, $b) => strnatcasecmp($a['nome'], $b['nome']));
+
+        foreach ($grupos as &$g) {
+            uasort($g['turmas'], fn($a, $b) => strnatcasecmp($a['nome'], $b['nome']));
+            $g['qtd']     = 0;
+            $g['minutos'] = 0;
+            foreach ($g['turmas'] as &$t) {
+                $t['minutos'] = 0;
+                foreach ($t['disciplinas'] as $d) {
+                    $t['minutos'] += (int)$d['qtd_encontros_semanais'] * (int)$d['qtd_aulas']
+                                   * (int)$d['duracao_aula_minutos'];
+                }
+                $g['qtd']     += count($t['disciplinas']);
+                $g['minutos'] += $t['minutos'];
+            }
+            unset($t);
+        }
+        unset($g);
+
+        $this->render('disciplinas/index', compact('disciplinas', 'grupos', 'flash', 'sort', 'dir'));
     }
 
     public function nova(): void
