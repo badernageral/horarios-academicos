@@ -101,7 +101,7 @@ if (!\App\Core\Auth::check()) {
         $alvo = '/setup';
     } elseif ($ehPublica || REQUEST_PATH === '/login') {
         $alvo = REQUEST_PATH;               // deixa passar (inclusive o POST do login)
-    } elseif (REQUEST_PATH === '/' || REQUEST_PATH === '/dashboard') {
+    } elseif (REQUEST_PATH === '/' || REQUEST_PATH === '/painel') {
         $alvo = '/publico';                 // abrir o sistema cai na consulta pública
     } else {
         $alvo = '/login';                   // rota interna: exige sessão

@@ -22,8 +22,8 @@
 
     <ul class="nav flex-column px-2 mt-2 flex-grow-1">
         <li class="nav-item">
-            <a href="<?= $base ?>/" class="nav-link <?= in_array(REQUEST_PATH,['/','/dashboard']) ? 'active':'' ?>">
-                <i class="bi bi-speedometer2 me-2"></i> Dashboard
+            <a href="<?= $base ?>/" class="nav-link <?= in_array(REQUEST_PATH,['/','/painel']) ? 'active':'' ?>">
+                <i class="bi bi-speedometer2 me-2"></i> Painel
             </a>
         </li>
 
@@ -91,7 +91,7 @@
     <!-- Topbar -->
     <nav class="navbar navbar-expand-lg topbar px-3 py-2 d-flex justify-content-between">
         <span class="navbar-brand mb-0 fw-semibold text-dark">
-            <?= htmlspecialchars($pageTitle ?? 'Dashboard') ?>
+            <?= htmlspecialchars($pageTitle ?? 'Painel') ?>
         </span>
         <?php $authUser = \App\Core\Auth::user(); if ($authUser): ?>
         <div class="dropdown">

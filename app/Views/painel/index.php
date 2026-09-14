@@ -1,4 +1,4 @@
-<?php $pageTitle = 'Dashboard'; ?>
+<?php $pageTitle = 'Painel'; ?>
 
 <!-- Stat cards -->
 <div class="row g-3 mb-4">
@@ -121,7 +121,7 @@
           ['/horarios/novo',    'bi-calendar3',     'text-primary',  'Criar Horário'],
         ];
         foreach ($steps as $i => [$url, $icon, $color, $title]): ?>
-        <a href="<?= $url ?>" class="d-flex align-items-center gap-3 px-3 py-2 text-decoration-none border-bottom quick-step">
+        <a href="<?= $base ?><?= $url ?>" class="d-flex align-items-center gap-3 px-3 py-2 text-decoration-none border-bottom quick-step">
           <span class="badge rounded-pill bg-light text-dark border fw-semibold" style="width:24px;height:24px;line-height:16px;font-size:11px"><?= $i+1 ?></span>
           <i class="bi <?= $icon ?> <?= $color ?> fs-5"></i>
           <span class="small fw-semibold text-dark"><?= $title ?></span>

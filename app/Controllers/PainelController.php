@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Database;
 
-class DashboardController extends BaseController
+class PainelController extends BaseController
 {
     public function index(): void
     {
@@ -39,6 +39,6 @@ class DashboardController extends BaseController
         }
         unset($sem);
 
-        $this->render('dashboard/index', compact('stats', 'semestres'));
+        $this->render('painel/index', compact('stats', 'semestres'));
     }
 }

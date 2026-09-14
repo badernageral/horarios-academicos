@@ -28,9 +28,9 @@ $router->get('/backup',            'BackupController@index');
 $router->get('/backup/exportar',   'BackupController@exportar');
 $router->post('/backup/importar',  'BackupController@importar');
 
-// ── Dashboard ─────────────────────────────────────────────────────
-$router->get('/',           'DashboardController@index');
-$router->get('/dashboard',  'DashboardController@index');
+// ── Painel ────────────────────────────────────────────────────────
+$router->get('/',           'PainelController@index');
+$router->get('/painel',     'PainelController@index');
 
 // ── NDAs ─────────────────────────────────────────────────────────
 $router->get('/ndas',              'NdasController@index');
