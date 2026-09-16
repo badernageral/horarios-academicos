@@ -38,17 +38,6 @@ body {
   z-index: 100;
 }
 
-#sidebar.collapsed {
-  width: 60px;
-}
-
-#sidebar.collapsed .sidebar-brand span,
-#sidebar.collapsed .sidebar-heading,
-#sidebar.collapsed .nav-link span,
-#sidebar.collapsed .sidebar-footer {
-  display: none !important;
-}
-
 .sidebar-brand {
   color: #fff !important;
   font-size: 1.1rem;
@@ -91,6 +80,56 @@ body {
 .sidebar-footer {
   border-top: 1px solid #334155;
   font-size: 0.72rem;
+}
+
+/* ── Sidebar recolhível (toggle manual, persiste via localStorage) ── */
+.sidebar-toggle-btn {
+  color: var(--sidebar-text);
+  background: transparent;
+  border: 1px solid #334155;
+}
+
+.sidebar-toggle-btn:hover {
+  background: var(--sidebar-hover);
+  color: #fff;
+}
+
+.sidebar-toggle-btn i {
+  transition: transform 0.2s ease;
+}
+
+html.sidebar-collapsed #sidebar {
+  width: 60px;
+}
+
+html.sidebar-collapsed #sidebar .sidebar-brand span,
+html.sidebar-collapsed #sidebar .nav-link span,
+html.sidebar-collapsed .sidebar-footer {
+  display: none !important;
+}
+
+html.sidebar-collapsed .sidebar-brand {
+  justify-content: center;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+html.sidebar-collapsed .sidebar-brand i {
+  margin: 0 !important;
+}
+
+html.sidebar-collapsed #sidebar .nav-link {
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+html.sidebar-collapsed #sidebar .nav-link i {
+  margin: 0 !important;
+  font-size: 1.1rem;
+}
+
+html.sidebar-collapsed .sidebar-toggle-btn i {
+  transform: rotate(180deg);
 }
 
 /* ── Page Content ──────────────────────────── */
@@ -225,7 +264,9 @@ code {
   }
   #sidebar .sidebar-brand span,
   #sidebar .sidebar-heading,
-  #sidebar .sidebar-footer {
+  #sidebar .sidebar-footer,
+  #sidebar .nav-link span,
+  .sidebar-toggle-btn {
     display: none !important;
   }
   #sidebar .nav-link {

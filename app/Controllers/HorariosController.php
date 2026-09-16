@@ -858,8 +858,8 @@ class HorariosController extends BaseController
         try {
             Database::query("DELETE FROM semestre_atribuicoes WHERE semestre_id=?", [$destinoId]);
             Database::query(
-                "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot, sala_id)
-                 SELECT ?, sa.disciplina_id, sa.professor_id, sa.slot, sa.sala_id
+                "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot)
+                 SELECT ?, sa.disciplina_id, sa.professor_id, sa.slot
                  FROM semestre_atribuicoes sa
                  JOIN disciplinas d ON d.id = sa.disciplina_id
                  WHERE sa.semestre_id = ? AND d.ativo = 1
@@ -868,6 +868,19 @@ class HorariosController extends BaseController
             );
             $qtd = (int) Database::fetchValue(
                 "SELECT COUNT(*) FROM semestre_atribuicoes WHERE semestre_id=?", [$destinoId]
+            );
+
+            // Sala por disciplina: tabela própria (semestre_disciplina_salas),
+            // independente de professor — copiada à parte da atribuição acima.
+            Database::query("DELETE FROM semestre_disciplina_salas WHERE semestre_id=?", [$destinoId]);
+            Database::query(
+                "INSERT INTO semestre_disciplina_salas (semestre_id, disciplina_id, sala_id)
+                 SELECT ?, sds.disciplina_id, sds.sala_id
+                 FROM semestre_disciplina_salas sds
+                 JOIN disciplinas d ON d.id = sds.disciplina_id
+                 WHERE sds.semestre_id = ? AND d.ativo = 1
+                   AND (d.semestre_oferta & ?) > 0",
+                [$destinoId, $origemId, $oferta]
             );
 
             // A grade do destino sempre é substituída: manter a antiga deixaria

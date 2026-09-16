@@ -56,7 +56,7 @@ $semSala      = count(array_filter($turmas, fn($t) => !$t['sala_atribuida']));
       </table>
     </div>
     <div class="card-footer bg-transparent d-flex gap-2">
-      <button type="submit" class="btn btn-secondary">
+      <button type="submit" class="btn btn-primary">
         <i class="bi bi-check-lg me-1"></i>Salvar Salas
       </button>
       <a href="<?= $base ?>/horarios" class="btn btn-outline-secondary">Cancelar</a>

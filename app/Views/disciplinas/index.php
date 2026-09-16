@@ -1,11 +1,15 @@
 <?php
 $pageTitle = 'Disciplinas';
-$th = function(string $col, string $label, string $extra = '') use ($sort, $dir) {
+$th = function(string $col, string $label, string $extra = '') use ($sort, $dir, $cursoFiltro, $turmaFiltro, $ndaFiltro) {
     $nd   = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
     $icon = $sort === $col
         ? ($dir === 'asc' ? '<i class="bi bi-sort-up ms-1"></i>' : '<i class="bi bi-sort-down ms-1"></i>')
         : '<i class="bi bi-arrow-down-up ms-1 text-muted opacity-50" style="font-size:.75em"></i>';
-    return "<th{$extra}><a href=\"?sort={$col}&dir={$nd}\" class=\"text-decoration-none text-dark\">{$label}{$icon}</a></th>";
+    $qs = http_build_query(array_filter([
+        'sort' => $col, 'dir' => $nd,
+        'curso_id' => $cursoFiltro ?: null, 'turma_id' => $turmaFiltro ?: null, 'nda_id' => $ndaFiltro ?: null,
+    ], fn($v) => $v !== null));
+    return "<th{$extra}><a href=\"?{$qs}\" class=\"text-decoration-none text-dark\">{$label}{$icon}</a></th>";
 };
 ?>
 
@@ -17,20 +21,69 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 <?php endif; ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h5 class="mb-0 fw-semibold"><i class="bi bi-book me-2 text-warning"></i>Disciplinas</h5>
+  <h5 class="mb-0 fw-semibold"><i class="bi bi-book me-2 text-primary"></i>Disciplinas</h5>
   <div class="d-flex gap-2">
-    <a href="<?= $base ?>/disciplinas/importar" class="btn btn-outline-warning btn-sm">
+    <a href="<?= $base ?>/disciplinas/importar" class="btn btn-outline-primary btn-sm">
       <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
     </a>
-    <a href="<?= $base ?>/disciplinas/nova" class="btn btn-warning btn-sm">
+    <a href="<?= $base ?>/disciplinas/nova?voltar=<?= urlencode($voltarUrl) ?>" class="btn btn-primary btn-sm">
       <i class="bi bi-plus-lg me-1"></i>Nova Disciplina
     </a>
   </div>
 </div>
 
+<!-- Filtros de visualização -->
+<form method="GET" action="<?= $base ?>/disciplinas" class="row g-2 mb-3 align-items-end">
+  <input type="hidden" name="sort" value="<?= htmlspecialchars($sort) ?>">
+  <input type="hidden" name="dir" value="<?= htmlspecialchars($dir) ?>">
+  <div class="col-md">
+    <label class="form-label small mb-1">Curso</label>
+    <select name="curso_id" class="form-select form-select-sm" onchange="this.form.submit()">
+      <option value="">— Todos —</option>
+      <?php foreach ($cursosFiltro as $c): ?>
+      <option value="<?= $c['id'] ?>" <?= $cursoFiltro == $c['id'] ? 'selected' : '' ?>>
+        <?= htmlspecialchars($c['nome']) ?>
+      </option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+  <div class="col-md">
+    <label class="form-label small mb-1">Turma</label>
+    <select name="turma_id" class="form-select form-select-sm" onchange="this.form.submit()">
+      <option value="">— Todas —</option>
+      <?php foreach ($turmasFiltro as $t): ?>
+      <option value="<?= $t['id'] ?>" <?= $turmaFiltro == $t['id'] ? 'selected' : '' ?>>
+        <?= htmlspecialchars($t['curso_nome'] . ' – ' . $t['serie_periodo']) ?>
+      </option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+  <div class="col-md">
+    <label class="form-label small mb-1">NDA</label>
+    <select name="nda_id" class="form-select form-select-sm" onchange="this.form.submit()">
+      <option value="">— Todos —</option>
+      <option value="sem" <?= $ndaFiltro === 'sem' ? 'selected' : '' ?>>Sem NDA</option>
+      <?php foreach ($ndasFiltro as $n): ?>
+      <option value="<?= $n['id'] ?>" <?= (string)$ndaFiltro === (string)$n['id'] ? 'selected' : '' ?>>
+        <?= htmlspecialchars($n['nome']) ?>
+      </option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+  <?php if ($filtroAtivo): ?>
+  <div class="col-md-auto">
+    <a href="<?= $base ?>/disciplinas" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-x-lg me-1"></i>Limpar filtros
+    </a>
+  </div>
+  <?php endif; ?>
+</form>
+
 <?php if (empty($grupos)): ?>
 <div class="card border-0 shadow-sm">
-  <div class="card-body text-center text-muted py-4">Nenhuma disciplina cadastrada.</div>
+  <div class="card-body text-center text-muted py-4">
+    <?= $filtroAtivo ? 'Nenhuma disciplina encontrada para os filtros selecionados.' : 'Nenhuma disciplina cadastrada.' ?>
+  </div>
 </div>
 <?php endif; ?>
 
@@ -96,8 +149,8 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
                 <?php
                   $o = (int)$d['semestre_oferta'];
                   if ($o === 3)      echo '<span class="badge bg-secondary">Anual</span>';
-                  elseif ($o === 1)  echo '<span class="badge bg-primary">1º Sem</span>';
-                  elseif ($o === 2)  echo '<span class="badge bg-info text-dark">2º Sem</span>';
+                  elseif ($o === 1)  echo '<span class="badge text-white" style="background-color:#3f51b5">1º Sem</span>';
+                  elseif ($o === 2)  echo '<span class="badge text-white" style="background-color:#0a58ca">2º Sem</span>';
                 ?>
               </td>
               <td class="text-center">
@@ -105,6 +158,11 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
               </td>
               <td class="text-center">
                 <span class="badge bg-info text-dark"><?= $d['qtd_aulas'] ?> aula<?= $d['qtd_aulas'] > 1 ? 's' : '' ?></span>
+                <?php if ((int)$d['qtd_aulas_ead'] > 0): ?>
+                  <span class="badge text-white" style="background-color:#6f42c1">
+                    +<?= (int)$d['qtd_aulas_ead'] ?> EaD
+                  </span>
+                <?php endif; ?>
               </td>
               <td class="text-center">
                 <span class="badge bg-secondary"><?= \App\Services\TimeHelper::formatDuration($duracaoEncontro) ?></span>
@@ -113,12 +171,13 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
                 <span class="badge bg-dark"><?= \App\Services\TimeHelper::formatDuration($totalMin) ?></span>
               </td>
               <td class="text-end">
-                <a href="<?= $base ?>/disciplinas/<?= $d['id'] ?>/editar" class="btn btn-sm btn-outline-primary">
+                <a href="<?= $base ?>/disciplinas/<?= $d['id'] ?>/editar?voltar=<?= urlencode($voltarUrl) ?>" class="btn btn-sm btn-outline-primary">
                   <i class="bi bi-pencil"></i>
                 </a>
                 <form method="POST" action="<?= $base ?>/disciplinas/deletar" class="d-inline"
                       onsubmit="return confirm('Remover disciplina?')">
                   <input type="hidden" name="id" value="<?= $d['id'] ?>">
+                  <input type="hidden" name="voltar" value="<?= htmlspecialchars($voltarUrl) ?>">
                   <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                 </form>
               </td>

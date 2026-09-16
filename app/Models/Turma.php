@@ -13,12 +13,14 @@ class Turma extends BaseModel
         $map = ['curso_nome' => 'c.nome', 'serie_periodo' => 't.serie_periodo', 'ativo' => 't.ativo'];
         $col = $map[$sort] ?? 'c.nome';
         $dir = $dir === 'desc' ? 'DESC' : 'ASC';
+        // Curso é sempre o agrupamento visual; série/período desempata dentro do curso.
+        $ordem = $col === 'c.nome' ? "{$col} {$dir}, t.serie_periodo ASC" : "{$col} {$dir}, c.nome ASC, t.serie_periodo ASC";
         return Database::fetchAll(
             "SELECT t.*, c.nome AS curso_nome, c.turno_inicio, c.turno_fim, c.duracao_aula_minutos, c.cor AS curso_cor
              FROM turmas t
              JOIN cursos c ON c.id = t.curso_id
              WHERE t.ativo = 1
-             ORDER BY {$col} {$dir}"
+             ORDER BY {$ordem}"
         );
     }
 

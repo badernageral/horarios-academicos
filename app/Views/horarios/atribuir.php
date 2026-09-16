@@ -1,28 +1,31 @@
 <?php
 $pageTitle    = 'Atribuição de Professores e Salas';
 $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
+
+// Turmas únicas presentes nesta lista de disciplinas, para o select do modal
+// "Definir sala por turma" — evita uma consulta nova, os dados já vieram.
+$turmasUnicas = [];
+foreach ($disciplinas as $d) {
+    $turmasUnicas[(int)$d['turma_id']] ??= $d['curso_nome'] . ' – ' . $d['turma_nome'];
+}
+asort($turmasUnicas, SORT_NATURAL | SORT_FLAG_CASE);
 ?>
 
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
   <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
   <div>
-    <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-success"></i>Atribuição de Professores e Salas</h5>
+    <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-primary"></i>Atribuição de Professores e Salas</h5>
     <small class="text-muted"><?= $semestreLabel ?></small>
   </div>
-  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/importar" class="btn btn-sm btn-outline-success ms-auto">
+  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/importar" class="btn btn-sm btn-outline-primary ms-auto">
     <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
   </a>
-  <?php if ($semAtribuir > 0): ?>
-  <span class="badge bg-warning text-dark"><?= $semAtribuir ?> slot(s) sem professor</span>
-  <?php else: ?>
-  <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>Professores OK</span>
-  <?php endif; ?>
-  <?php if ($semSala > 0): ?>
-  <span class="badge bg-primary"><?= $semSala ?> sem sala</span>
-  <?php else: ?>
-  <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>Salas OK</span>
-  <?php endif; ?>
+  <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalSalaTurma">
+    <i class="bi bi-door-open me-1"></i>Definir sala por turma
+  </button>
 </div>
+
+<div id="avisoSalaTurma"></div>
 
 <?php if ($flash): ?>
 <div class="alert alert-<?= $flash['type'] ?> alert-dismissible fade show">
@@ -46,6 +49,26 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
 
 <div class="card border-0 shadow-sm">
   <form method="POST" action="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir">
+    <div class="px-3 pt-3 pb-2 border-bottom d-flex align-items-center flex-wrap gap-2">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="filtroNdaProfessor" checked>
+        <label class="form-check-label small" for="filtroNdaProfessor">
+          Mostrar apenas professores do mesmo NDA da disciplina
+        </label>
+      </div>
+      <div class="ms-auto d-flex gap-2">
+        <?php if ($semAtribuir > 0): ?>
+        <span class="badge bg-danger text-white fs-6"><?= $semAtribuir ?> sem professor</span>
+        <?php else: ?>
+        <span class="badge bg-success fs-6"><i class="bi bi-check-lg me-1"></i>Professores OK</span>
+        <?php endif; ?>
+        <?php if ($semSala > 0): ?>
+        <span class="badge bg-danger text-white fs-6"><?= $semSala ?> sem sala</span>
+        <?php else: ?>
+        <span class="badge bg-success fs-6"><i class="bi bi-check-lg me-1"></i>Salas OK</span>
+        <?php endif; ?>
+      </div>
+    </div>
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
@@ -97,10 +120,12 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
                 <?php if ($qtdProfs > 1): ?>
                 <label class="form-label small text-muted mb-0">Prof. <?= $slot ?></label>
                 <?php endif; ?>
-                <select name="atribuicao[<?= $d['id'] ?>][<?= $slot ?>]" class="form-select form-select-sm">
+                <select name="atribuicao[<?= $d['id'] ?>][<?= $slot ?>]" class="form-select form-select-sm select-professor"
+                        data-disc-nda="<?= (int)($d['nda_id'] ?? 0) ?>">
                   <option value="">— Sem professor —</option>
                   <?php foreach ($professores as $p): ?>
-                  <option value="<?= $p['id'] ?>" <?= $profAtrib == $p['id'] ? 'selected' : '' ?>>
+                  <option value="<?= $p['id'] ?>" data-prof-nda="<?= (int)($p['nda_id'] ?? 0) ?>"
+                          <?= $profAtrib == $p['id'] ? 'selected' : '' ?>>
                     <?= htmlspecialchars($p['nome']) ?>
                   </option>
                   <?php endforeach; ?>
@@ -109,7 +134,8 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
               <?php endfor; ?>
             </td>
             <td>
-              <select name="sala[<?= $d['id'] ?>]" class="form-select form-select-sm">
+              <select name="sala[<?= $d['id'] ?>]" class="form-select form-select-sm select-sala"
+                      data-turma-id="<?= (int)$d['turma_id'] ?>">
                 <option value="">— Sem sala —</option>
                 <?php foreach ($salas as $s): ?>
                 <option value="<?= $s['id'] ?>" <?= $d['sala_atribuida'] == $s['id'] ? 'selected' : '' ?>>
@@ -125,13 +151,157 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
       </table>
     </div>
     <div class="card-footer bg-transparent d-flex gap-2">
-      <button type="submit" class="btn btn-success">
+      <button type="submit" class="btn btn-primary">
         <i class="bi bi-check-lg me-1"></i>Salvar Atribuições
       </button>
       <a href="<?= $base ?>/horarios" class="btn btn-outline-secondary">Cancelar</a>
     </div>
   </form>
 </div>
+
+<!-- Modal: definir sala de N turmas de uma vez -->
+<div class="modal fade" id="modalSalaTurma" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-door-open me-2"></i>Definir sala por turma</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted">
+          Escolha a turma e a sala em cada linha — todas as disciplinas dessa turma nesta lista recebem a mesma sala.
+          Isso só preenche os selects abaixo; nada é gravado até você clicar em "Salvar Atribuições".
+        </p>
+        <div id="linhasSalaTurma">
+          <div class="row g-2 mb-2 linha-sala-turma">
+            <div class="col-6">
+              <select class="form-select form-select-sm select-turma-modal">
+                <option value="">Selecione a turma...</option>
+                <?php foreach ($turmasUnicas as $tid => $label): ?>
+                <option value="<?= $tid ?>"><?= htmlspecialchars($label) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-5">
+              <select class="form-select form-select-sm select-sala-modal">
+                <option value="">Selecione a sala...</option>
+                <?php foreach ($salas as $s): ?>
+                <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['nome']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-1 d-flex align-items-center justify-content-center">
+              <button type="button" class="btn btn-sm btn-outline-danger btn-remover-linha" title="Remover linha">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <button type="button" id="btnAdicionarLinhaSalaTurma" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-plus-lg me-1"></i>Adicionar linha
+        </button>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" id="btnAplicarSalaTurma" class="btn btn-primary">
+          <i class="bi bi-check-lg me-1"></i>Aplicar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const container    = document.getElementById('linhasSalaTurma');
+  const btnAdicionar  = document.getElementById('btnAdicionarLinhaSalaTurma');
+  const btnAplicar    = document.getElementById('btnAplicarSalaTurma');
+  const modalEl       = document.getElementById('modalSalaTurma');
+  const aviso         = document.getElementById('avisoSalaTurma');
+
+  function linhaVazia() {
+    const linha = container.querySelector('.linha-sala-turma').cloneNode(true);
+    linha.querySelectorAll('select').forEach(function (s) { s.value = ''; });
+    return linha;
+  }
+
+  btnAdicionar.addEventListener('click', function () {
+    container.appendChild(linhaVazia());
+  });
+
+  // Delegação: funciona também para linhas adicionadas depois.
+  container.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-remover-linha');
+    if (!btn) return;
+    if (container.querySelectorAll('.linha-sala-turma').length > 1) {
+      btn.closest('.linha-sala-turma').remove();
+    }
+  });
+
+  btnAplicar.addEventListener('click', function () {
+    let disciplinasPreenchidas = 0;
+    let turmasAplicadas = 0;
+
+    container.querySelectorAll('.linha-sala-turma').forEach(function (linha) {
+      const turmaId = linha.querySelector('.select-turma-modal').value;
+      const salaId  = linha.querySelector('.select-sala-modal').value;
+      if (!turmaId || !salaId) return;
+
+      const alvos = document.querySelectorAll('.select-sala[data-turma-id="' + turmaId + '"]');
+      alvos.forEach(function (sel) { sel.value = salaId; });
+      if (alvos.length > 0) {
+        disciplinasPreenchidas += alvos.length;
+        turmasAplicadas++;
+      }
+    });
+
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+
+    if (disciplinasPreenchidas > 0) {
+      aviso.innerHTML =
+        '<div class="alert alert-success alert-dismissible fade show mt-2 mb-0">' +
+        'Sala preenchida em ' + disciplinasPreenchidas + ' disciplina(s) de ' + turmasAplicadas + ' turma(s). ' +
+        'Clique em <strong>Salvar Atribuições</strong> para confirmar.' +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+
+      // Volta o modal para uma única linha vazia, pronto para o próximo lote.
+      container.querySelectorAll('.linha-sala-turma').forEach(function (linha, i) {
+        if (i === 0) { linha.querySelectorAll('select').forEach(function (s) { s.value = ''; }); }
+        else { linha.remove(); }
+      });
+    }
+  });
+})();
+</script>
+
+<script>
+(function () {
+  const checkbox = document.getElementById('filtroNdaProfessor');
+  const selects  = document.querySelectorAll('.select-professor');
+
+  function aplicarFiltro() {
+    const ativo = checkbox.checked;
+    selects.forEach(function (sel) {
+      const discNda = parseInt(sel.dataset.discNda, 10) || 0;
+      Array.from(sel.options).forEach(function (opt) {
+        if (!opt.value) return; // "— Sem professor —" sempre visível
+        const profNda = parseInt(opt.dataset.profNda, 10) || 0;
+        // "Qualquer NDA" (discNda = 0) não tem o que filtrar: mostra todos.
+        // A opção já selecionada nunca é escondida, para não sumir uma
+        // atribuição antiga feita antes deste filtro existir.
+        const bloquear = ativo && discNda !== 0 && profNda !== discNda && !opt.selected;
+        opt.hidden    = bloquear;
+        opt.disabled  = bloquear;
+      });
+    });
+  }
+
+  checkbox.addEventListener('change', aplicarFiltro);
+  selects.forEach(function (sel) { sel.addEventListener('change', aplicarFiltro); });
+  aplicarFiltro();
+})();
+</script>
 
 <?php // Relatório de carga por NDA do PROFESSOR. Vem das atribuições acima, não
       // da grade gerada — serve para conferir a distribuição ANTES de gerar. ?>

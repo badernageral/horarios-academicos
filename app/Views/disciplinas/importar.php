@@ -42,21 +42,33 @@
           </div>
 
           <div class="mb-3">
+            <label class="form-label">NDA</label>
+            <select name="nda_id" class="form-select">
+              <option value="">Qualquer NDA</option>
+              <?php foreach ($ndas as $n): ?>
+              <option value="<?= (int)$n['id'] ?>"><?= htmlspecialchars($n['nome']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <div class="form-text">Todas as disciplinas da lista serão vinculadas a este NDA.</div>
+          </div>
+
+          <div class="mb-3">
             <label class="form-label">
               Nome - Aulas por encontro — uma por linha <span class="text-danger">*</span>
             </label>
             <textarea name="linhas" id="linhas" class="form-control font-monospace"
                       rows="14"
-                      placeholder="Matemática - 2&#10;Português - 2&#10;Física - 1&#10;Educação Física"
+                      placeholder="Matemática - 2&#10;Português - 2&#10;Físico-química do Solo - 3&#10;Educação Física"
                       required></textarea>
             <div class="form-text">
-              Separe o nome e a quantidade de aulas por encontro com <strong>-</strong>.
-              Se omitir o <strong>-</strong>, assume <strong>2 aulas/encontro</strong>.
+              Separe o nome e a quantidade de aulas por encontro com <strong> - </strong> (espaço, hífen, espaço).
+              O separador usado é o <strong>último</strong> " - " da linha, então disciplinas com hífen no nome
+              funcionam normalmente. Se omitir, assume <strong>2 aulas/encontro</strong>.
             </div>
           </div>
 
           <div class="d-flex align-items-center gap-3">
-            <button type="submit" class="btn btn-warning">
+            <button type="submit" class="btn btn-primary">
               <i class="bi bi-cloud-upload me-1"></i>Cadastrar Disciplinas
             </button>
             <span id="contadorLinhas" class="text-muted small">0 disciplinas</span>
@@ -71,13 +83,13 @@
       <div class="card-header bg-transparent fw-semibold">Padrões aplicados</div>
       <div class="card-body">
         <ul class="list-unstyled mb-0 small">
-          <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Sigla: primeiros 20 caracteres do nome (maiúsculas)</li>
           <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Encontros semanais: 1</li>
           <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Aulas por encontro: valor após o <strong>-</strong>, ou 2 se omitido</li>
           <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Número de professores: 1</li>
-          <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Oferta: semestre selecionado no formulário</li>
           <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Status: Ativa</li>
+          <li class="mb-2"><i class="bi bi-info-circle text-primary me-2"></i>Oferta: semestre selecionado no formulário</li>
           <li class="mb-2"><i class="bi bi-info-circle text-primary me-2"></i>Turma: selecionada no topo do formulário</li>
+          <li class="mb-2"><i class="bi bi-info-circle text-primary me-2"></i>NDA: selecionado no formulário (ou "Qualquer NDA")</li>
         </ul>
       </div>
     </div>

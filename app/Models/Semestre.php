@@ -20,33 +20,29 @@ class Semestre extends BaseModel
      * @return array [nda_id => ['nome' => string, 'professores' => [...], 'minutos' => int, 'aulas' => int]]
      */
     /**
-     * Ocupação de cada sala no semestre, a partir das ATRIBUIÇÕES.
-     *
-     * A sala fica em `semestre_atribuicoes`, uma linha por slot de professor —
-     * por isso o MAX(sala_id): disciplina com dois professores tem duas linhas,
-     * mas uma sala só. Salas ativas sem nenhuma disciplina também entram, e as
-     * disciplinas sem sala caem num grupo à parte.
+     * Ocupação de cada sala no semestre, a partir da sala escolhida por
+     * DISCIPLINA (semestre_disciplina_salas) — independente de já haver
+     * professor atribuído. Salas ativas sem nenhuma disciplina também entram,
+     * e as disciplinas sem sala caem num grupo à parte.
      *
      * @return array lista de ['id','nome','disciplinas'=>[...],'aulas'=>int]
      */
     public static function ocupacaoPorSala(int $semestreId): array
     {
         $linhas = Database::fetchAll(
-            "SELECT MAX(sa.sala_id) AS sala_id,
+            "SELECT sds.sala_id AS sala_id,
                     d.nome AS disciplina_nome,
                     d.qtd_encontros_semanais, d.qtd_aulas,
                     c.nome AS curso_nome, c.duracao_aula_minutos,
                     t.serie_periodo AS turma_nome
-             FROM semestre_atribuicoes sa
-             JOIN disciplinas d  ON d.id = sa.disciplina_id
+             FROM disciplinas d
              JOIN cursos c       ON c.id = d.curso_id
              JOIN turmas t       ON t.id = d.turma_id
              JOIN semestres sem  ON sem.id = ?
-             WHERE sa.semestre_id = ?
-               AND d.ativo = 1
+             LEFT JOIN semestre_disciplina_salas sds
+                    ON sds.disciplina_id = d.id AND sds.semestre_id = ?
+             WHERE d.ativo = 1
                AND (d.semestre_oferta & sem.semestre) > 0
-             GROUP BY d.id, d.nome, d.qtd_encontros_semanais, d.qtd_aulas,
-                      c.nome, c.duracao_aula_minutos, t.serie_periodo
              ORDER BY c.nome, t.serie_periodo, d.nome",
             [$semestreId, $semestreId]
         );
@@ -198,7 +194,7 @@ class Semestre extends BaseModel
     public static function disciplinasComAtribuicao(int $semestreId): array
     {
         $rows = Database::fetchAll(
-            "SELECT d.id, d.nome, d.sigla,
+            "SELECT d.id, d.nome, d.sigla, d.turma_id,
                     d.qtd_encontros_semanais, d.qtd_aulas, d.semestre_oferta, d.qtd_professores,
                     c.nome AS curso_nome, c.duracao_aula_minutos,
                     t.serie_periodo AS turma_nome,
@@ -207,20 +203,16 @@ class Semestre extends BaseModel
                        FROM (SELECT professor_id FROM semestre_atribuicoes
                               WHERE disciplina_id = d.id AND semestre_id = ?
                               ORDER BY slot) x) AS professores_atribuidos,
-                    MAX(CASE WHEN sa.slot = 1 THEN sa.sala_id ELSE NULL END) AS sala_atribuida
+                    sds.sala_id AS sala_atribuida
              FROM disciplinas d
              JOIN cursos c       ON c.id = d.curso_id
              JOIN turmas t       ON t.id = d.turma_id
              LEFT JOIN ndas n    ON n.id = d.nda_id
              JOIN semestres sem  ON sem.id = ?
-             LEFT JOIN semestre_atribuicoes sa
-                    ON sa.disciplina_id = d.id AND sa.semestre_id = ?
+             LEFT JOIN semestre_disciplina_salas sds
+                    ON sds.disciplina_id = d.id AND sds.semestre_id = ?
              WHERE d.ativo = 1
                AND (d.semestre_oferta & sem.semestre) > 0
-             GROUP BY d.id, d.nome, d.sigla,
-                      d.qtd_encontros_semanais, d.qtd_aulas, d.semestre_oferta, d.qtd_professores,
-                      c.nome, c.duracao_aula_minutos, t.serie_periodo,
-                      d.nda_id, n.nome
              ORDER BY c.nome, t.serie_periodo, d.nome",
             [$semestreId, $semestreId, $semestreId]
         );
@@ -254,6 +246,10 @@ class Semestre extends BaseModel
 
         Database::query("DELETE FROM semestre_atribuicoes WHERE semestre_id = ?", [$semestreId]);
 
+        // Sala por disciplina: tabela própria, independente de já haver
+        // professor atribuído (ver semestre_disciplina_salas na migration 009).
+        Database::query("DELETE FROM semestre_disciplina_salas WHERE semestre_id = ?", [$semestreId]);
+
         // Geração ativa do semestre (para limbo e sincronização).
         $geracao = Database::fetchOne(
             "SELECT id FROM geracoes WHERE semestre_id = ? ORDER BY created_at DESC LIMIT 1",
@@ -279,6 +275,17 @@ class Semestre extends BaseModel
         foreach ($professores as $disciplinaId => $slots) {
             $disciplinaId = (int)$disciplinaId;
             $salaId = ($salas[$disciplinaId] ?? '') !== '' ? (int)$salas[$disciplinaId] : null;
+
+            // Grava a sala independente de haver professor escolhido: antes ela
+            // só existia grudada na linha do professor do slot 1, e se perdia
+            // silenciosamente quando a disciplina ainda não tinha professor.
+            if ($salaId !== null) {
+                Database::query(
+                    "INSERT INTO semestre_disciplina_salas (semestre_id, disciplina_id, sala_id) VALUES (?, ?, ?)",
+                    [$semestreId, $disciplinaId, $salaId]
+                );
+            }
+
             $trocas     = [];
             $novosSlots = []; // slot => professor_id efetivamente gravado
             $eraVazia = !isset($atuais[$disciplinaId][1]);
@@ -287,9 +294,9 @@ class Semestre extends BaseModel
                 $slot        = (int)$slot;
                 $professorId = (int)$professorId;
                 Database::query(
-                    "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot, sala_id)
-                     VALUES (?, ?, ?, ?, ?)",
-                    [$semestreId, $disciplinaId, $professorId, $slot, $slot === 1 ? $salaId : null]
+                    "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot)
+                     VALUES (?, ?, ?, ?)",
+                    [$semestreId, $disciplinaId, $professorId, $slot]
                 );
                 $novosSlots[$slot] = $professorId;
 

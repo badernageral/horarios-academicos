@@ -21,6 +21,9 @@ class Disciplina extends BaseModel
         ];
         $col = $map[$sort] ?? 'd.nome';
         $dir = $dir === 'desc' ? 'DESC' : 'ASC';
+        // Nome sempre desempata, para não sobrar ordem arbitrária dentro do
+        // mesmo NDA (ou de qualquer outro critério de ordenação escolhido).
+        $ordem = $col === 'd.nome' ? "{$col} {$dir}" : "{$col} {$dir}, d.nome ASC";
         return Database::fetchAll(
             "SELECT d.*,
                     c.nome AS curso_nome,
@@ -32,7 +35,7 @@ class Disciplina extends BaseModel
              JOIN turmas t ON t.id = d.turma_id
              LEFT JOIN ndas n ON n.id = d.nda_id
              WHERE d.ativo = 1
-             ORDER BY {$col} {$dir}"
+             ORDER BY {$ordem}"
         );
     }
 

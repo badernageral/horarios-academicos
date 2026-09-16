@@ -17,8 +17,8 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 <?php endif; ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h5 class="mb-0 fw-semibold"><i class="bi bi-door-open me-2 text-secondary"></i>Salas</h5>
-  <a href="<?= $base ?>/salas/nova" class="btn btn-secondary btn-sm">
+  <h5 class="mb-0 fw-semibold"><i class="bi bi-door-open me-2 text-primary"></i>Salas</h5>
+  <a href="<?= $base ?>/salas/nova" class="btn btn-primary btn-sm">
     <i class="bi bi-plus-lg me-1"></i>Nova Sala
   </a>
 </div>

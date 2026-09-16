@@ -8,7 +8,7 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
     <i class="bi bi-arrow-left"></i>
   </a>
   <div>
-    <h5 class="mb-0 fw-semibold"><i class="bi bi-cloud-upload me-2 text-success"></i>Importar Atribuições em Massa</h5>
+    <h5 class="mb-0 fw-semibold"><i class="bi bi-cloud-upload me-2 text-primary"></i>Importar Atribuições em Massa</h5>
     <small class="text-muted"><?= $semestreLabel ?></small>
   </div>
 </div>
@@ -41,7 +41,7 @@ $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
           </div>
 
           <div class="d-flex align-items-center gap-3">
-            <button type="submit" class="btn btn-success">
+            <button type="submit" class="btn btn-primary">
               <i class="bi bi-check-lg me-1"></i>Salvar Atribuições
             </button>
             <span id="contadorLinhas" class="text-muted small">0 linhas</span>

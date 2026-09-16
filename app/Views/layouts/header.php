@@ -8,6 +8,12 @@
     <link href="<?= $base ?>/assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link href="<?= $base ?>/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
     <link href="<?= $base ?>/assets/css/app.css" rel="stylesheet">
+    <script>
+      // Aplica o estado do menu ANTES da renderização, para não piscar aberto e fechar em seguida.
+      if (localStorage.getItem('sgaSidebarCollapsed') === '1') {
+        document.documentElement.classList.add('sidebar-collapsed');
+      }
+    </script>
 </head>
 <body>
 
@@ -22,66 +28,72 @@
 
     <ul class="nav flex-column px-2 mt-2 flex-grow-1">
         <li class="nav-item">
-            <a href="<?= $base ?>/" class="nav-link <?= in_array(REQUEST_PATH,['/','/painel']) ? 'active':'' ?>">
-                <i class="bi bi-speedometer2 me-2"></i> Painel
+            <a href="<?= $base ?>/" class="nav-link <?= in_array(REQUEST_PATH,['/','/painel']) ? 'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Painel">
+                <i class="bi bi-speedometer2 me-2"></i> <span>Painel</span>
             </a>
         </li>
 
         <li class="nav-item">
-            <a href="<?= $base ?>/cursos" class="nav-link <?= str_starts_with(REQUEST_PATH,'/cursos')?'active':'' ?>">
-                <i class="bi bi-mortarboard me-2"></i> Cursos
+            <a href="<?= $base ?>/cursos" class="nav-link <?= str_starts_with(REQUEST_PATH,'/cursos')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Cursos">
+                <i class="bi bi-mortarboard me-2"></i> <span>Cursos</span>
             </a>
         </li>
         <li class="nav-item">
-            <a href="<?= $base ?>/ndas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/ndas')?'active':'' ?>">
-                <i class="bi bi-diagram-3 me-2"></i> NDAs
+            <a href="<?= $base ?>/ndas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/ndas')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="NDAs">
+                <i class="bi bi-diagram-3 me-2"></i> <span>NDAs</span>
             </a>
         </li>
         <li class="nav-item">
-            <a href="<?= $base ?>/professores" class="nav-link <?= str_starts_with(REQUEST_PATH,'/professores')?'active':'' ?>">
-                <i class="bi bi-person-badge me-2"></i> Professores
+            <a href="<?= $base ?>/professores" class="nav-link <?= str_starts_with(REQUEST_PATH,'/professores')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Professores">
+                <i class="bi bi-person-badge me-2"></i> <span>Professores</span>
             </a>
         </li>
         <li class="nav-item">
-            <a href="<?= $base ?>/turmas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/turmas')?'active':'' ?>">
-                <i class="bi bi-people me-2"></i> Turmas
+            <a href="<?= $base ?>/turmas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/turmas')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Turmas">
+                <i class="bi bi-people me-2"></i> <span>Turmas</span>
             </a>
         </li>
         <li class="nav-item">
-            <a href="<?= $base ?>/disciplinas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/disciplinas')?'active':'' ?>">
-                <i class="bi bi-book me-2"></i> Disciplinas
+            <a href="<?= $base ?>/disciplinas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/disciplinas')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Disciplinas">
+                <i class="bi bi-book me-2"></i> <span>Disciplinas</span>
             </a>
         </li>
         <li class="nav-item">
-            <a href="<?= $base ?>/salas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/salas')?'active':'' ?>">
-                <i class="bi bi-door-open me-2"></i> Salas
+            <a href="<?= $base ?>/salas" class="nav-link <?= str_starts_with(REQUEST_PATH,'/salas')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Salas">
+                <i class="bi bi-door-open me-2"></i> <span>Salas</span>
             </a>
         </li>
 
         <li class="nav-item">
-            <a href="<?= $base ?>/horarios" class="nav-link <?= str_starts_with(REQUEST_PATH,'/horarios')?'active':'' ?>">
-                <i class="bi bi-calendar3 me-2"></i> Horários
+            <a href="<?= $base ?>/horarios" class="nav-link <?= str_starts_with(REQUEST_PATH,'/horarios')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Horários">
+                <i class="bi bi-calendar3 me-2"></i> <span>Horários</span>
             </a>
         </li>
 
         <li class="nav-item mt-2">
-            <a href="<?= $base ?>/usuarios" class="nav-link <?= str_starts_with(REQUEST_PATH,'/usuarios')?'active':'' ?>">
-                <i class="bi bi-people me-2"></i> Usuários
+            <a href="<?= $base ?>/usuarios" class="nav-link <?= str_starts_with(REQUEST_PATH,'/usuarios')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Usuários">
+                <i class="bi bi-people me-2"></i> <span>Usuários</span>
             </a>
         </li>
         <li class="nav-item">
-            <a href="<?= $base ?>/configuracoes" class="nav-link <?= str_starts_with(REQUEST_PATH,'/configuracoes')?'active':'' ?>">
-                <i class="bi bi-sliders me-2"></i> Configurações
+            <a href="<?= $base ?>/configuracoes" class="nav-link <?= str_starts_with(REQUEST_PATH,'/configuracoes')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Configurações">
+                <i class="bi bi-sliders me-2"></i> <span>Configurações</span>
             </a>
         </li>
         <li class="nav-item">
-            <a href="<?= $base ?>/backup" class="nav-link <?= str_starts_with(REQUEST_PATH,'/backup')?'active':'' ?>">
-                <i class="bi bi-shield-check me-2"></i> Backup
+            <a href="<?= $base ?>/backup" class="nav-link <?= str_starts_with(REQUEST_PATH,'/backup')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Backup">
+                <i class="bi bi-shield-check me-2"></i> <span>Backup</span>
             </a>
         </li>
     </ul>
 
-    <div class="px-3 py-2 mt-auto sidebar-footer small text-muted">
+    <div class="px-2 pb-2">
+        <button type="button" id="sidebarToggle" class="btn btn-sm w-100 d-flex align-items-center justify-content-center sidebar-toggle-btn" title="Recolher menu">
+            <i class="bi bi-chevron-double-left"></i>
+        </button>
+    </div>
+
+    <div class="px-3 py-2 sidebar-footer small text-muted">
         Horários Acadêmicos &bull; v1.0
     </div>
 </nav>

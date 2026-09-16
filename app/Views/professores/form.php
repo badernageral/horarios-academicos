@@ -47,7 +47,7 @@ $gradeDisp   = $gradeDisp ?? [];
                 <option value="0" <?= ($professor['ativo'] ?? 1) == 0 ? 'selected':'' ?>>Inativo</option>
               </select>
             </div>
-            <div class="col-md-8">
+            <div class="col-md-5">
               <label class="form-label">NDA (Área) <span class="text-danger">*</span></label>
               <select name="nda_id" class="form-select" required>
                 <option value="">Selecione uma opção</option>
@@ -66,6 +66,13 @@ $gradeDisp   = $gradeDisp ?? [];
                      value="<?= htmlspecialchars($professor['usuario_moodle'] ?? '') ?>"
                      placeholder="ex: jose.alves">
               <div class="form-text">Usada como login na exportação de inscrições do Moodle</div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Vínculo</label>
+              <select name="vinculo" class="form-select">
+                <option value="Efetivo" <?= ($professor['vinculo'] ?? 'Efetivo') === 'Efetivo' ? 'selected':'' ?>>Efetivo</option>
+                <option value="Substituto" <?= ($professor['vinculo'] ?? 'Efetivo') === 'Substituto' ? 'selected':'' ?>>Substituto</option>
+              </select>
             </div>
           </div>
         </div>

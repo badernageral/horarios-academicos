@@ -17,12 +17,12 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 <?php endif; ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-success"></i>Professores</h5>
+  <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-primary"></i>Professores</h5>
   <div class="d-flex gap-2">
-    <a href="<?= $base ?>/professores/importar" class="btn btn-outline-success btn-sm">
+    <a href="<?= $base ?>/professores/importar" class="btn btn-outline-primary btn-sm">
       <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
     </a>
-    <a href="<?= $base ?>/professores/novo" class="btn btn-success btn-sm">
+    <a href="<?= $base ?>/professores/novo" class="btn btn-primary btn-sm">
       <i class="bi bi-plus-lg me-1"></i>Novo Professor
     </a>
   </div>
@@ -65,6 +65,7 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
             <?= $th('nome', 'Nome') ?>
             <?php // o usuário do Moodle é a matrícula do professor ?>
             <?= $th('usuario_moodle', 'Matrícula') ?>
+            <?= $th('vinculo', 'Vínculo', ' class="text-center"') ?>
             <?= $th('ativo', 'Status', ' class="text-center"') ?>
             <th class="text-end">Ações</th>
           </tr>
@@ -105,6 +106,11 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
               <?php else: ?>
                 <span class="text-muted">—</span>
               <?php endif; ?>
+            </td>
+            <td class="text-center">
+              <span class="badge <?= $p['vinculo'] === 'Substituto' ? 'bg-warning text-dark' : 'bg-info text-dark' ?>">
+                <?= htmlspecialchars($p['vinculo'] ?? 'Efetivo') ?>
+              </span>
             </td>
             <td class="text-center">
               <span class="badge <?= $p['ativo'] ? 'bg-success' : 'bg-secondary' ?>">

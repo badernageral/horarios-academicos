@@ -23,7 +23,7 @@
           </div>
 
           <div class="d-flex align-items-center gap-3">
-            <button type="submit" class="btn btn-success">
+            <button type="submit" class="btn btn-primary">
               <i class="bi bi-cloud-upload me-1"></i>Cadastrar Professores
             </button>
             <span id="contadorNomes" class="text-muted small">0 nomes</span>

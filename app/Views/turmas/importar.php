@@ -32,7 +32,7 @@
           </div>
 
           <div class="d-flex align-items-center gap-3">
-            <button type="submit" class="btn btn-info text-white">
+            <button type="submit" class="btn btn-primary">
               <i class="bi bi-cloud-upload me-1"></i>Cadastrar Turmas
             </button>
             <span id="contadorTurmas" class="text-muted small">0 turmas</span>

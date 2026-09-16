@@ -190,7 +190,7 @@ class ScheduleGenerator
 
         // Salas pré-atribuídas por disciplina neste semestre
         foreach (Database::fetchAll(
-            "SELECT disciplina_id, sala_id FROM semestre_atribuicoes WHERE semestre_id = ? AND sala_id IS NOT NULL",
+            "SELECT disciplina_id, sala_id FROM semestre_disciplina_salas WHERE semestre_id = ?",
             [$this->semestreId]
         ) as $row) {
             $this->salasPorDisciplina[(int)$row['disciplina_id']] = (int)$row['sala_id'];
@@ -206,7 +206,7 @@ class ScheduleGenerator
         $disciplinas = Database::fetchAll(
             "SELECT d.*,
                     c.turno_inicio, c.turno_fim, c.dias_semana, c.duracao_aula_minutos,
-                    sa.professor_id, sa.slot AS professor_slot, sa.sala_id AS sala_atribuida
+                    sa.professor_id, sa.slot AS professor_slot
              FROM disciplinas d
              JOIN turmas t ON t.id = d.turma_id
              JOIN cursos c ON c.id = d.curso_id

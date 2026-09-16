@@ -9,7 +9,7 @@ class ProfessoresController extends BaseController
 {
     public function index(): void
     {
-        [$sort, $dir] = $this->sortParams(['nome', 'usuario_moodle', 'ativo'], 'nome');
+        [$sort, $dir] = $this->sortParams(['nome', 'usuario_moodle', 'vinculo', 'ativo'], 'nome');
         $professores = Professor::allComNda($sort, $dir);
         $flash       = $this->getFlash();
 
@@ -101,10 +101,14 @@ class ProfessoresController extends BaseController
 
         $usuarioMoodle = trim($this->post('usuario_moodle', ''));
 
+        $vinculo = $this->post('vinculo', 'Efetivo');
+        if (!in_array($vinculo, ['Efetivo', 'Substituto'], true)) $vinculo = 'Efetivo';
+
         $data = [
             'nome'          => trim($this->post('nome')),
             'matricula'     => $matricula,
             'nda_id'        => (int)$ndaId,
+            'vinculo'       => $vinculo,
             'usuario_moodle'=> $usuarioMoodle !== '' ? $usuarioMoodle : null,
             'ativo'         => $this->post('ativo', 1),
             'cor'           => $cor,

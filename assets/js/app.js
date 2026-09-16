@@ -15,6 +15,21 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
 
+  // ── Recolher/expandir menu lateral (persiste em localStorage) ──
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  if (sidebarToggle) {
+    const atualizarTitulo = function () {
+      const recolhido = document.documentElement.classList.contains('sidebar-collapsed');
+      sidebarToggle.title = recolhido ? 'Expandir menu' : 'Recolher menu';
+    };
+    atualizarTitulo();
+    sidebarToggle.addEventListener('click', function () {
+      const recolhido = document.documentElement.classList.toggle('sidebar-collapsed');
+      localStorage.setItem('sgaSidebarCollapsed', recolhido ? '1' : '0');
+      atualizarTitulo();
+    });
+  }
+
   // ── Loading state on generation form ──────────────────────────
   const gerarForm = document.querySelector('#modalGerar form');
   if (gerarForm) {

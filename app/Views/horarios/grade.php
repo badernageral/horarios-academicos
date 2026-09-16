@@ -246,7 +246,7 @@ body.sem-lacunas .grade-cell.cell-lacuna {
   <?php if (!empty($semestreId)): ?>
   <form method="POST" action="<?= $base ?>/horarios/<?= $semestreId ?>/gerar" class="mb-0"
         onsubmit="return confirm('Regerar o horário descarta esta geração, incluindo ajustes manuais e itens no limbo. Continuar?');">
-    <button type="submit" class="btn btn-sm btn-success">
+    <button type="submit" class="btn btn-sm btn-primary">
       <i class="bi bi-arrow-repeat me-1"></i>Regerar
     </button>
   </form>

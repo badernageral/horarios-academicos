@@ -80,6 +80,7 @@ CREATE TABLE professores (
     carga_horaria_diaria_max  INTEGER NOT NULL DEFAULT 360,
     carga_horaria_semanal_max INTEGER NOT NULL DEFAULT 1200,
     nda_id                    INTEGER,
+    vinculo                   TEXT NOT NULL DEFAULT 'Efetivo',
     cor                       TEXT NOT NULL DEFAULT '#3b82f6',
     cor_secundaria            TEXT NOT NULL DEFAULT '#f97316',
     ativo                     INTEGER NOT NULL DEFAULT 1,
@@ -189,6 +190,21 @@ CREATE TABLE semestre_atribuicoes (
     UNIQUE (semestre_id, disciplina_id, slot)
 );
 CREATE INDEX idx_atrib_semestre ON semestre_atribuicoes(semestre_id);
+
+-- Sala escolhida por disciplina no semestre, independente de já haver
+-- professor atribuído (ver semestre_atribuicoes.sala_id, mantida só por
+-- compatibilidade histórica e não usada mais para gravar).
+CREATE TABLE semestre_disciplina_salas (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    semestre_id   INTEGER NOT NULL,
+    disciplina_id INTEGER NOT NULL,
+    sala_id       INTEGER NOT NULL,
+    FOREIGN KEY (semestre_id)   REFERENCES semestres(id) ON DELETE CASCADE,
+    FOREIGN KEY (disciplina_id) REFERENCES disciplinas(id) ON DELETE CASCADE,
+    FOREIGN KEY (sala_id)       REFERENCES salas(id),
+    UNIQUE (semestre_id, disciplina_id)
+);
+CREATE INDEX idx_sem_disc_salas_semestre ON semestre_disciplina_salas(semestre_id);
 
 -- ── ENSALAMENTO POR SEMESTRE ──────────────────────────────────────
 CREATE TABLE semestre_salas (

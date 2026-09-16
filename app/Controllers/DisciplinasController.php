@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Models\{Disciplina, Turma, Nda};
+use App\Models\{Disciplina, Turma, Curso, Nda};
 use App\Services\FeasibilityChecker;
 
 class DisciplinasController extends BaseController
@@ -10,9 +10,41 @@ class DisciplinasController extends BaseController
     public function index(): void
     {
         // Curso e turma saíram das colunas ordenáveis: viraram os próprios grupos.
-        [$sort, $dir] = $this->sortParams(['nome','sigla','nda_nome','qtd_encontros_semanais'], 'nome');
+        [$sort, $dir] = $this->sortParams(['nome','sigla','nda_nome','qtd_encontros_semanais'], 'nda_nome');
         $disciplinas = Disciplina::allComRelacoes($sort, $dir);
         $flash       = $this->getFlash();
+
+        // Filtros de visualização: curso, turma e NDA. "nda_id=sem" filtra as
+        // disciplinas sem núcleo (nda_id NULL), já que "" já significa "todos".
+        $cursoFiltro = (int)$this->get('curso_id', 0);
+        $turmaFiltro = (int)$this->get('turma_id', 0);
+        $ndaFiltro   = $this->get('nda_id', '');
+        $filtroAtivo = $cursoFiltro || $turmaFiltro || $ndaFiltro !== '';
+
+        if ($filtroAtivo) {
+            $disciplinas = array_values(array_filter($disciplinas,
+                function ($d) use ($cursoFiltro, $turmaFiltro, $ndaFiltro) {
+                    if ($cursoFiltro && (int)$d['curso_id'] !== $cursoFiltro) return false;
+                    if ($turmaFiltro && (int)$d['turma_id'] !== $turmaFiltro) return false;
+                    if ($ndaFiltro === 'sem' && $d['nda_id'] !== null) return false;
+                    if ($ndaFiltro !== '' && $ndaFiltro !== 'sem' && (int)$d['nda_id'] !== (int)$ndaFiltro) return false;
+                    return true;
+                }
+            ));
+        }
+
+        $cursosFiltro = Curso::allAtivos();
+        $turmasFiltro = Turma::allComCurso();
+        $ndasFiltro   = Nda::allAtivos();
+
+        // URL para "voltar" preservando os filtros/ordenação atuais: vai e volta
+        // com o formulário de cadastro/edição, e com o POST de remover.
+        $voltarQs = http_build_query(array_filter([
+            'sort' => $sort, 'dir' => $dir,
+            'curso_id' => $cursoFiltro ?: null, 'turma_id' => $turmaFiltro ?: null,
+            'nda_id' => $ndaFiltro !== '' ? $ndaFiltro : null,
+        ], fn($v) => $v !== null));
+        $voltarUrl = $voltarQs ? '/disciplinas?' . $voltarQs : '/disciplinas';
 
         // Agrupa curso → turma. A ordenação escolhida no cabeçalho vale DENTRO
         // da turma (o SQL já entregou as linhas nessa ordem); os grupos ficam
@@ -46,7 +78,18 @@ class DisciplinasController extends BaseController
         }
         unset($g);
 
-        $this->render('disciplinas/index', compact('disciplinas', 'grupos', 'flash', 'sort', 'dir'));
+        $this->render('disciplinas/index', compact(
+            'disciplinas', 'grupos', 'flash', 'sort', 'dir',
+            'cursoFiltro', 'turmaFiltro', 'ndaFiltro', 'filtroAtivo',
+            'cursosFiltro', 'turmasFiltro', 'ndasFiltro', 'voltarUrl'
+        ));
+    }
+
+    // Só aceita voltar para dentro de /disciplinas, para não virar um open redirect.
+    private function voltarSeguro(string $voltar): string
+    {
+        return (str_starts_with($voltar, '/disciplinas') && !str_starts_with($voltar, '//'))
+            ? $voltar : '/disciplinas';
     }
 
     public function nova(): void
@@ -59,6 +102,7 @@ class DisciplinasController extends BaseController
             'ndas'       => Nda::allAtivos(),
             'config'     => $config,
             'flash'      => null,
+            'voltar'     => $this->voltarSeguro($this->get('voltar', '')),
         ]);
     }
 
@@ -110,7 +154,7 @@ class DisciplinasController extends BaseController
             Disciplina::create($data);
             $this->flash('success', 'Disciplina cadastrada!');
         }
-        $this->redirect('/disciplinas');
+        $this->redirect($this->voltarSeguro($this->post('voltar', '')));
     }
 
     public function editar(string $id): void
@@ -119,9 +163,10 @@ class DisciplinasController extends BaseController
         $turmas     = Turma::allComCurso();
         $config     = require ROOT_PATH . '/config/app.php';
         if (!$disciplina) $this->redirect('/disciplinas');
-        $ndas = Nda::allAtivos();
+        $ndas   = Nda::allAtivos();
+        $voltar = $this->voltarSeguro($this->get('voltar', ''));
         $this->render('disciplinas/form', compact(
-            'disciplina', 'turmas', 'ndas', 'config'
+            'disciplina', 'turmas', 'ndas', 'config', 'voltar'
         ) + ['flash' => null]);
     }
 
@@ -132,13 +177,13 @@ class DisciplinasController extends BaseController
             Disciplina::delete($id);
             $this->flash('success', 'Disciplina removida.');
         }
-        $this->redirect('/disciplinas');
+        $this->redirect($this->voltarSeguro($this->post('voltar', '')));
     }
 
     public function verImportar(): void
     {
         $turmas = Turma::allComCurso();
-        $this->render('disciplinas/importar', ['turmas' => $turmas, 'flash' => null]);
+        $this->render('disciplinas/importar', ['turmas' => $turmas, 'ndas' => Nda::allAtivos(), 'flash' => null]);
     }
 
     public function importar(): void
@@ -153,6 +198,8 @@ class DisciplinasController extends BaseController
         }
 
         $cursoId        = (int)$turma['curso_id'];
+        // Vazio = "Qualquer NDA": a disciplina não é de um núcleo específico.
+        $ndaId          = ($nda = $this->post('nda_id')) !== '' && $nda !== null ? (int)$nda : null;
         $semestreOferta = in_array((int)$this->post('semestre_oferta'), [1, 2, 3])
             ? (int)$this->post('semestre_oferta')
             : 3;
@@ -166,21 +213,27 @@ class DisciplinasController extends BaseController
             $linha = trim($linha, " \r\n");
             if ($linha === '') continue;
 
-            $partes   = explode('-', $linha, 2);
-            $nome     = trim($partes[0], " \t");
-            $aulasPart = isset($partes[1]) ? trim($partes[1], " \t") : '';
+            // Separa no ÚLTIMO " - " (com espaços) para suportar hífen no nome,
+            // como em "Físico-química do Solo - 3" (mesma regra do import de atribuições).
+            $pos = strrpos($linha, ' - ');
+            $aulasPart = $pos !== false ? trim(substr($linha, $pos + 3), " \t") : '';
+
+            if ($pos !== false && ctype_digit($aulasPart) && (int)$aulasPart >= 1) {
+                $nome     = trim(substr($linha, 0, $pos), " \t");
+                $qtdAulas = (int)$aulasPart;
+            } else {
+                $nome     = trim($linha, " \t");
+                $qtdAulas = 2; // padrão
+            }
 
             if ($nome === '') { $puladas++; continue; }
 
-            $qtdAulas = (ctype_digit($aulasPart) && (int)$aulasPart >= 1)
-                ? (int)$aulasPart
-                : 2; // padrão
-
             Disciplina::create([
                 'nome'                   => $nome,
-                'sigla'                  => (preg_match('/^.{0,50}/us', $nome, $m) ? $m[0] : substr($nome, 0, 50)),
+                'sigla'                  => (preg_match('/^.{0,20}/us', $nome, $m) ? $m[0] : substr($nome, 0, 20)),
                 'curso_id'               => $cursoId,
                 'turma_id'               => $turmaId,
+                'nda_id'                 => $ndaId,
                 'qtd_encontros_semanais' => 1,
                 'qtd_aulas'              => $qtdAulas,
                 'qtd_professores'        => 1,

@@ -1,10 +1,11 @@
 <?php
 $pageTitle = $disciplina ? 'Editar Disciplina' : 'Nova Disciplina';
 $coresDisc = $config['cores_disciplinas'] ?? [];
+$voltar    = $voltar ?? '/disciplinas';
 ?>
 
 <div class="d-flex align-items-center mb-3">
-  <a href="<?= $base ?>/disciplinas" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
+  <a href="<?= $base . $voltar ?>" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i></a>
   <h5 class="mb-0 fw-semibold"><?= $pageTitle ?></h5>
 </div>
 
@@ -12,6 +13,7 @@ $coresDisc = $config['cores_disciplinas'] ?? [];
   <?php if ($disciplina): ?>
   <input type="hidden" name="id" value="<?= $disciplina['id'] ?>">
   <?php endif; ?>
+  <input type="hidden" name="voltar" value="<?= htmlspecialchars($voltar) ?>">
 
   <div class="row g-3">
     <div class="col-md-8">
@@ -92,19 +94,19 @@ $coresDisc = $config['cores_disciplinas'] ?? [];
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Encontros Semanais <span class="text-danger">*</span></label>
-            <input type="number" name="qtd_encontros_semanais" id="qtdEncontros"
-                   class="form-control" min="1" max="20"
-                   value="<?= (int)($disciplina['qtd_encontros_semanais'] ?? 1) ?>" required>
-            <div class="form-text">Quantas vezes por semana a disciplina ocorre</div>
-          </div>
-
-          <div class="mb-3">
             <label class="form-label">Número de Professores <span class="text-danger">*</span></label>
             <input type="number" name="qtd_professores" id="qtdProfessores"
                    class="form-control" min="1" max="10"
                    value="<?= (int)($disciplina['qtd_professores'] ?? 1) ?>" required>
             <div class="form-text">Quantos professores lecionam esta disciplina</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Encontros Semanais <span class="text-danger">*</span></label>
+            <input type="number" name="qtd_encontros_semanais" id="qtdEncontros"
+                   class="form-control" min="1" max="20"
+                   value="<?= (int)($disciplina['qtd_encontros_semanais'] ?? 1) ?>" required>
+            <div class="form-text">Quantas vezes por semana a disciplina ocorre</div>
           </div>
 
           <div class="mb-3">
@@ -154,7 +156,7 @@ $coresDisc = $config['cores_disciplinas'] ?? [];
       <button type="submit" class="btn btn-primary">
         <i class="bi bi-check-lg me-1"></i>Salvar
       </button>
-      <a href="<?= $base ?>/disciplinas" class="btn btn-outline-secondary">Cancelar</a>
+      <a href="<?= $base . $voltar ?>" class="btn btn-outline-secondary">Cancelar</a>
     </div>
   </div>
 </form>
