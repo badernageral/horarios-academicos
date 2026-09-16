@@ -34,6 +34,9 @@ Thumbs.db
 /database/*.sqlite-wal
 /database/*.sqlite-shm
 
+# Cache da verificação de atualização (1x/dia, ver UpdateChecker)
+/database/update_check.json
+
 # Desktop (Electron): binários e artefatos pesados não versionados
 /desktop/node_modules/
 /desktop/runtime/

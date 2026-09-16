@@ -2,7 +2,7 @@
 
 return [
     'name'     => 'Horários Acadêmicos',
-    'version'  => '1.0.0',
+    'version'  => '1.2.0',
     'debug'    => getenv('APP_DEBUG') === 'true' || true,
     'timezone' => 'America/Sao_Paulo',
     'locale'   => 'pt_BR',

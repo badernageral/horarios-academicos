@@ -1,3 +1,4 @@
+<?php $atualizacao = \App\Services\UpdateChecker::verificar(); ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -85,6 +86,14 @@
                 <i class="bi bi-shield-check me-2"></i> <span>Backup</span>
             </a>
         </li>
+        <li class="nav-item">
+            <a href="<?= $base ?>/atualizacoes" class="nav-link <?= str_starts_with(REQUEST_PATH,'/atualizacoes')?'active':'' ?>" data-bs-toggle="tooltip" data-bs-placement="right" title="Atualizações">
+                <i class="bi bi-arrow-repeat me-2"></i> <span>Atualizações</span>
+                <?php if ($atualizacao): ?>
+                    <i class="bi bi-circle-fill text-warning ms-1" style="font-size:.4rem;vertical-align:middle" title="Nova versão disponível"></i>
+                <?php endif; ?>
+            </a>
+        </li>
     </ul>
 
     <div class="px-2 pb-2">
@@ -94,7 +103,12 @@
     </div>
 
     <div class="px-3 py-2 sidebar-footer small text-muted">
-        Horários Acadêmicos &bull; v1.0
+        Horários Acadêmicos &bull; v<?= htmlspecialchars($config['version']) ?>
+        <?php if ($atualizacao): ?>
+            <a href="<?= $base ?>/atualizacoes" class="d-block mt-1 text-decoration-none" title="Ver detalhes da atualização">
+                <i class="bi bi-arrow-up-circle-fill me-1"></i>Nova versão v<?= htmlspecialchars($atualizacao['versao_disponivel']) ?>
+            </a>
+        <?php endif; ?>
     </div>
 </nav>
 
@@ -109,11 +123,20 @@
         <div class="dropdown">
             <a href="#" class="text-decoration-none text-dark dropdown-toggle d-flex align-items-center"
                data-bs-toggle="dropdown">
+                <?php if ($atualizacao): ?>
+                    <i class="bi bi-arrow-up-circle-fill text-warning me-2" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                       title="Nova versão v<?= htmlspecialchars($atualizacao['versao_disponivel']) ?> disponível"></i>
+                <?php endif; ?>
                 <i class="bi bi-person-circle fs-5 me-1"></i>
                 <span class="small fw-semibold"><?= htmlspecialchars($authUser['nome']) ?></span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                 <li><span class="dropdown-item-text small text-muted">@<?= htmlspecialchars($authUser['usuario']) ?></span></li>
+                <?php if ($atualizacao): ?>
+                    <li><a class="dropdown-item text-warning-emphasis" href="<?= $base ?>/atualizacoes">
+                        <i class="bi bi-arrow-up-circle-fill me-2"></i>Nova versão v<?= htmlspecialchars($atualizacao['versao_disponivel']) ?></a></li>
+                    <li><hr class="dropdown-divider"></li>
+                <?php endif; ?>
                 <li><a class="dropdown-item" href="<?= $base ?>/usuarios/<?= $authUser['id'] ?>/editar">
                     <i class="bi bi-key me-2"></i>Minha conta</a></li>
                 <li><hr class="dropdown-divider"></li>

@@ -28,6 +28,9 @@ $router->get('/backup',            'BackupController@index');
 $router->get('/backup/exportar',   'BackupController@exportar');
 $router->post('/backup/importar',  'BackupController@importar');
 
+// ── Atualizações (versão instalada x última publicada no GitHub) ──
+$router->get('/atualizacoes', 'AtualizacoesController@index');
+
 // ── Painel ────────────────────────────────────────────────────────
 $router->get('/',           'PainelController@index');
 $router->get('/painel',     'PainelController@index');
