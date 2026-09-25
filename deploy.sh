@@ -10,6 +10,7 @@
 #   sudo ./deploy.sh --yes        # não pergunta nada (apt -y)
 #   sudo ./deploy.sh --baseline   # marca as migrations como aplicadas num banco
 #                                 # que já está no estado do schema.sql
+#   sudo ./deploy.sh --no-pull    # não atualiza o código (pula o git pull)
 #
 # O script é idempotente: rodar de novo não quebra nada e nunca sobrescreve
 # um banco existente.
@@ -25,6 +26,8 @@ PHP_MIN="8.3"
 DRY_RUN=0
 ASSUME_YES=0
 DO_BASELINE=0
+DO_PULL=1
+ORIG_ARGS=("$@")
 
 # ── Aparência ─────────────────────────────────────────────────────
 if [[ -t 1 ]]; then
@@ -45,6 +48,7 @@ for arg in "$@"; do
         --dry-run)  DRY_RUN=1 ;;
         --yes|-y)   ASSUME_YES=1 ;;
         --baseline) DO_BASELINE=1 ;;
+        --no-pull)  DO_PULL=0 ;;
         --help|-h)  awk 'NR>1 && /^#/ { sub(/^# ?/,""); print; next } NR>1 { exit }' "$0"; exit 0 ;;
         *)          die "Opção desconhecida: $arg (use --help)" ;;
     esac
@@ -84,6 +88,57 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 info "Aplicação: $APP_DIR"
+
+# ── 1b. Atualização do código ─────────────────────────────────────
+# --ff-only: o servidor nunca cria commit de merge; se divergiu do origin,
+# para e pede intervenção manual. O git roda como DONO do repositório, não
+# como root: root esbarra no safe.directory e não acha as chaves SSH do deploy.
+step "Código"
+
+if (( ! DO_PULL )); then
+    info "--no-pull: código não atualizado."
+elif [[ ! -d "$APP_DIR/.git" ]]; then
+    warn "$APP_DIR não é um repositório git — pulando atualização."
+elif ! command -v git >/dev/null 2>&1; then
+    warn "git não instalado — pulando atualização."
+else
+    REPO_OWNER="$(stat -c %U "$APP_DIR")"
+    as_owner() {
+        if [[ "$(id -un)" != "$REPO_OWNER" ]] && command -v sudo >/dev/null 2>&1; then
+            sudo -u "$REPO_OWNER" -H "$@"
+        else
+            "$@"
+        fi
+    }
+
+    if [[ -n "$(as_owner git -C "$APP_DIR" status --porcelain --untracked-files=no)" ]]; then
+        MSG="Há alterações locais não commitadas em $APP_DIR — resolva antes (ou use --no-pull)."
+        if (( DRY_RUN )); then warn "$MSG"; else die "$MSG"; fi
+    fi
+
+    ANTES="$(as_owner git -C "$APP_DIR" rev-parse HEAD)"
+    if (( DRY_RUN )); then
+        as_owner git -C "$APP_DIR" fetch --quiet \
+            && info "Commits a receber: $(as_owner git -C "$APP_DIR" rev-list --count HEAD..@{u})" \
+            || warn "git fetch falhou."
+        printf '%s  [dry-run]%s git pull --ff-only\n' "$C_WARN" "$C_OFF"
+    else
+        as_owner git -C "$APP_DIR" pull --ff-only \
+            || die "git pull falhou (sem acesso ao remoto ou histórico divergente)."
+        DEPOIS="$(as_owner git -C "$APP_DIR" rev-parse HEAD)"
+        if [[ "$ANTES" == "$DEPOIS" ]]; then
+            ok "Código já estava atualizado ($(as_owner git -C "$APP_DIR" log -1 --format='%h %s' 2>/dev/null || echo "$DEPOIS"))"
+        else
+            ok "Atualizado: ${ANTES:0:7} → ${DEPOIS:0:7}"
+            # O próprio deploy.sh pode ter mudado: reexecuta a versão nova
+            # para o restante do deploy não rodar com a lógica antiga.
+            if ! as_owner git -C "$APP_DIR" diff --quiet "$ANTES" "$DEPOIS" -- deploy.sh; then
+                info "deploy.sh mudou — reexecutando a versão nova"
+                exec "$APP_DIR/deploy.sh" --no-pull "${ORIG_ARGS[@]}"
+            fi
+        fi
+    fi
+fi
 
 # ── 2. Requisitos: verificação por CAPACIDADE ─────────────────────
 # Checa o que o sistema sabe FAZER (binário presente, extensão carregada),
