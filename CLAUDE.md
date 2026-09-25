@@ -70,6 +70,10 @@ Filosofia definida pelo usuário (jun/2026):
 - Salvar na atribuição clássica só volta para `/horarios` quando **não sobra** disciplina sem
   professor nem sem sala; caso contrário permanece na tela (decisão do usuário). O quadro
   (ver abaixo) permanece SEMPRE, completo ou não.
+- Na atribuição clássica, os relatórios **Disciplinas por professor** (carga por NDA, com
+  total e média por professor — média sobre TODOS do NDA, inclusive os sem disciplina) e
+  **Ocupação das salas** abrem em **modais** pelos botões do cabeçalho, não no fim da página
+  (decisão do usuário). Refletem o que está SALVO, não os dropdowns ainda não salvos.
 - **Limbo**: `horarios.dia_semana = 0` = disciplina sem horário (zona de limbo por turma na
   grade, drag & drop). Excluído de exportações (`semLimbo()`) e da API stats; presente em
   `porGeracao()` (a grade precisa).
@@ -247,6 +251,18 @@ o Salvar, que reusa `Semestre::salvarAtribuicoes()` e volta para o próprio quad
   semanal do relatório — não a carga relógio.
 - Desfazer com pilha de 50: `mutar()` empilha **um gesto** (mover = tirar + pôr = 1 passo) e
   só quando o estado muda de fato.
+
+## Verificação de atualização (set/2026)
+
+`UpdateChecker` consulta `releases/latest` do GitHub e mostra o resultado em `/atualizacoes` e
+num aviso no menu. Cache em `database/update_check.json`: **1 dia** quando dá certo, **1h**
+após falha (antes a falha ficava 24h e a tela dizia "Não foi possível consultar o GitHub").
+- **Não depender da extensão curl**: o PHP do servidor de dev não a tem. Sem curl, cai para
+  `file_get_contents` com stream context (precisa de `allow_url_fopen` + `openssl`).
+- Status HTTP via `http_get_last_response_headers()` (PHP 8.4+), com fallback para
+  `$http_response_header` (deprecado no 8.5, mas é o que existe no PHP 8.3 do desktop).
+- Release: subir `config/app.php` (`version`), commit, tag anotada `vX.Y.Z` e push da tag —
+  o workflow `desktop-build.yml` gera o instalador e cria a Release.
 
 ## Decisões do usuário (não sugerir de novo)
 
