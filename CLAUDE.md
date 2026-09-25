@@ -34,7 +34,8 @@ desktop Windows (Electron + PHP embutido + SQLite; ver `desktop/`).
 Curso (turno, intervalos, duração de aula) → Turmas → Disciplinas (`qtd_encontros_semanais`,
 `qtd_aulas` por encontro, `qtd_professores`, `semestre_oferta` bitmask) → Professores
 (disponibilidade por turno, 2 cores únicas da paleta de 50) → Semestre → Atribuição
-(`semestre_atribuicoes` com `slot` para múltiplos professores) → Gerar → Grade.
+(`semestre_atribuicoes` com `slot` para múltiplos professores; duas telas equivalentes —
+dropdowns ou quadro drag & drop) → Gerar → Grade.
 
 ## ScheduleGenerator (app/Services/ScheduleGenerator.php)
 
@@ -66,6 +67,9 @@ Filosofia definida pelo usuário (jun/2026):
   1-para-1 no mesmo slot usa `sincronizarProfessorHorarios` (CASE antigo→novo); professor
   adicionado/removido (estrutura de slots mudou) usa `redistribuirEncontros` (mesma regra
   do gerador: teto nos primeiros slots, ordem dia/hora). Conflitos resultantes vão ao limbo.
+- Salvar na atribuição clássica só volta para `/horarios` quando **não sobra** disciplina sem
+  professor nem sem sala; caso contrário permanece na tela (decisão do usuário). O quadro
+  (ver abaixo) permanece SEMPRE, completo ou não.
 - **Limbo**: `horarios.dia_semana = 0` = disciplina sem horário (zona de limbo por turma na
   grade, drag & drop). Excluído de exportações (`semLimbo()`) e da API stats; presente em
   `porGeracao()` (a grade precisa).
@@ -202,6 +206,47 @@ turmas (só no escopo turma) e três botões: PDF, PNG, Imprimir.
 - Professor/sala abrem a página de agenda com `?acao=imprimir|png`, que se encarrega sozinha.
 - Bootstrap 5 não tem submenu aninhado: por isso o formato são botões no rodapé do modal, e
   não um segundo nível de menu.
+
+## Quadro de atribuição — drag & drop (set/2026)
+
+Segunda tela de atribuição (`/horarios/{id}/atribuir/quadro`, `atribuir_quadro.php`), ao lado
+da clássica com dropdowns — **não a substitui**: fila de disciplinas à esquerda (25%),
+professores como áreas de soltura à direita (75%). Edição 100% local; nada vai ao servidor até
+o Salvar, que reusa `Semestre::salvarAtribuicoes()` e volta para o próprio quadro.
+
+- **Só atribui professores, mas o POST leva as salas** em campos ocultos com o valor atual:
+  `salvarAtribuicoes()` apaga `semestre_disciplina_salas` inteira e só regrava as chaves que
+  chegarem. Disciplina ausente do POST perderia a sala — por isso TODA disciplina é enviada,
+  mesmo sem professor (`atribuicao[id][1]=""`).
+- Slots sempre **densos** (1..n sem buraco): o gerador divide os encontros por slot (teto nos
+  primeiros), e um buraco no slot 1 mudaria a divisão em silêncio.
+- **Layout em flexbox, não em grid** (`.prof-grid` = `flex-wrap`, cartão com
+  `flex-basis: calc((100% - 1rem)/3)`, cabeçalho de NDA com `flex: 0 0 100%` para quebrar a
+  linha). Com CSS Grid, o cálculo de altura das linhas e o `grid-column: 1/-1` do cabeçalho
+  falhavam em alguns navegadores: cartões sobrepostos e cabeçalho espremido numa coluna.
+  Não reproduzia em Chromium — não trocar de volta.
+- `align-items: flex-start` = cada cartão com a altura das suas disciplinas; o padrão
+  (`stretch`) estica todos até o mais alto da linha.
+- **Nunca reconstruir o painel durante um arrasto.** O destaque de NDA usa `pintarDestaque()`,
+  que só liga/desliga classes. Um `innerHTML` no `dragstart` remove do DOM o próprio chip
+  arrastado e o navegador CANCELA o drag — sintoma: arrastar da fila funciona, de um professor
+  para outro não.
+- Altura dos painéis medida em JS (`ajustarAltura`), não em CSS: o que fica acima varia com os
+  alertas de flash e de viabilidade, e um `calc(100vh - Npx)` fixo fazia a página passar de
+  100vh. Remedir em três gatilhos — `resize`, `closed.bs.alert` **preso em cada alerta**
+  (o Bootstrap remove o elemento ANTES de disparar o evento, então no `document` ele não
+  chega) e um `ResizeObserver` no `.content-wrapper` (recolher a barra lateral muda a largura,
+  não a altura, e não passa pelo `resize`). Piso de 240px: em janela baixa com muitos avisos a
+  página volta a rolar, e isso é preferível a um painel inutilizável.
+- Clicar no bloco "prende" a disciplina e clicar no professor atribui (Esc cancela) — com
+  ~75 disciplinas e ~20 professores, rolar dois painéis segurando o mouse é inviável.
+- Ordem dos professores por **NDA (padrão)** ou A–Z, persistida em `localStorage`
+  (`sgaQuadroOrdemProf`); sem isso ela se perderia a cada Salvar, que recarrega a tela.
+  Na ordem por NDA há cabeçalho de grupo; em A–Z o NDA vai numa etiqueta no cartão.
+- Filtro **"menos de 10 aulas"** (`LIMITE_AULAS`) conta presenciais **+ EaD**, como a carga
+  semanal do relatório — não a carga relógio.
+- Desfazer com pilha de 50: `mutar()` empilha **um gesto** (mover = tirar + pôr = 1 passo) e
+  só quando o estado muda de fato.
 
 ## Decisões do usuário (não sugerir de novo)
 
