@@ -242,10 +242,71 @@ class HorariosController extends BaseController
                 'Atribuições salvas. Por conflito de horário do professor, foram enviadas ao limbo: '
                 . implode(', ', $aoLimbo) . '. Reposicione na grade ou regere o horário.'
             );
+            $this->redirect('/horarios/' . $semestreId . '/atribuir');
+            return;
+        }
+
+        // Se ainda restam disciplinas sem professor ou sem sala, permanece na
+        // tela de atribuição em vez de voltar para a listagem.
+        $semAtribuir = 0;
+        $semSala     = 0;
+        foreach (Semestre::disciplinasComAtribuicao($semestreId) as $d) {
+            $atribuidos  = count($d['professores_atribuidos'] ?? []);
+            $necessarios = max(1, (int)($d['qtd_professores'] ?? 1));
+            $semAtribuir += max(0, $necessarios - $atribuidos);
+            if (empty($d['sala_atribuida'])) $semSala++;
+        }
+
+        if ($semAtribuir > 0 || $semSala > 0) {
+            $this->flash('warning', 'Atribuições salvas. Ainda há disciplinas sem professor ou sem sala.');
+            $this->redirect('/horarios/' . $semestreId . '/atribuir');
+            return;
+        }
+
+        $this->flash('success', 'Atribuições salvas.');
+        $this->redirect('/horarios');
+    }
+
+    // ── Atribuição: quadro drag & drop (só professores) ───────────
+    // Tela alternativa à dos dropdowns: blocos de disciplina arrastados para
+    // áreas de professor. Não mexe em salas — o form reenvia as atuais em
+    // campos ocultos, porque salvarAtribuicoes() regrava a tabela inteira.
+    public function verQuadroAtribuicao(string $id): void
+    {
+        $semestreId = (int)$id;
+        $semestre   = Database::fetchOne("SELECT * FROM semestres WHERE id = ?", [$semestreId]);
+        if (!$semestre) $this->redirect('/horarios');
+
+        $disciplinas = Semestre::disciplinasComAtribuicao($semestreId);
+        $professores = Professor::allAtivos();
+        $flash       = $this->getFlash();
+        $avisos      = FeasibilityChecker::verificar($semestreId);
+
+        $this->render('horarios/atribuir_quadro', compact(
+            'semestre', 'semestreId', 'disciplinas', 'professores', 'flash', 'avisos'
+        ));
+    }
+
+    // Salvar do quadro: mesma gravação da tela clássica, mas sempre volta ao
+    // quadro — é uma bancada de trabalho, não um passo de um assistente.
+    public function atribuirQuadro(string $id): void
+    {
+        $semestreId = (int)$id;
+        $aoLimbo = Semestre::salvarAtribuicoes(
+            $semestreId,
+            $this->post('atribuicao', []),
+            $this->post('sala', [])
+        );
+        if ($aoLimbo) {
+            $this->flash(
+                'warning',
+                'Atribuições salvas. Por conflito de horário do professor, foram enviadas ao limbo: '
+                . implode(', ', $aoLimbo) . '. Reposicione na grade ou regere o horário.'
+            );
         } else {
             $this->flash('success', 'Atribuições salvas.');
         }
-        $this->redirect('/horarios');
+        $this->redirect('/horarios/' . $semestreId . '/atribuir/quadro');
     }
 
     // ── Ensalamento: tela ─────────────────────────────────────────

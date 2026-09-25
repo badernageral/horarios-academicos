@@ -17,7 +17,10 @@ asort($turmasUnicas, SORT_NATURAL | SORT_FLAG_CASE);
     <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-primary"></i>Atribuição de Professores e Salas</h5>
     <small class="text-muted"><?= $semestreLabel ?></small>
   </div>
-  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/importar" class="btn btn-sm btn-outline-primary ms-auto">
+  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/quadro" class="btn btn-sm btn-outline-primary ms-auto">
+    <i class="bi bi-grid-1x2 me-1"></i>Quadro (arrastar)
+  </a>
+  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/importar" class="btn btn-sm btn-outline-primary">
     <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
   </a>
   <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalSalaTurma">
@@ -339,6 +342,8 @@ asort($turmasUnicas, SORT_NATURAL | SORT_FLAG_CASE);
             <tr>
               <th style="width:18%">Professor</th>
               <th>Disciplinas</th>
+              <th class="text-center" style="width:8%"
+                  title="Quantidade de disciplinas atribuídas">Disciplinas</th>
               <th class="text-center" style="width:10%"
                   title="Aulas por semana: presenciais + EaD">Aulas</th>
               <th class="text-center" style="width:14%"
@@ -354,15 +359,22 @@ asort($turmasUnicas, SORT_NATURAL | SORT_FLAG_CASE);
                 <?php if ($semCarga): ?>
                   <span class="text-muted fst-italic">sem disciplinas atribuídas</span>
                 <?php else: ?>
-                  <?php foreach ($p['disciplinas'] as $i => $d): ?><?= $i ? ' · ' : '' ?><span
-                    title="<?= htmlspecialchars($d['turma']) ?> — <?= $d['encontros'] ?> encontro(s) por semana"><?=
-                    htmlspecialchars($d['nome']) ?><span class="text-muted"> (<?= htmlspecialchars($d['turma']) ?>)</span><?php
+                  <?php foreach ($p['disciplinas'] as $i => $d):
+                    // Aulas DESTE professor nesta disciplina: numa disciplina
+                    // dividida, cargaPorProfessor() já gravou só a fatia dele.
+                    $rotAulas = $d['aulas'] . ($d['ead'] > 0 ? '+' . $d['ead'] . ' EaD' : '') . ' aulas';
+                  ?><?= $i ? ' · ' : '' ?><span
+                    title="<?= htmlspecialchars($d['turma']) ?> — <?= $d['encontros'] ?> encontro(s) por semana, <?= $rotAulas ?>"><?=
+                    htmlspecialchars($d['nome']) ?><span class="text-muted"> (<?= htmlspecialchars($d['turma']) ?>, <?= $rotAulas ?>)</span><?php
                     if ($d['dividida']): ?><span class="badge text-bg-light border ms-1"
                       title="Disciplina com mais de um professor: os encontros são divididos">dividida</span><?php endif; ?></span><?php endforeach; ?>
                   <?php if ($p['ead'] > 0): ?>
                   <span class="badge text-bg-info ms-1"><?= $p['ead'] ?> EaD</span>
                   <?php endif; ?>
                 <?php endif; ?>
+              </td>
+              <td class="text-center">
+                <?= $semCarga ? 0 : count($p['disciplinas']) ?>
               </td>
               <?php // Total semanal de aulas (presencial + EaD), com a quebra embaixo. ?>
               <td class="text-center">

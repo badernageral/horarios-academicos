@@ -195,7 +195,8 @@ class Semestre extends BaseModel
     {
         $rows = Database::fetchAll(
             "SELECT d.id, d.nome, d.sigla, d.turma_id,
-                    d.qtd_encontros_semanais, d.qtd_aulas, d.semestre_oferta, d.qtd_professores,
+                    d.qtd_encontros_semanais, d.qtd_aulas, d.qtd_aulas_ead,
+                    d.semestre_oferta, d.qtd_professores,
                     c.nome AS curso_nome, c.duracao_aula_minutos,
                     t.serie_periodo AS turma_nome,
                     d.nda_id, n.nome AS nda_nome,

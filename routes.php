@@ -92,6 +92,8 @@ $router->get('/horarios/{id}/editar',                  'HorariosController@edita
 $router->get('/horarios/{id}/detalhe',                 'HorariosController@detalhe');
 $router->get('/horarios/{id}/atribuir/importar',       'HorariosController@verImportarAtribuicao');
 $router->post('/horarios/{id}/atribuir/importar',      'HorariosController@importarAtribuicao');
+$router->get('/horarios/{id}/atribuir/quadro',         'HorariosController@verQuadroAtribuicao');
+$router->post('/horarios/{id}/atribuir/quadro',        'HorariosController@atribuirQuadro');
 $router->get('/horarios/{id}/atribuir',                'HorariosController@verAtribuir');
 $router->post('/horarios/{id}/atribuir',               'HorariosController@atribuir');
 $router->get('/horarios/{id}/ensalamento',             'HorariosController@verEnsalamento');
