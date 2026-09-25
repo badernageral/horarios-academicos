@@ -87,7 +87,7 @@
           </ul>
         </div>
         <?php endif; ?>
-        <a href="<?= $base ?>/horarios/<?= $s['id'] ?>/editar" class="btn btn-sm btn-outline-secondary" title="Editar semestre">
+        <a href="<?= $base ?>/horarios/<?= $s['id'] ?>/editar" class="btn btn-sm btn-outline-primary" title="Editar semestre">
           <i class="bi bi-pencil"></i>
         </a>
         <form method="POST" action="<?= $base ?>/horarios/deletar" class="d-inline"
@@ -108,7 +108,7 @@
 
       <?php if ($gerado): ?>
       <!-- Visualizar (antes de Regerar: consultar é a ação do dia a dia) -->
-      <a href="<?= $base ?>/horarios/geracao/<?= $ger['id'] ?>/grade" class="btn btn-sm btn-outline-dark">
+      <a href="<?= $base ?>/horarios/geracao/<?= $ger['id'] ?>/grade" class="btn btn-sm btn-primary">
         <i class="bi bi-grid-3x3-gap me-1"></i>Grade
       </a>
       <?php endif; ?>
@@ -116,14 +116,14 @@
       <!-- Gerar / Regerar -->
       <form method="POST" action="<?= $base ?>/horarios/<?= $s['id'] ?>/gerar" class="d-inline"
             onsubmit="return confirm('<?= $gerado ? 'Regerar horário? O atual será substituído.' : 'Gerar horário agora?' ?>')">
-        <button class="btn btn-sm <?= $gerado ? 'btn-outline-primary' : 'btn-primary' ?>">
+        <button class="btn btn-sm <?= $gerado ? 'btn-danger' : 'btn-primary' ?>">
           <i class="bi bi-magic me-1"></i><?= $gerado ? 'Regerar' : 'Gerar Horário' ?>
         </button>
       </form>
 
       <?php if ($s['qtd_atribuicoes'] > 0): ?>
       <!-- Exportar Moodle -->
-      <a href="<?= $base ?>/horarios/<?= $s['id'] ?>/moodle" class="btn btn-sm btn-outline-info">
+      <a href="<?= $base ?>/horarios/<?= $s['id'] ?>/moodle" class="btn btn-sm btn-secondary">
         <i class="bi bi-mortarboard me-1"></i>Moodle
       </a>
       <?php endif; ?>

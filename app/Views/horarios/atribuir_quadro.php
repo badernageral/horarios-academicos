@@ -1,7 +1,7 @@
 <?php
 use App\Services\ColorHelper;
 
-$pageTitle     = 'Quadro de Atribuição';
+$pageTitle     = 'Atribuição de Professores (Modo Quadro)';
 $semestreLabel = $semestre['semestre'] . 'º Semestre / ' . $semestre['ano'];
 
 // Todo o estado da tela vai para o JS de uma vez: a edição é 100% local e só
@@ -50,10 +50,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
   <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
   <div>
-    <h5 class="mb-0 fw-semibold"><i class="bi bi-grid-1x2 me-2 text-primary"></i>Quadro de Atribuição</h5>
+    <h5 class="mb-0 fw-semibold"><i class="bi bi-grid-1x2 me-2 text-primary"></i>Atribuição de Professores (Modo Quadro)</h5>
     <small class="text-muted"><?= $semestreLabel ?> · arraste a disciplina até o professor</small>
   </div>
-  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir" class="btn btn-sm btn-outline-primary ms-auto">
+  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir" class="btn btn-sm btn-success ms-auto">
     <i class="bi bi-list-check me-1"></i>Tela clássica (com salas)
   </a>
 </div>

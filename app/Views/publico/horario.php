@@ -45,7 +45,7 @@
       <i class="bi bi-calendar2-week-fill text-primary"></i>
       <span class="fw-bold">Horários Acadêmicos</span>
     </span>
-    <a href="<?= $base ?>/login" class="btn btn-sm btn-outline-primary">
+    <a href="<?= $base ?>/login" class="btn btn-sm btn-success">
       <i class="bi bi-box-arrow-in-right me-1"></i>Entrar
     </a>
   </div>

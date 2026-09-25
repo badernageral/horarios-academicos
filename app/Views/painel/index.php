@@ -85,7 +85,7 @@
                 <?= $s['atividades_falhas'] ?? '—' ?>
               </td>
               <td class="text-end">
-                <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-primary">
+                <a href="<?= $base ?>/horarios" class="btn btn-sm btn-success">
                   <i class="bi bi-arrow-right"></i>
                 </a>
                 <?php if ($s['geracao_id'] && in_array($s['geracao_status'], ['concluido','parcial'])): ?>

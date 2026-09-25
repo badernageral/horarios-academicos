@@ -23,7 +23,7 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir,
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-book me-2 text-primary"></i>Disciplinas</h5>
   <div class="d-flex gap-2">
-    <a href="<?= $base ?>/disciplinas/importar" class="btn btn-outline-primary btn-sm">
+    <a href="<?= $base ?>/disciplinas/importar" class="btn btn-success btn-sm">
       <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
     </a>
     <a href="<?= $base ?>/disciplinas/nova?voltar=<?= urlencode($voltarUrl) ?>" class="btn btn-primary btn-sm">

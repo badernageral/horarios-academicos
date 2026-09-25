@@ -14,14 +14,20 @@ asort($turmasUnicas, SORT_NATURAL | SORT_FLAG_CASE);
 <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
   <a href="<?= $base ?>/horarios" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
   <div>
-    <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-primary"></i>Atribuição de Professores e Salas</h5>
+    <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-primary"></i>Atribuição de Professores e Salas (Modo Clássico)</h5>
     <small class="text-muted"><?= $semestreLabel ?></small>
   </div>
-  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/quadro" class="btn btn-sm btn-outline-primary ms-auto">
-    <i class="bi bi-grid-1x2 me-1"></i>Quadro (arrastar)
-  </a>
-  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/importar" class="btn btn-sm btn-outline-primary">
+  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/importar" class="btn btn-sm btn-success ms-auto">
     <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
+  </a>
+  <button type="button" class="btn btn-sm btn-roxo" data-bs-toggle="modal" data-bs-target="#modalCargaProfessor">
+    <i class="bi bi-clock-history me-1"></i>Disciplinas por professor
+  </button>
+  <button type="button" class="btn btn-sm btn-roxo" data-bs-toggle="modal" data-bs-target="#modalOcupacaoSalas">
+    <i class="bi bi-door-open me-1"></i>Ocupação das salas
+  </button>
+  <a href="<?= $base ?>/horarios/<?= $semestreId ?>/atribuir/quadro" class="btn btn-sm btn-primary">
+    <i class="bi bi-grid-1x2 me-1"></i>Atribuição de Professores (Modo Quadro)
   </a>
   <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalSalaTurma">
     <i class="bi bi-door-open me-1"></i>Definir sala por turma
@@ -306,13 +312,17 @@ asort($turmasUnicas, SORT_NATURAL | SORT_FLAG_CASE);
 })();
 </script>
 
-<?php // Relatório de carga por NDA do PROFESSOR. Vem das atribuições acima, não
-      // da grade gerada — serve para conferir a distribuição ANTES de gerar. ?>
-<div class="card border-0 shadow-sm mt-4">
-  <div class="card-header bg-transparent fw-semibold">
-    <i class="bi bi-clock-history me-2"></i>Carga horária por professor
-  </div>
-  <div class="card-body">
+<?php // Relatório de carga por NDA do PROFESSOR (modal, aberto pelo cabeçalho). Vem
+      // das atribuições acima, não da grade gerada — serve para conferir a
+      // distribuição ANTES de gerar. ?>
+<div class="modal fade" id="modalCargaProfessor" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-clock-history me-2"></i>Carga horária por professor</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
 
     <?php if (empty($cargaPorNda)): ?>
       <p class="text-muted mb-0">Nenhum professor ativo cadastrado.</p>
@@ -325,13 +335,22 @@ asort($turmasUnicas, SORT_NATURAL | SORT_FLAG_CASE);
         <span class="badge text-bg-light border"><?= count($g['professores']) ?> professor(es)</span>
         <?php $semCargaNda = count(array_filter($g['professores'], fn($x) => empty($x['disciplinas']))); ?>
         <?php if ($semCargaNda > 0): ?>
-        <span class="badge text-bg-warning"><?= $semCargaNda ?> sem carga</span>
+        <span class="badge text-bg-warning"><?= $semCargaNda ?> sem disciplinas atribuídas</span>
         <?php endif; ?>
         <span class="ms-auto small text-muted">
           Total do NDA:
           <strong><?= $g['aulas_total'] ?></strong> aulas<?php
             if ($g['ead'] > 0): ?> (<?= $g['aulas'] ?> + <?= $g['ead'] ?> EaD)<?php endif; ?> ·
           <strong><?= $g['minutos'] > 0 ? \App\Services\TimeHelper::formatDuration($g['minutos']) : '0h' ?></strong>
+          <?php // Média sobre TODOS os professores do NDA, inclusive os sem disciplina.
+          $qtdProf = count($g['professores']);
+          if ($qtdProf > 0):
+              $mediaMin = (int) round($g['minutos'] / $qtdProf); ?>
+          <span class="mx-1">|</span>
+          Média por professor:
+          <strong><?= number_format($g['aulas_total'] / $qtdProf, 1, ',', '') ?></strong> aulas ·
+          <strong><?= $mediaMin > 0 ? \App\Services\TimeHelper::formatDuration($mediaMin) : '0h' ?></strong>
+          <?php endif; ?>
         </span>
       </div>
 
@@ -399,15 +418,20 @@ asort($turmasUnicas, SORT_NATURAL | SORT_FLAG_CASE);
     <?php endforeach; ?>
 
     <?php endif; ?>
+      </div>
+    </div>
   </div>
 </div>
 
-<?php // Relatório de salas: blocos lado a lado, cada um com suas disciplinas. ?>
-<div class="card border-0 shadow-sm mt-4">
-  <div class="card-header bg-transparent fw-semibold">
-    <i class="bi bi-door-open me-2"></i>Ocupação das salas
-  </div>
-  <div class="card-body">
+<?php // Relatório de salas (modal): blocos lado a lado, cada um com suas disciplinas. ?>
+<div class="modal fade" id="modalOcupacaoSalas" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-door-open me-2"></i>Ocupação das salas</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
     <?php if (empty($ocupacaoSalas)): ?>
       <p class="text-muted mb-0">Nenhuma sala ativa cadastrada.</p>
     <?php else: ?>
@@ -453,5 +477,7 @@ asort($turmasUnicas, SORT_NATURAL | SORT_FLAG_CASE);
       <?php endforeach; ?>
     </div>
     <?php endif; ?>
+      </div>
+    </div>
   </div>
 </div>

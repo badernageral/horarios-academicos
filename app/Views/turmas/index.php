@@ -19,7 +19,7 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-people me-2 text-primary"></i>Turmas</h5>
   <div class="d-flex gap-2">
-    <a href="<?= $base ?>/turmas/importar" class="btn btn-outline-primary btn-sm">
+    <a href="<?= $base ?>/turmas/importar" class="btn btn-success btn-sm">
       <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
     </a>
     <a href="<?= $base ?>/turmas/nova" class="btn btn-primary btn-sm">

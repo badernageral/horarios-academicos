@@ -11,7 +11,8 @@ namespace App\Services;
 class UpdateChecker
 {
     private const REPO      = 'badernageral/horarios-academicos';
-    private const INTERVALO = 86400; // 1 dia
+    private const INTERVALO       = 86400; // 1 dia
+    private const INTERVALO_FALHA = 3600;  // falha (sem rede, API fora): tenta de novo em 1h
 
     // Só quando há atualização disponível — usado no aviso discreto do menu/topbar.
     public static function verificar(): ?array
@@ -52,7 +53,9 @@ class UpdateChecker
     {
         $cache = self::lerCache();
 
-        if ($cache !== null && (time() - $cache['verificado_em']) < self::INTERVALO) {
+        $intervalo = ($cache['tag'] ?? null) !== null ? self::INTERVALO : self::INTERVALO_FALHA;
+
+        if ($cache !== null && (time() - $cache['verificado_em']) < $intervalo) {
             return [$cache['tag'], $cache['verificado_em']];
         }
 
@@ -67,30 +70,66 @@ class UpdateChecker
 
     private static function consultarGithub(): ?string
     {
-        if (!function_exists('curl_init')) {
-            return null;
-        }
+        $url       = 'https://api.github.com/repos/' . self::REPO . '/releases/latest';
+        $cabecalho = [
+            'User-Agent: horarios-academicos-update-checker',
+            'Accept: application/vnd.github+json',
+        ];
 
-        $ch = curl_init('https://api.github.com/repos/' . self::REPO . '/releases/latest');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 4,
-            CURLOPT_CONNECTTIMEOUT => 4,
-            CURLOPT_HTTPHEADER     => [
-                'User-Agent: horarios-academicos-update-checker',
-                'Accept: application/vnd.github+json',
-            ],
-        ]);
-        $resposta = curl_exec($ch);
-        $status   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        // cURL quando existir; senão, stream HTTP nativo do PHP (precisa só de
+        // allow_url_fopen + openssl). Nem todo PHP tem a extensão curl — o do
+        // servidor de desenvolvimento, por exemplo, não tem.
+        $resposta = function_exists('curl_init')
+            ? self::baixarCurl($url, $cabecalho)
+            : self::baixarStream($url, $cabecalho);
 
-        if ($resposta === false || $status !== 200) {
+        if ($resposta === null) {
             return null;
         }
 
         $dados = json_decode($resposta, true);
 
         return is_array($dados) && !empty($dados['tag_name']) ? (string) $dados['tag_name'] : null;
+    }
+
+    private static function baixarCurl(string $url, array $cabecalho): ?string
+    {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 4,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_HTTPHEADER     => $cabecalho,
+        ]);
+        $resposta = curl_exec($ch);
+        $status   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        return $resposta === false || $status !== 200 ? null : (string) $resposta;
+    }
+
+    private static function baixarStream(string $url, array $cabecalho): ?string
+    {
+        if (!ini_get('allow_url_fopen') || !extension_loaded('openssl')) {
+            return null;
+        }
+
+        $ctx = stream_context_create(['http' => [
+            'method'        => 'GET',
+            'header'        => implode("\r\n", $cabecalho),
+            'timeout'       => 4,
+            'ignore_errors' => true, // lê o corpo mesmo em 4xx/5xx, para checar o status abaixo
+        ]]);
+
+        $resposta = @file_get_contents($url, false, $ctx);
+
+        // A primeira linha dos cabeçalhos traz o status ("HTTP/1.1 200 OK").
+        $cabecalhos = function_exists('http_get_last_response_headers')
+            ? (http_get_last_response_headers() ?? [])
+            : ($http_response_header ?? []);
+        $status = isset($cabecalhos[0]) && preg_match('#^HTTP/\S+\s+(\d{3})#', $cabecalhos[0], $m)
+            ? (int) $m[1] : 0;
+
+        return $resposta === false || $status !== 200 ? null : $resposta;
     }
 
     private static function cacheFile(): string
