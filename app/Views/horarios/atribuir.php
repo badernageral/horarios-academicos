@@ -132,10 +132,13 @@ asort($turmasUnicas, SORT_NATURAL | SORT_FLAG_CASE);
                 <select name="atribuicao[<?= $d['id'] ?>][<?= $slot ?>]" class="form-select form-select-sm select-professor"
                         data-disc-nda="<?= (int)($d['nda_id'] ?? 0) ?>">
                   <option value="">— Sem professor —</option>
-                  <?php foreach ($professores as $p): ?>
+                  <?php foreach ($professores as $p):
+                    // Fora do período (inativo / "ativo até" anterior) só aparece
+                    // onde já está atribuído: sem a opção, salvar apagaria o vínculo.
+                    if ($p['fora_periodo'] && $profAtrib != $p['id']) continue; ?>
                   <option value="<?= $p['id'] ?>" data-prof-nda="<?= (int)($p['nda_id'] ?? 0) ?>"
                           <?= $profAtrib == $p['id'] ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($p['nome']) ?>
+                    <?= htmlspecialchars($p['nome']) ?><?= $p['fora_periodo'] ? ' (fora do período)' : '' ?>
                   </option>
                   <?php endforeach; ?>
                 </select>

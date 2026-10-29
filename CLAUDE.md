@@ -252,6 +252,23 @@ o Salvar, que reusa `Semestre::salvarAtribuicoes()` e volta para o próprio quad
 - Desfazer com pilha de 50: `mutar()` empilha **um gesto** (mover = tirar + pôr = 1 passo) e
   só quando o estado muda de fato.
 
+## Professor "ativo até" (out/2026)
+
+Fim de contrato sem inativar: `professores.ativo_ate_ano` + `ativo_ate_semestre` (migration 010;
+NULL = sem data de saída). Regra única em `Professor::condNoSemestre()` (ativo E
+`ano*10+período` do semestre ≤ o "ativo até") — usar SEMPRE ela, não `ativo = 1`, em tudo que
+é por semestre (dropdowns/quadro via `Professor::doSemestre()`, relatório de carga, importação
+em massa, cópia de semestre).
+- `doSemestre()` inclui também quem está FORA do período mas JÁ atribuído no semestre
+  (`fora_periodo = 1`, rótulo "(fora do período)"): sem a opção, o dropdown mostraria "Sem
+  professor" e salvar a tela clássica apagaria a atribuição e mexeria na grade. Inativar
+  alguém não pode afetar semestre em andamento.
+- Copiar semestre não leva atribuições de quem não leciona no destino (slots renumerados
+  1..n); os horários copiados ficam com o professor antigo até alguém ser atribuído —
+  `redistribuirEncontros` passa as aulas ao novo, mantendo dia/hora. `FeasibilityChecker`
+  avisa enquanto sobrar professor fora do período em atribuição ou grade.
+- Importar backup limpa `$_SESSION['sga_migr_ok']`: o `.sqlite` pode ser de schema antigo.
+
 ## Verificação de atualização (set/2026)
 
 `UpdateChecker` consulta `releases/latest` do GitHub e mostra o resultado em `/atualizacoes` e

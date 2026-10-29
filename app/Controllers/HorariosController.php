@@ -102,9 +102,13 @@ class HorariosController extends BaseController
         $texto  = $this->post('linhas', '');
         $linhas = array_filter(array_map('trim', explode("\n", $texto)));
 
-        // Cache de professores: nome minúsculo → id
+        // Cache de professores que lecionam no semestre: nome minúsculo → id
         $profMap = [];
-        foreach (Database::fetchAll("SELECT id, nome FROM professores WHERE ativo = 1") as $p) {
+        foreach (Database::fetchAll(
+            "SELECT p.id, p.nome FROM professores p JOIN semestres sem ON sem.id = ?
+             WHERE " . Professor::condNoSemestre('p', 'sem'),
+            [$semestreId]
+        ) as $p) {
             $profMap[strtolower(trim($p['nome']))] = (int)$p['id'];
         }
 
@@ -185,7 +189,7 @@ class HorariosController extends BaseController
         if (!$semestre) $this->redirect('/horarios');
 
         $disciplinas = Semestre::disciplinasComAtribuicao($semestreId);
-        $professores = Professor::allAtivos();
+        $professores = Professor::doSemestre($semestreId);
         $salas       = Sala::allAtivas();
         $semAtribuir = 0;
         $semSala     = 0;
@@ -278,7 +282,7 @@ class HorariosController extends BaseController
         if (!$semestre) $this->redirect('/horarios');
 
         $disciplinas = Semestre::disciplinasComAtribuicao($semestreId);
-        $professores = Professor::allAtivos();
+        $professores = Professor::doSemestre($semestreId);
         $flash       = $this->getFlash();
         $avisos      = FeasibilityChecker::verificar($semestreId);
 
@@ -918,15 +922,38 @@ class HorariosController extends BaseController
         Database::beginTransaction();
         try {
             Database::query("DELETE FROM semestre_atribuicoes WHERE semestre_id=?", [$destinoId]);
-            Database::query(
-                "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot)
-                 SELECT ?, sa.disciplina_id, sa.professor_id, sa.slot
+
+            // Atribuições de quem NÃO leciona no destino (inativo ou com "ativo
+            // até" anterior) não são levadas: a disciplina chega sem professor.
+            // Os slots restantes são renumerados 1..n — o gerador divide os
+            // encontros por slot, e um buraco no slot 1 mudaria a divisão.
+            $condDestino = Professor::condNoSemestre('p', 'sem');
+            $levar = Database::fetchAll(
+                "SELECT sa.disciplina_id, sa.professor_id, {$condDestino} AS leciona
                  FROM semestre_atribuicoes sa
                  JOIN disciplinas d ON d.id = sa.disciplina_id
+                 JOIN professores p ON p.id = sa.professor_id
+                 JOIN semestres sem ON sem.id = ?
                  WHERE sa.semestre_id = ? AND d.ativo = 1
-                   AND (d.semestre_oferta & ?) > 0",
+                   AND (d.semestre_oferta & ?) > 0
+                 ORDER BY sa.disciplina_id, sa.slot",
                 [$destinoId, $origemId, $oferta]
             );
+            $proxSlot = [];
+            $foraPeriodo = []; // nomes de quem ficou de fora
+            foreach ($levar as $a) {
+                if (!(int)$a['leciona']) {
+                    $foraPeriodo[(int)$a['professor_id']] = true;
+                    continue;
+                }
+                $did  = (int)$a['disciplina_id'];
+                $slot = $proxSlot[$did] = ($proxSlot[$did] ?? 0) + 1;
+                Database::query(
+                    "INSERT INTO semestre_atribuicoes (semestre_id, disciplina_id, professor_id, slot)
+                     VALUES (?, ?, ?, ?)",
+                    [$destinoId, $did, (int)$a['professor_id'], $slot]
+                );
+            }
             $qtd = (int) Database::fetchValue(
                 "SELECT COUNT(*) FROM semestre_atribuicoes WHERE semestre_id=?", [$destinoId]
             );
@@ -1010,7 +1037,19 @@ class HorariosController extends BaseController
             $msg .= '. A origem não tinha grade gerada — gere a deste semestre.';
         }
 
-        $this->flash('success', $msg);
+        if ($foraPeriodo) {
+            $ids   = array_keys($foraPeriodo);
+            $nomes = array_column(Database::fetchAll(
+                "SELECT nome FROM professores WHERE id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")
+                 ORDER BY nome",
+                $ids
+            ), 'nome');
+            $msg .= ' Não foram levadas as atribuições de quem não leciona neste semestre ('
+                  . implode(', ', $nomes) . '): essas disciplinas ficaram sem professor'
+                  . ($novaGeracaoId ? ' — os horários delas na grade foram mantidos e passam ao professor que você atribuir.' : '.');
+        }
+
+        $this->flash($foraPeriodo ? 'warning' : 'success', $msg);
         $this->redirect('/horarios');
     }
 

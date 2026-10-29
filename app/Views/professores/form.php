@@ -74,6 +74,20 @@ $gradeDisp   = $gradeDisp ?? [];
                 <option value="Substituto" <?= ($professor['vinculo'] ?? 'Efetivo') === 'Substituto' ? 'selected':'' ?>>Substituto</option>
               </select>
             </div>
+            <div class="col-md-5">
+              <?php $ateSem = (int)($professor['ativo_ate_semestre'] ?? 2) ?: 2; ?>
+              <label class="form-label">Ativo até</label>
+              <div class="input-group">
+                <input type="number" name="ativo_ate_ano" class="form-control" min="2000" max="2100"
+                       placeholder="Ano" value="<?= htmlspecialchars((string)($professor['ativo_ate_ano'] ?? '')) ?>">
+                <select name="ativo_ate_semestre" class="form-select" style="max-width:9rem">
+                  <option value="1" <?= $ateSem === 1 ? 'selected' : '' ?>>1º semestre</option>
+                  <option value="2" <?= $ateSem === 2 ? 'selected' : '' ?>>2º semestre</option>
+                </select>
+              </div>
+              <div class="form-text">Último semestre em que leciona (fim de contrato). Some dos
+                semestres seguintes; em branco = sem data de saída.</div>
+            </div>
           </div>
         </div>
       </div>

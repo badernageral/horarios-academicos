@@ -142,13 +142,16 @@ class Semestre extends BaseModel
             ];
         }
 
-        // Professores ATIVOS sem nenhuma atribuição também entram, com zero —
-        // é justamente quem se quer enxergar ao conferir a distribuição.
+        // Professores que lecionam no semestre sem nenhuma atribuição também
+        // entram, com zero — é justamente quem se quer enxergar ao conferir a
+        // distribuição. Quem saiu antes ("ativo até") não entra.
         foreach (Database::fetchAll(
             "SELECT p.id, p.nome, p.nda_id, n.nome AS nda_nome
              FROM professores p
+             JOIN semestres sem ON sem.id = ?
              LEFT JOIN ndas n ON n.id = p.nda_id
-             WHERE p.ativo = 1"
+             WHERE " . Professor::condNoSemestre('p', 'sem'),
+            [$semestreId]
         ) as $p) {
             $ndaId = $p['nda_id'] !== null ? (int)$p['nda_id'] : 0;
             $pid   = (int)$p['id'];

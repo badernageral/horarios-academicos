@@ -1,11 +1,13 @@
 <?php
 $pageTitle = 'Professores';
-$th = function(string $col, string $label, string $extra = '') use ($sort, $dir) {
+// Ordenar não pode desligar o "Exibir inativos".
+$qsInativos = $comInativos ? '&inativos=1' : '';
+$th = function(string $col, string $label, string $extra = '') use ($sort, $dir, $qsInativos) {
     $nd   = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
     $icon = $sort === $col
         ? ($dir === 'asc' ? '<i class="bi bi-sort-up ms-1"></i>' : '<i class="bi bi-sort-down ms-1"></i>')
         : '<i class="bi bi-arrow-down-up ms-1 text-muted opacity-50" style="font-size:.75em"></i>';
-    return "<th{$extra}><a href=\"?sort={$col}&dir={$nd}\" class=\"text-decoration-none text-dark\">{$label}{$icon}</a></th>";
+    return "<th{$extra}><a href=\"?sort={$col}&dir={$nd}{$qsInativos}\" class=\"text-decoration-none text-dark\">{$label}{$icon}</a></th>";
 };
 ?>
 
@@ -18,7 +20,16 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold"><i class="bi bi-person-badge me-2 text-primary"></i>Professores</h5>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 align-items-center">
+    <div class="form-check mb-0 me-1">
+      <input class="form-check-input" type="checkbox" id="exibirInativos" <?= $comInativos ? 'checked' : '' ?>
+             onchange="const u = new URL(location.href);
+                       this.checked ? u.searchParams.set('inativos', '1') : u.searchParams.delete('inativos');
+                       location.href = u.toString();">
+      <label class="form-check-label small" for="exibirInativos">
+        Exibir inativos<?= $qtdInativos ? ' (' . $qtdInativos . ')' : '' ?>
+      </label>
+    </div>
     <a href="<?= $base ?>/professores/importar" class="btn btn-success btn-sm">
       <i class="bi bi-cloud-upload me-1"></i>Importar em Massa
     </a>
@@ -30,7 +41,9 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
 
 <?php if (empty($grupos)): ?>
 <div class="card border-0 shadow-sm">
-  <div class="card-body text-center text-muted py-4">Nenhum professor cadastrado.</div>
+  <div class="card-body text-center text-muted py-4">
+    <?= $qtdInativos && !$comInativos ? 'Nenhum professor ativo. Marque "Exibir inativos" para ver os demais.' : 'Nenhum professor cadastrado.' ?>
+  </div>
 </div>
 <?php endif; ?>
 
@@ -116,6 +129,9 @@ $th = function(string $col, string $label, string $extra = '') use ($sort, $dir)
               <span class="badge <?= $p['ativo'] ? 'bg-success' : 'bg-secondary' ?>">
                 <?= $p['ativo'] ? 'Ativo' : 'Inativo' ?>
               </span>
+              <?php if ($ate = \App\Models\Professor::rotuloAtivoAte($p)): ?>
+              <div><span class="badge text-bg-light border mt-1" title="Último semestre em que leciona">até <?= $ate ?></span></div>
+              <?php endif; ?>
             </td>
             <td class="text-end">
               <a href="<?= $base ?>/professores/<?= $p['id'] ?>/editar" class="btn btn-sm btn-outline-primary">

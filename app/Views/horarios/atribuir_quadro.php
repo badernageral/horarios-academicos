@@ -32,7 +32,9 @@ foreach ($professores as $p) {
     $corSec = $p['cor_secundaria'] ?? '#f97316';
     $profJs[] = [
         'id'      => (int)$p['id'],
-        'nome'    => $p['nome'],
+        // Fora do período só chega aqui se já estiver atribuído no semestre
+        // (Professor::doSemestre); o rótulo avisa para trocar.
+        'nome'    => $p['nome'] . ($p['fora_periodo'] ? ' (fora do período)' : ''),
         'ndaId'   => (int)($p['nda_id'] ?? 0),
         'ndaNome' => $p['nda_nome'] ?? 'Sem NDA',
         'cor'     => $corPri,

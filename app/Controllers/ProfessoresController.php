@@ -13,6 +13,13 @@ class ProfessoresController extends BaseController
         $professores = Professor::allComNda($sort, $dir);
         $flash       = $this->getFlash();
 
+        // Inativos ficam ocultos por padrão; o checkbox da tela liga ?inativos=1.
+        $comInativos = $this->get('inativos') === '1';
+        $qtdInativos = count(array_filter($professores, fn($p) => !(int)$p['ativo']));
+        if (!$comInativos) {
+            $professores = array_filter($professores, fn($p) => (int)$p['ativo']);
+        }
+
         // Professores agrupados por NDA. A unicidade de cores é verificada
         // DENTRO de cada NDA: a paleta tem 50 pares e o que se compara na grade
         // são professores do mesmo NDA — exigir unicidade global travaria a
@@ -47,7 +54,7 @@ class ProfessoresController extends BaseController
         }
         unset($g);
 
-        $this->render('professores/index', compact('grupos', 'flash', 'sort', 'dir'));
+        $this->render('professores/index', compact('grupos', 'flash', 'sort', 'dir', 'comInativos', 'qtdInativos'));
     }
 
     public function novo(): void
@@ -104,6 +111,17 @@ class ProfessoresController extends BaseController
         $vinculo = $this->post('vinculo', 'Efetivo');
         if (!in_array($vinculo, ['Efetivo', 'Substituto'], true)) $vinculo = 'Efetivo';
 
+        // "Ativo até" (fim de contrato): ano + período, ou nada. Ano em branco
+        // limpa os dois — não existe "ativo até o 2º semestre" sem ano.
+        $ateAno = (int)$this->post('ativo_ate_ano', 0);
+        $ateSem = (int)$this->post('ativo_ate_semestre', 2);
+        if ($ateAno < 2000 || $ateAno > 2100) {
+            $ateAno = null;
+            $ateSem = null;
+        } elseif ($ateSem !== 1 && $ateSem !== 2) {
+            $ateSem = 2;
+        }
+
         $data = [
             'nome'          => trim($this->post('nome')),
             'matricula'     => $matricula,
@@ -111,6 +129,8 @@ class ProfessoresController extends BaseController
             'vinculo'       => $vinculo,
             'usuario_moodle'=> $usuarioMoodle !== '' ? $usuarioMoodle : null,
             'ativo'         => $this->post('ativo', 1),
+            'ativo_ate_ano'      => $ateAno,
+            'ativo_ate_semestre' => $ateSem,
             'cor'           => $cor,
             'cor_secundaria'=> $corSec,
         ];

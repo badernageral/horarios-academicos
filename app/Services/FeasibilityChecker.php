@@ -8,7 +8,7 @@ use App\Core\Database;
  * Verifica inviabilidades estruturais ANTES da geração do horário:
  *  1. Encontro com mais aulas do que o dia comporta (slots do turno)
  *  2. Demanda semanal da turma maior que a capacidade do turno
- *  3. Professor atribuído sem disponibilidade cadastrada
+ *  3. Professor atribuído sem disponibilidade cadastrada (ou fora do período)
  */
 class FeasibilityChecker
 {
@@ -122,6 +122,25 @@ class FeasibilityChecker
         );
         foreach ($profsSemDisp as $p) {
             $avisos[] = "Professor {$p['nome']} tem disciplinas atribuídas, mas nenhuma disponibilidade cadastrada — nada dele será agendado.";
+        }
+
+        // 3b. Professor fora do período (inativo ou "ativo até" anterior ao
+        // semestre) ainda atribuído ou na grade — ex.: semestre copiado de um
+        // anterior, ou contrato encerrado depois da atribuição.
+        $cond = \App\Models\Professor::condNoSemestre('p', 'sem');
+        $foraPeriodo = Database::fetchAll(
+            "SELECT p.nome FROM professores p
+             JOIN semestres sem ON sem.id = ?
+             WHERE NOT {$cond}
+               AND (p.id IN (SELECT professor_id FROM semestre_atribuicoes WHERE semestre_id = sem.id)
+                    OR p.id IN (SELECT h.professor_id FROM horarios h
+                                JOIN geracoes g ON g.id = h.geracao_id
+                                WHERE g.semestre_id = sem.id))
+             ORDER BY p.nome",
+            [$semestreId]
+        );
+        foreach ($foraPeriodo as $p) {
+            $avisos[] = "Professor {$p['nome']} não leciona neste semestre (inativo ou com \"ativo até\" anterior), mas ainda tem disciplinas atribuídas ou aulas na grade — troque na atribuição.";
         }
 
         // 4. Salas: demanda semanal x oferta

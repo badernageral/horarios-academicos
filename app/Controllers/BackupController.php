@@ -94,6 +94,11 @@ class BackupController extends BaseController
         @unlink($path . '-wal');
         @unlink($path . '-shm');
 
+        // O backup pode ser de uma versão anterior do schema: força o
+        // Migrator::verificarNoBoot() a reconferir o banco na próxima
+        // requisição, em vez de confiar no carimbo desta sessão.
+        unset($_SESSION['sga_migr_ok']);
+
         $this->flash('success', 'Backup importado com sucesso. O estado anterior foi salvo em backups/' . basename($seguranca) . '.');
         $this->redirect('/backup');
     }

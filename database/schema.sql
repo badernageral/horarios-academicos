@@ -84,6 +84,9 @@ CREATE TABLE professores (
     cor                       TEXT NOT NULL DEFAULT '#3b82f6',
     cor_secundaria            TEXT NOT NULL DEFAULT '#f97316',
     ativo                     INTEGER NOT NULL DEFAULT 1,
+    -- Último semestre em que leciona (fim de contrato). NULL = sem data de saída.
+    ativo_ate_ano             INTEGER,
+    ativo_ate_semestre        INTEGER,
     created_at                TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at                TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (nda_id) REFERENCES ndas(id) ON DELETE SET NULL

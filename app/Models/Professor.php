@@ -18,6 +18,47 @@ class Professor extends BaseModel
         );
     }
 
+    /**
+     * Condição SQL "professor leciona no semestre": ativo e sem "ativo até"
+     * anterior ao semestre. `$p` = alias de professores, `$s` = de semestres.
+     * Ano*10+período ordena os semestres (2026/2 = 20262 < 20271 = 2027/1).
+     */
+    public static function condNoSemestre(string $p = 'p', string $s = 'sem'): string
+    {
+        return "({$p}.ativo = 1 AND ({$p}.ativo_ate_ano IS NULL
+                 OR {$p}.ativo_ate_ano * 10 + COALESCE({$p}.ativo_ate_semestre, 2)
+                    >= {$s}.ano * 10 + {$s}.semestre))";
+    }
+
+    /**
+     * Professores selecionáveis num semestre: os que lecionam nele e, além
+     * deles, quem JÁ está atribuído ali mesmo fora do período (inativo ou com
+     * "ativo até" anterior) — marcado com `fora_periodo = 1`. Sem estes, o
+     * dropdown mostraria "Sem professor" e salvar a tela apagaria a atribuição.
+     */
+    public static function doSemestre(int $semestreId): array
+    {
+        $cond = self::condNoSemestre('p', 'sem');
+        return Database::fetchAll(
+            "SELECT p.*, n.nome AS nda_nome,
+                    CASE WHEN {$cond} THEN 0 ELSE 1 END AS fora_periodo
+             FROM professores p
+             JOIN semestres sem ON sem.id = ?
+             LEFT JOIN ndas n ON n.id = p.nda_id
+             WHERE {$cond}
+                OR p.id IN (SELECT professor_id FROM semestre_atribuicoes WHERE semestre_id = ?)
+             ORDER BY p.nome",
+            [$semestreId, $semestreId]
+        );
+    }
+
+    /** "2026/2", ou null quando o professor não tem data de saída. */
+    public static function rotuloAtivoAte(array $p): ?string
+    {
+        if (empty($p['ativo_ate_ano'])) return null;
+        return (int)$p['ativo_ate_ano'] . '/' . (int)($p['ativo_ate_semestre'] ?: 2);
+    }
+
     public static function allComNda(string $sort = 'nome', string $dir = 'asc'): array
     {
         $map = ['nome' => 'p.nome', 'nda_nome' => 'n.nome', 'usuario_moodle' => 'p.usuario_moodle', 'vinculo' => 'p.vinculo', 'ativo' => 'p.ativo'];
